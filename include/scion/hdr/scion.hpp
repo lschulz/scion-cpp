@@ -67,8 +67,8 @@ public:
     std::uint16_t plen = 0;
     std::uint32_t fl = 0;
 
-    Address<generic::IPAddress> dst;
-    Address<generic::IPAddress> src;
+    ScIPAddress dst;
+    ScIPAddress src;
 
     bool operator==(const SCION&) const = default;
 

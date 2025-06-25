@@ -54,3 +54,14 @@ SET(SRC_TRACEROUTE
 add_executable(traceroute ${SRC_TRACEROUTE})
 target_include_directories(traceroute PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(traceroute PRIVATE scion-cpp CLI11::CLI11)
+
+# ========
+# resolver
+# ========
+
+SET(SRC_RESOLVER
+    "resolver/main.cpp"
+)
+add_executable(resolver ${SRC_RESOLVER})
+target_include_directories(resolver PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(resolver PRIVATE scion-cpp CLI11::CLI11)

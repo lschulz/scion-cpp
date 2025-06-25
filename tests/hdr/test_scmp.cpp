@@ -46,8 +46,8 @@ protected:
         refScion.nh = hdr::ScionProto::SCMP;
         refScion.ptype = hdr::PathType::Empty;
         refScion.fl = 0xf'ffffu;
-        refScion.dst = unwrap(Address<generic::IPAddress>::Parse("1-ff00:0:1,10.0.0.1"));
-        refScion.src = unwrap(Address<generic::IPAddress>::Parse("2-ff00:0:2,fd00::2"));
+        refScion.dst = unwrap(ScIPAddress::Parse("1-ff00:0:1,10.0.0.1"));
+        refScion.src = unwrap(ScIPAddress::Parse("2-ff00:0:2,fd00::2"));
 
         refScionPayload.qos = 32;
         refScionPayload.hlen = 12;

@@ -46,7 +46,7 @@ namespace scion {
 
 template <typename F>
 concept ScmpCallback = std::invocable<F,
-    const Address<generic::IPAddress>&,
+    const ScIPAddress&,
     const RawPath&,
     const hdr::ScmpMessage&,
     std::span<const std::byte>>;
@@ -54,7 +54,7 @@ concept ScmpCallback = std::invocable<F,
 struct DefaultScmpCallback
 {
     void operator()(
-        const Address<generic::IPAddress>& from,
+        const ScIPAddress& from,
         const RawPath& path,
         const hdr::ScmpMessage& msg,
         std::span<const std::byte> payload)
@@ -75,7 +75,7 @@ struct DefaultScmpCallback
 class ScionPackager
 {
 public:
-    using Endpoint = scion::Endpoint<generic::IPEndpoint>;
+    using Endpoint = scion::ScIPEndpoint;
 
     struct ScmpResponse
     {

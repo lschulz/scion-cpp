@@ -39,6 +39,8 @@ std::string ScionErrorCategory::message(int code) const
             return "operation cancelled";
         case ErrorCode::Pending:
             return "operation pending";
+        case ErrorCode::Timeout:
+            return "operation timed out";
         case ErrorCode::ScmpReceived:
             return "received an SCMP packet";
         case ErrorCode::LogicError:
@@ -57,6 +59,10 @@ std::string ScionErrorCategory::message(int code) const
             return "IPv6 address requires zone identifier";
         case ErrorCode::NoLocalHostAddr:
             return "no suitable underlay host address found";
+        case ErrorCode::NameNotFound:
+            return "name not found";
+        case ErrorCode::RemoteError:
+            return "remote machine returned an error";
         case ErrorCode::InvalidPacket:
             return "received an invalid packet";
         case ErrorCode::ChecksumError:
@@ -91,6 +97,8 @@ std::string ScionErrorCondition::message(int code) const
             return "operation cancelled";
         case ErrorCondition::Pending:
             return "operation pending";
+        case ErrorCondition::Timeout:
+            return "operation timed out";
         case ErrorCondition::ScmpReceived:
             return "received an SCMP packet";
         case ErrorCondition::LogicError:
@@ -109,6 +117,10 @@ std::string ScionErrorCondition::message(int code) const
             return "IPv6 address requires zone identifier";
         case ErrorCondition::NoLocalHostAddr:
             return "no suitable underlay host address found";
+        case ErrorCondition::NameNotFound:
+            return "name not found";
+        case ErrorCondition::RemoteError:
+            return "remote machine returned an error";
         case ErrorCondition::InvalidPacket:
             return "received an invalid packet";
         case ErrorCondition::ChecksumError:

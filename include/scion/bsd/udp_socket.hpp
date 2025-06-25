@@ -39,8 +39,8 @@ class UDPSocket : public SCMPSocket<Underlay>
 public:
     using UnderlayEp = typename Underlay::SockAddr;
     using UnderlayAddr = typename EndpointTraits<UnderlayEp>::HostAddr;
-    using Endpoint = scion::Endpoint<generic::IPEndpoint>;
-    using Address = scion::Address<generic::IPAddress>;
+    using Endpoint = scion::ScIPEndpoint;
+    using Address = scion::ScIPAddress;
 
 protected:
     ScmpHandler* scmpHandler;
@@ -207,7 +207,7 @@ private:
         E2EExt&& e2eExt)
     {
         auto scmpCallback = [this] (
-            const scion::Address<generic::IPAddress>& from,
+            const scion::ScIPAddress& from,
             const RawPath& path,
             const hdr::ScmpMessage& msg,
             std::span<const std::byte> payload)

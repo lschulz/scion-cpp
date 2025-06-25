@@ -23,7 +23,6 @@
 #include "scion/addr/address.hpp"
 #include "scion/addr/isd_asn.hpp"
 
-#include <algorithm>
 #include <concepts>
 #include <cstdint>
 #include <format>
@@ -39,6 +38,10 @@ template <typename Ep> struct EndpointTraits
 {
     static_assert(sizeof(Ep) < 0, "EndpointTraits is not specialized for this type");
 };
+
+namespace details {
+Maybe<std::pair<std::string_view, std::uint16_t>> splitHostPort(std::string_view text);
+}
 
 /// \brief Global UDP or TCP endpoint address consisting of ISD-ASN, host
 /// address, and port.
@@ -94,39 +97,16 @@ public:
             && getPort() != 0;
     }
 
-    /// \brief Parse IP address with optional port. If no port is given, the
+    /// \brief Parse a SCION endpoint with optional port. If no port is given, the
     /// port is set to 0.
     static Maybe<Endpoint<T>> Parse(std::string_view text)
     {
-        using AddressTraits = scion::AddressTraits<typename scion::Endpoint<T>::HostAddr>;
+        auto split = details::splitHostPort(text);
+        if (isError(split)) return propagateError(split);
+        auto [addr, port] = *split;
 
-        auto sep = text.rfind(":");
-        if (sep == text.npos) return Error(ErrorCode::SyntaxError);
-        auto addr = text.substr(0, sep);
-
-        if (addr.starts_with('[')) {
-            if (!addr.ends_with(']'))
-                return Error(ErrorCode::SyntaxError);
-            addr.remove_prefix(1);
-            addr.remove_suffix(1);
-        }
         auto sc = ScionAddr::Parse(addr);
         if (isError(sc)) return propagateError(sc);
-        if (AddressTraits::type(get(sc).getHost()) == HostAddrType::IPv6) {
-            if (!text.starts_with('['))
-            return Error(ErrorCode::SyntaxError);
-        }
-
-        auto portStr = text.substr(sep + 1);
-        std::uint16_t port = 0;
-        const auto begin = portStr.data();
-        const auto end = begin + portStr.size();
-        auto res = std::from_chars(begin, end, port, 10);
-        if (res.ptr != end)
-            return Error(ErrorCode::SyntaxError);
-        else if (res.ec == std::errc::invalid_argument || res.ec == std::errc::result_out_of_range)
-            return Error(std::make_error_code(res.ec));
-
         return Endpoint<T>(get(sc), port);
     }
 

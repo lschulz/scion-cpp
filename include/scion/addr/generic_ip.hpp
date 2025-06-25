@@ -486,6 +486,13 @@ Maybe<T> toUnderlay(const IPEndpoint& ep)
 } // namespace generic
 } // namespace scion
 
+namespace scion {
+
+using ScIPAddress = Address<generic::IPAddress>;
+using ScIPEndpoint = Endpoint<generic::IPEndpoint>;
+
+} // namespace scion
+
 template <>
 struct scion::AddressTraits<scion::generic::IPAddress>
 {

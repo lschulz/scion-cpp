@@ -66,8 +66,8 @@ public:
         typename L4>
     std::error_code build(
         std::uint8_t tc,
-        const Endpoint<generic::IPEndpoint>& to,
-        const Endpoint<generic::IPEndpoint>& from,
+        const ScIPEndpoint& to,
+        const ScIPEndpoint& from,
         const Path& path,
         ExtRange&& extensions,
         L4&& l4,
@@ -218,7 +218,7 @@ private:
     template <typename L4>
     static std::uint32_t computeFlowLabel(const hdr::SCION& scHdr, const L4& l4)
     {
-        std::hash<Address<generic::IPAddress>> h1;
+        std::hash<ScIPAddress> h1;
         return (std::uint32_t)(h1(scHdr.dst) ^ h1(scHdr.src) ^ l4.flowLabel());
     }
 

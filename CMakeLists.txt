@@ -102,15 +102,17 @@ asio_grpc_protobuf_generate(
 # ============
 
 set(SRC
-    "src/error_codes.cpp"
-    "src/addr/isd_asn.cpp"
+    "src/addr/endpoint.cpp"
     "src/addr/generic_ip.cpp"
-    "src/daemon/client.cpp"
-    "src/path/path.cpp"
-    "src/path/path_meta.cpp"
+    "src/addr/isd_asn.cpp"
     "src/bit_stream.cpp"
-    "src/murmur_hash3.cpp"
+    "src/daemon/client.cpp"
     "src/default_address.cpp"
+    "src/error_codes.cpp"
+    "src/murmur_hash3.cpp"
+    "src/path/path_meta.cpp"
+    "src/path/path.cpp"
+    "src/resolver.cpp"
 )
 
 add_library(scion-cpp ${SRC})
@@ -159,6 +161,7 @@ set(SRC_TEST
     "tests/asio/test_addresses.cpp"
     "tests/asio/test_scmp_socket.cpp"
     "tests/asio/test_udp_socket.cpp"
+    "tests/resolver/test_resolver.cpp"
 )
 
 add_executable(unit-tests ${SRC_TEST})

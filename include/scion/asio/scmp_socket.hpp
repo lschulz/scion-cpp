@@ -40,8 +40,8 @@ public:
     using UnderlaySocket = boost::asio::ip::udp::socket;
     using UnderlayEp = typename boost::asio::ip::udp::endpoint;
     using UnderlayAddr = typename EndpointTraits<UnderlayEp>::HostAddr;
-    using Endpoint = scion::Endpoint<generic::IPEndpoint>;
-    using Address = scion::Address<generic::IPAddress>;
+    using Endpoint = scion::ScIPEndpoint;
+    using Address = scion::ScIPAddress;
 
 protected:
     UnderlaySocket socket;

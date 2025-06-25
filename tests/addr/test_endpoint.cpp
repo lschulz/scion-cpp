@@ -94,19 +94,21 @@ TYPED_TEST(ScionIPv4EpTest, Parse)
 
     IsdAsn ia1(Isd(1), Asn(0xff00'0000'0001));
     auto ep1 = EpTraits::fromHostPort(unwrap(AddrTraits::fromString("127.0.0.1")), 50000);
+    auto ep2 = EpTraits::fromHostPort(unwrap(AddrTraits::fromString("127.0.0.1")), 0);
 
     EXPECT_EQ(unwrap(Endpoint::Parse("[1-ff00:0:1,127.0.0.1]:50000")), Endpoint(ia1, ep1));
     EXPECT_EQ(unwrap(Endpoint::Parse("1-ff00:0:1,127.0.0.1:50000")), Endpoint(ia1, ep1));
     EXPECT_EQ(
         unwrap(Endpoint::Parse("[1-1,127.0.0.1]:50000")),
         Endpoint(IsdAsn(Isd(1), Asn(1)), ep1));
+    EXPECT_EQ(unwrap(Endpoint::Parse("1-ff00:0:1,127.0.0.1")), Endpoint(ia1, ep2));
+    EXPECT_EQ(unwrap(Endpoint::Parse("[1-ff00:0:1,127.0.0.1]")), Endpoint(ia1, ep2));
 
     EXPECT_TRUE(hasFailed(Endpoint::Parse("")));
     EXPECT_TRUE(hasFailed(Endpoint::Parse(",")));
     EXPECT_TRUE(hasFailed(Endpoint::Parse("127.0.0.1")));
     EXPECT_TRUE(hasFailed(Endpoint::Parse(",127.0.0.1")));
     EXPECT_TRUE(hasFailed(Endpoint::Parse("127.0.0.1:80")));
-    EXPECT_TRUE(hasFailed(Endpoint::Parse("[1-ff00:0:1,127.0.0.1]")));
     EXPECT_TRUE(hasFailed(Endpoint::Parse("[1-ff00:0:1,127.0.0.1]:")));
     EXPECT_TRUE(hasFailed(Endpoint::Parse(":50000")));
 }
@@ -187,19 +189,23 @@ TYPED_TEST(ScionIPv6EpTest, Parse)
 
     IsdAsn ia1(Isd(1), Asn(0xff00'0000'0001));
     auto ep1 = EpTraits::fromHostPort(unwrap(AddrTraits::fromString("::1")), 50000);
+    auto ep2 = EpTraits::fromHostPort(unwrap(AddrTraits::fromString("::1")), 0);
 
     EXPECT_EQ(unwrap(Endpoint::Parse("[1-ff00:0:1,::1]:50000")), Endpoint(ia1, ep1));
     EXPECT_EQ(unwrap(Endpoint::Parse("[1-1,::1]:50000")), Endpoint(IsdAsn(Isd(1), Asn(1)), ep1));
+    EXPECT_EQ(unwrap(Endpoint::Parse("1-ff00:0:1,::1")), Endpoint(ia1, ep2));
+    EXPECT_EQ(unwrap(Endpoint::Parse("[1-ff00:0:1,::1]")), Endpoint(ia1, ep2));
+    EXPECT_EQ(unwrap(Endpoint::Parse("1-ff00:0:1,::1:80")),  Endpoint(ia1,
+        EpTraits::fromHostPort(unwrap(AddrTraits::fromString("::1:80")), 0)
+    ));
 
     EXPECT_TRUE(hasFailed(Endpoint::Parse("")));
     EXPECT_TRUE(hasFailed(Endpoint::Parse(",")));
     EXPECT_TRUE(hasFailed(Endpoint::Parse("::1")));
     EXPECT_TRUE(hasFailed(Endpoint::Parse(",::1")));
     EXPECT_TRUE(hasFailed(Endpoint::Parse("fd00:102:304:506:708:90a:b0c:d0e:80")));
-    EXPECT_TRUE(hasFailed(Endpoint::Parse("[1-ff00:0:1,::1]")));
     EXPECT_TRUE(hasFailed(Endpoint::Parse("[1-ff00:0:1,::1]:")));
     EXPECT_TRUE(hasFailed(Endpoint::Parse(":50000")));
-    EXPECT_TRUE(hasFailed(Endpoint::Parse("1-ff00:0:1,::1:80")));
 }
 
 TYPED_TEST(ScionIPv6EpTest, Format)

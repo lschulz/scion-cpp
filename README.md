@@ -7,6 +7,7 @@ Still a work in progress.
 - Boost >= 1.83.0
 - Protobuf >= 3.21.12
 - gRPC >= 1.51.1
+- c-ares >= 1.27.0
 - ncurses for the examples on platforms other than Windows
 - [asio-grpc](https://github.com/Tradias/asio-grpc) (included as submodule)
 - [googletest](https://github.com/google/googletest) (included as submodule)
@@ -64,3 +65,5 @@ make test-data
 - `examples/echo_udp_async`: UDP echo client and server using coroutines.
 - `examples/traceroute`: Illustrates sending and receiving SCMP messages using
   coroutines.
+- `examples/resolver`: Example of resolving symbolic host names to SCION
+  addresses.

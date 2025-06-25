@@ -36,6 +36,7 @@ enum class ErrorCode : int
     // alternate success
     Cancelled = 1, ///< operation cancelled
     Pending,       ///< operation not completed yet
+    Timeout,       ///< operation timed out
     ScmpReceived,  ///< received an SCMP packet
 
     // errors
@@ -47,6 +48,8 @@ enum class ErrorCode : int
     PacketTooBig,     ///< packet or payload too big
     RequiresZone,     ///< IPv6 address requires zone identifier
     NoLocalHostAddr,  ///< no suitable underlay host address found
+    NameNotFound,     ///< name was not found
+    RemoteError,      ///< remote machine returned an error
 
     // packet validation errors
     InvalidPacket = 256, ///< received an invalid packet
@@ -71,6 +74,7 @@ enum class ErrorCondition : int
     Ok = 0, ///< no error
     Cancelled = 1, ///< operation cancelled
     Pending,       ///< operation not completed yet
+    Timeout,       ///< operation timed out
     ScmpReceived,  ///< received an SCMP packet
     LogicError = 128, ///< expected precondition failed
     NotImplemented,   ///< not implemented (yet)
@@ -80,6 +84,8 @@ enum class ErrorCondition : int
     PacketTooBig,     ///< packet or payload too big
     RequiresZone,     ///< IPv6 address requires zone identifier
     NoLocalHostAddr,  ///< no suitable underlay host address found
+    NameNotFound,     ///< name was not found
+    RemoteError,      ///< remote machine returned an error
     InvalidPacket = 256, ///< received an invalid packet
     ChecksumError,       ///< packet checksum incorrect
     DstAddrMismatch,     ///< packet rejected because of unexpected destination address
@@ -129,7 +135,8 @@ inline std::error_code getError(const Maybe<T>& maybe)
 }
 
 template <typename T>
-inline std::unexpected<std::error_code> propagateError(const Maybe<T>& maybe)
+[[nodiscard]] inline
+std::unexpected<std::error_code> propagateError(const Maybe<T>& maybe)
 {
     return Error(maybe.error());
 }

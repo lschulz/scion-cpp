@@ -266,7 +266,7 @@ public:
     }
 
     bool handleScmpCallback(
-        const Address<generic::IPAddress>& from,
+        const ScIPAddress& from,
         const RawPath& path,
         const hdr::ScmpMessage& msg,
         std::span<const std::byte> payload) override

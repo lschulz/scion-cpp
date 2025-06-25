@@ -44,8 +44,8 @@ class SCMPSocket
 public:
     using UnderlayEp = typename Underlay::SockAddr;
     using UnderlayAddr = typename EndpointTraits<UnderlayEp>::HostAddr;
-    using Endpoint = scion::Endpoint<generic::IPEndpoint>;
-    using Address = scion::Address<generic::IPAddress>;
+    using Endpoint = scion::ScIPEndpoint;
+    using Address = scion::ScIPAddress;
 
 protected:
     Underlay socket;

@@ -29,6 +29,10 @@
     {
       "name": "grpc",
       "version>=": "1.51.1"
+    },
+    {
+      "name": "c-ares",
+      "version>=": "1.27.0"
     }
   ]
 }

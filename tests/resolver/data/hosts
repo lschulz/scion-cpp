@@ -1,0 +1,4 @@
+# This is a sample SCION hosts file
+
+example.com    1-ff00:0:0,127.0.0.1    1-ff00:0:0,::1    #  1-ff00:0:1,::2
+# example.com  1-ff00:0:1,::2

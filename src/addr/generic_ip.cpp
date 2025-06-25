@@ -34,6 +34,11 @@ using std::uint64_t;
 
 
 namespace scion {
+
+namespace details {
+Maybe<std::pair<std::string_view, std::uint16_t>> splitHostPort(std::string_view text);
+}
+
 namespace generic {
 
 ///////////////
@@ -308,47 +313,14 @@ std::format_context::iterator IPAddress::formatTo(
 
 Maybe<IPEndpoint> IPEndpoint::Parse(std::string_view text, bool noZone) noexcept
 {
-    // split address and port
-    std::string_view addr, port;
-    std::size_t sep = text.npos;
-    if (text.starts_with('[')) {
-        sep = text.rfind("]");
-        if (sep == text.npos) return Error(ErrorCode::SyntaxError);
-        addr = text.substr(1, sep - 1);
-        if ((sep + 1) < text.size() && text[sep + 1] == ':') {
-            port = text.substr(sep + 2);
-            if (port.empty()) return Error(ErrorCode::SyntaxError);
-        }
-    } else {
-        sep = text.rfind(':');
-        addr = text.substr(0, sep);
-        if (sep != text.npos) {
-            if (addr.contains(':')) {
-                // IPv6 without port
-                addr = text.substr();
-            } else {
-                // IPv4 or IPv4 with port
-                port = text.substr(sep + 1);
-                if (port.empty()) return Error(ErrorCode::SyntaxError);
-            }
-        }
-    }
+    auto split = details::splitHostPort(text);
+    if (isError(split)) return propagateError(split);
+    auto [host, port] = *split;
 
-    auto ip = IPAddress::Parse(addr, noZone);
+    auto ip = IPAddress::Parse(host, noZone);
     if (isError(ip)) return propagateError(ip);
 
-    uint16_t portValue = 0;
-    if (!port.empty()) {
-        const auto begin = port.data();
-        const auto end = begin + port.size();
-        auto res = std::from_chars(begin, end, portValue, 10);
-        if (res.ptr != end)
-            return Error(ErrorCode::SyntaxError);
-        else if (res.ec == std::errc::invalid_argument || res.ec == std::errc::result_out_of_range)
-            return Error(ErrorCode::SyntaxError);
-    }
-
-    return IPEndpoint(get(ip), portValue);
+    return IPEndpoint(get(ip), port);
 }
 
 std::ostream& operator<<(std::ostream& stream, const IPEndpoint& ep)

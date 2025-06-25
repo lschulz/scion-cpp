@@ -159,7 +159,7 @@ TEST(IdInt, Emit)
     intOpt.instr[3] = IdIntInstruction::Nop;
     intOpt.sourceTS = 1000;
     intOpt.sourcePort = 10;
-    intOpt.verifier = Address<generic::IPAddress>(IsdAsn{}, generic::IPAddress::UnspecifiedIPv4());
+    intOpt.verifier = ScIPAddress(IsdAsn{}, generic::IPAddress::UnspecifiedIPv4());
     EXPECT_EQ(intOpt.size(), 22);
     ASSERT_TRUE(intOpt.serialize(stream, err)) << err;
 
@@ -262,7 +262,7 @@ TEST(IdInt, ParseEncrypted)
     EXPECT_EQ(intOpt.instr[3], IdIntInstruction::Nop);
     EXPECT_EQ(intOpt.sourceTS, 1000);
     EXPECT_EQ(intOpt.sourcePort, 10);
-    EXPECT_EQ(intOpt.verifier, unwrap(Address<generic::IPAddress>::Parse("1-ff00:0:1,fd00::1")));
+    EXPECT_EQ(intOpt.verifier, unwrap(ScIPAddress::Parse("1-ff00:0:1,fd00::1")));
 
     // ID-INT Source Entry
     ASSERT_TRUE(entry[0].serialize(stream, err)) << err;
@@ -362,7 +362,7 @@ TEST(IdInt, EmitEncrypted)
     intOpt.instr[3] = IdIntInstruction::Nop;
     intOpt.sourceTS = 1000;
     intOpt.sourcePort = 10;
-    intOpt.verifier = unwrap(Address<generic::IPAddress>::Parse("1-ff00:0:1,fd00::1"));
+    intOpt.verifier = unwrap(ScIPAddress::Parse("1-ff00:0:1,fd00::1"));
     EXPECT_EQ(intOpt.size(), 46);
     ASSERT_TRUE(intOpt.serialize(stream, err)) << err;
 

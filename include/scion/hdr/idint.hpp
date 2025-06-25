@@ -151,7 +151,7 @@ public:
     std::array<IdIntInstruction, 4> instr = {};
     std::uint64_t sourceTS = 0;
     std::uint16_t sourcePort = 0;
-    Address<generic::IPAddress> verifier;
+    ScIPAddress verifier;
 
     /// \brief Compute the correct value for `dataLen`.
     std::size_t size() const

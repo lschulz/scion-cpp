@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/build/Debug/unit-tests",
             "args": [
-                // "--gtest_filter='*'"
+                // "--gtest_filter='Resolver*'"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
@@ -186,6 +186,38 @@
                 "--sciond", "127.0.0.19:30255",
                 "--local", "127.0.0.1",
                 "1-ff00:0:112,127.0.0.1"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [
+                {
+                    "name": "SCION_DAEMON_ADDRESS",
+                    "value": "127.0.0.19:30255"
+                }
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "Resolver",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/examples/Debug/resolver",
+            "args": [
+                "--hosts", "${workspaceFolder}/tests/resolver/data/hosts",
+                "example.com"
             ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",

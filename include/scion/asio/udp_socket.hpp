@@ -607,7 +607,7 @@ private:
                         return;
                     }
                     auto scmpCallback = [this] (
-                        const scion::Address<generic::IPAddress>& from,
+                        const scion::ScIPAddress& from,
                         const RawPath& path,
                         const hdr::ScmpMessage& msg,
                         std::span<const std::byte> payload)
@@ -685,7 +685,7 @@ private:
         E2EExt&& e2eExt)
     {
         auto scmpCallback = [this] (
-            const scion::Address<generic::IPAddress>& from,
+            const scion::ScIPAddress& from,
             const RawPath& path,
             const hdr::ScmpMessage& msg,
             std::span<const std::byte> payload)

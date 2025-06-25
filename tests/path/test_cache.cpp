@@ -209,7 +209,7 @@ TYPED_TEST(PathCacheTest, SCMPHandler)
     EXPECT_EQ(result->size(), 2);
 
     // revoke path by ScmpIntConnDown
-    Address<generic::IPAddress> from;
+    ScIPAddress from;
     std::span<std::byte> payload;
     hdr::ScmpMessage scmp = hdr::ScmpIntConnDown{
         IsdAsn(Isd(1), Asn(1)), AsInterface(0), AsInterface(3)
