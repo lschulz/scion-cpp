@@ -83,6 +83,16 @@ public:
         std::span<const std::byte> payload;
     };
 
+private:
+    // Value of traffic class (aka. QoS) field in the SCION header.
+    std::uint8_t trafficClass = 0;
+    // Local bind address. The IPEndpoint must not be unspecified in IP or port.
+    Endpoint local;
+    // "Connected" remote endpoint. If set (not unspecified), packets from
+    // endpoints not matching remote are rejected.
+    Endpoint remote;
+
+public:
     /// \brief Set the local address. The local address is used as source
     /// address for sent packets and to filter received packets.
     ///
@@ -240,7 +250,7 @@ public:
         ReadStream rs(buf);
         SCION_STREAM_ERROR err;
         if (!pkt.parse(rs, err)) {
-            SCION_DEBUG_PRINT(err << std::endl);
+            SCION_DEBUG_PRINT(err);
             return Error(ErrorCode::InvalidPacket);
         }
 
@@ -250,14 +260,14 @@ public:
         if (!hbhExt.empty()) {
             ReadStream rs(pkt.hbhOpts);
             if (!ext::parseExtensions(rs, std::forward<HbHExt>(hbhExt), err)) {
-                SCION_DEBUG_PRINT(err << std::endl);
+                SCION_DEBUG_PRINT(err);
                 return Error(ErrorCode::InvalidPacket);
             }
         }
         if (!e2eExt.empty()) {
             ReadStream rs(pkt.hbhOpts);
             if (!ext::parseExtensions(rs, std::forward<E2EExt>(e2eExt), err)) {
-                SCION_DEBUG_PRINT(err << std::endl);
+                SCION_DEBUG_PRINT(err);
                 return Error(ErrorCode::InvalidPacket);
             }
         }
@@ -316,15 +326,6 @@ private:
         RawPath rp(pkt.sci.src.getIsdAsn(), pkt.sci.dst.getIsdAsn(), pkt.sci.ptype, pkt.path);
         handler(pkt.sci.src, rp, std::get<hdr::SCMP>(pkt.l4).msg, pkt.payload);
     }
-
-private:
-    // Value of traffic class (aka. QoS) field in the SCION header.
-    std::uint8_t trafficClass = 0;
-    // Local bind address. The IPEndpoint must not be unspecified in IP or port.
-    Endpoint local;
-    // "Connected" remote endpoint. If set (not unspecified), packets from
-    // endpoints not matching remote are rejected.
-    Endpoint remote;
 };
 
 } // namespace scion

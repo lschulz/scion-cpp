@@ -63,6 +63,7 @@ TYPED_TEST(ScionIPv4AddrTest, AddressTraits)
 
     EXPECT_EQ(unwrap(AddrTraits::fromString("10.255.0.1")), ip);
     EXPECT_EQ(std::format("{}", ip), "10.255.0.1");
+    EXPECT_EQ(std::formatted_size("{}", ip), 10);
 }
 
 TYPED_TEST(ScionIPv4AddrTest, ScionAddress)
@@ -127,6 +128,7 @@ TYPED_TEST(ScionIPv4AddrTest, Format)
         IsdAsn(Isd(1), Asn(0xff00'0000'0001)),
         unwrap(AddrTraits::fromString("127.0.0.1")));
     EXPECT_EQ(std::format("{}", addr), "1-ff00:0:1,127.0.0.1");
+    EXPECT_EQ(std::formatted_size("{}", addr), 20);
 }
 
 template <typename T>
@@ -165,6 +167,7 @@ TYPED_TEST(ScionIPv6AddrTest, AddressTraits)
         unwrap(AddrTraits::fromString("fc00:102:304:506:708:90a:b0c:d0e")),
         ip);
     EXPECT_EQ(std::format("{}", ip), "fc00:102:304:506:708:90a:b0c:d0e");
+    EXPECT_EQ(std::formatted_size("{}", ip), 32);
 }
 
 TYPED_TEST(ScionIPv6AddrTest, ScionAddress)
@@ -229,4 +232,5 @@ TYPED_TEST(ScionIPv6AddrTest, Format)
         IsdAsn(Isd(1), Asn(0xff00'0000'0001)),
         unwrap(AddrTraits::fromString("::1")));
     EXPECT_EQ(std::format("{}", addr), "1-ff00:0:1,::1");
+    EXPECT_EQ(std::formatted_size("{}", addr), 14);
 }

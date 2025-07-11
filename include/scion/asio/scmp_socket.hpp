@@ -71,6 +71,10 @@ public:
         // Bind underlay socket
         auto underlayEp = generic::toUnderlay<bsd::IPEndpoint>(ep.getLocalEp());
         if (isError(underlayEp)) return getError(underlayEp);
+        if (underlayEp->data.generic.sa_family == AF_INET6) {
+            underlayEp->data.v6.sin6_scope_id = details::byteswapBE(
+                ep.getAddress().getHost().getZoneId());
+        }
         bsd::BSDSocket<bsd::IPEndpoint> s;
         auto err = s.bind_range(*underlayEp, firstPort, lastPort);
         if (err) return err;
@@ -82,9 +86,9 @@ public:
         // Assign bound socket to Asio
         boost::system::error_code ec;
         if (local->getHost().is4())
-            socket.assign(boost::asio::ip::udp::v4(), s.getNativeHandle(), ec);
+            socket.assign(boost::asio::ip::udp::v4(), s.underlaySocket(), ec);
         else
-            socket.assign(boost::asio::ip::udp::v6(), s.getNativeHandle(), ec);
+            socket.assign(boost::asio::ip::udp::v6(), s.underlaySocket(), ec);
         if (ec) return ec;
         else s.release();
 
@@ -107,17 +111,29 @@ public:
         socket.close();
     }
 
+    /// \brief Cancel all asynchronous operations associated with the socket.
+    /// Calls `cancel()` on the underlying ASIO socket.
+    std::error_code cancel()
+    {
+        boost::system::error_code ec;
+        socket.cancel(ec);
+        return ec;
+    }
+
     /// \brief Determine whether the socket is open.
     bool isOpen() const { return socket.is_open(); }
 
     /// \brief Get the native handle of the underlay socket.
-    UnderlaySocket::native_handle_type getNativeHandle()
+    UnderlaySocket::native_handle_type underlaySocket()
     {
         return socket.native_handle();
     }
 
     /// \brief Returns the full address of the socket.
     Endpoint getLocalEp() const { return packager.getLocalEp(); }
+
+    /// \brief Returns the address of the connected remote host.
+    Endpoint getRemoteEp() const { return packager.getRemoteEp(); }
 
     /// \brief Set the traffic class of sent packets. Only affects the SCION
     /// header, not the underlay socket.
@@ -127,9 +143,12 @@ public:
     std::uint8_t getTrafficClass() const { return packager.getTrafficClass(); }
 
     /// \brief Sets the non-blocking mode of the socket.
-    void setNonblocking(bool nonblocking)
+    std::error_code setNonblocking(bool nonblocking)
     {
-        socket.non_blocking(nonblocking);
+        if (!socket.is_open()) return ErrorCode::InvalidSocket;
+        boost::system::error_code ec;
+        socket.non_blocking(nonblocking, ec);
+        return ec;
     }
 
     /// \name Synchronous Send

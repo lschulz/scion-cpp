@@ -65,3 +65,9 @@ SET(SRC_RESOLVER
 add_executable(resolver ${SRC_RESOLVER})
 target_include_directories(resolver PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(resolver PRIVATE scion-cpp CLI11::CLI11)
+
+# ==========
+# C examples
+# ==========
+
+add_subdirectory(c)

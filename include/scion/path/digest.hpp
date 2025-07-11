@@ -37,6 +37,8 @@ public:
 
     auto operator<=>(const PathDigest&) const = default;
 
+    const std::uint64_t* value() const { return digest; }
+
     friend struct std::formatter<scion::PathDigest>;
     friend std::ostream& operator<<(std::ostream& stream, const PathDigest& pd);
 

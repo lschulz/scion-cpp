@@ -39,7 +39,8 @@ Maybe<std::pair<std::string_view, std::uint16_t>> splitHostPort(std::string_view
         sep = text.rfind("]");
         if (sep == text.npos) return Error(ErrorCode::SyntaxError);
         addr = text.substr(1, sep - 1);
-        if ((sep + 1) < text.size() && text[sep + 1] == ':') {
+        if ((sep + 1) < text.size()) {
+            if (text[sep + 1] != ':') return Error(ErrorCode::SyntaxError);
             port = text.substr(sep + 2);
             if (port.empty()) return Error(ErrorCode::SyntaxError);
         }

@@ -152,6 +152,29 @@ TYPED_TEST(PathCacheTest, NoPaths)
     EXPECT_TRUE(result->empty());
 }
 
+// Test empty paths for AS-internal communication.
+TYPED_TEST(PathCacheTest, EmptyPath)
+{
+    using namespace scion;
+
+    TypeParam cache;
+    auto queryPaths = [] (TypeParam& cache, IsdAsn src, IsdAsn dst) -> std::error_code {
+        cache.store(src, dst, std::views::empty<PathPtr>);
+        return ErrorCode::Ok;
+    };
+
+    auto ia = unwrap(IsdAsn::Parse("1-ff00:0:1"));
+    EXPECT_TRUE(cache.lookupCached(ia, ia).empty());
+
+    auto result = cache.lookup(ia, ia, queryPaths);
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->size(), 1);
+    auto path = result->at(0);
+    ASSERT_TRUE(path->empty());
+    ASSERT_EQ(path->firstAS(), ia);
+    ASSERT_EQ(path->lastAS(), ia);
+}
+
 // Test a path callback that does not provide paths immediately.
 TYPED_TEST(PathCacheTest, AsyncRefresh)
 {

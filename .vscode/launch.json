@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/build/Debug/unit-tests",
             "args": [
-                // "--gtest_filter='Resolver*'"
+                "--gtest_filter='CInterface*'"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
@@ -242,5 +242,136 @@
                 }
             ]
         },
+        {
+            "name": "C Echo Server",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/examples/c/Debug/echo-udp-c",
+            "args": [
+                "--sciond", "127.0.0.27:30255",
+                "--local", "127.0.0.1:31000"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [
+                {
+                    "name": "SCION_DAEMON_ADDRESS",
+                    "value": "127.0.0.27:30255"
+                }
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "C Echo Client",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/examples/c/Debug/echo-udp-c",
+            "args": [
+                "--sciond", "127.0.0.19:30255",
+                "--local", "127.0.0.1",
+                "--remote", "1-ff00:0:112,127.0.0.1:31000"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [
+                {
+                    "name": "SCION_DAEMON_ADDRESS",
+                    "value": "127.0.0.19:30255"
+                }
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+            {
+            "name": "C Async Echo Server",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/examples/c/Debug/echo-udp-async-c",
+            "args": [
+                "--sciond", "127.0.0.27:30255",
+                "--local", "127.0.0.1:31000"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [
+                {
+                    "name": "SCION_DAEMON_ADDRESS",
+                    "value": "127.0.0.27:30255"
+                }
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "C Async Echo Client",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/examples/c/Debug/echo-udp-async-c",
+            "args": [
+                "--sciond", "127.0.0.19:30255",
+                "--local", "127.0.0.1",
+                "--remote", "1-ff00:0:112,127.0.0.1:31000",
+                "-c", "3"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [
+                {
+                    "name": "SCION_DAEMON_ADDRESS",
+                    "value": "127.0.0.19:30255"
+                }
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        }
     ]
 }

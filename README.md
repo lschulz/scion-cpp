@@ -67,3 +67,4 @@ make test-data
   coroutines.
 - `examples/resolver`: Example of resolving symbolic host names to SCION
   addresses.
+- `examples/c`: C interface examples.

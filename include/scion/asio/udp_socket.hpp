@@ -144,7 +144,8 @@ public:
         std::span<const std::byte> payload,
         CompletionToken&& token)
     {
-        return sendAsyncImpl(headers, nullptr, path, nextHop, ext::NoExtensions, payload, token);
+        return sendAsyncImpl(headers, nullptr, path, nextHop, ext::NoExtensions, payload,
+            std::forward<CompletionToken>(token));
     }
 
     template <
@@ -160,7 +161,8 @@ public:
         CompletionToken&& token)
     {
         return sendAsyncImpl(headers, nullptr, path, nextHop,
-            std::forward<ExtRange>(extensions), payload, token);
+            std::forward<ExtRange>(extensions), payload,
+            std::forward<CompletionToken>(token));
     }
 
     template <
@@ -175,7 +177,8 @@ public:
         std::span<const std::byte> payload,
         CompletionToken&& token)
     {
-        return sendAsyncImpl(headers, &to, path, nextHop, ext::NoExtensions, payload, token);
+        return sendAsyncImpl(headers, &to, path, nextHop, ext::NoExtensions, payload,
+            std::forward<CompletionToken>(token));
     }
 
     template <
@@ -192,7 +195,8 @@ public:
         CompletionToken&& token)
     {
         return sendAsyncImpl(headers, &to, path, nextHop,
-            std::forward<ExtRange>(extensions), payload, token);
+            std::forward<ExtRange>(extensions), payload,
+            std::forward<CompletionToken>(token));
     }
 
     template <
@@ -205,7 +209,8 @@ public:
         std::span<const std::byte> payload,
         CompletionToken&& token)
     {
-        return sendCachedAsyncImpl(headers, nullptr, nextHop, payload, token);
+        return sendCachedAsyncImpl(headers, nullptr, nextHop, payload,
+            std::forward<CompletionToken>(token));
     }
 
     template <
@@ -219,7 +224,8 @@ public:
         std::span<const std::byte> payload,
         CompletionToken&& token)
     {
-        return sendCachedAsyncImpl(headers, &to, nextHop, payload, token);
+        return sendCachedAsyncImpl(headers, &to, nextHop, payload,
+            std::forward<CompletionToken>(token));
     }
 
     ///@}

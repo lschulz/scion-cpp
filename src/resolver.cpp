@@ -24,26 +24,22 @@
 #include <ares.h>
 #include <boost/algorithm/string.hpp>
 
-#if __linux__
-#include <arpa/nameser.h>
-#elif _WIN32
+#if _WIN32
 constexpr int ns_c_in = 1;
 constexpr int ns_t_txt = 16;
+#else
+#include <arpa/nameser.h>
 #endif
 
 #include <fstream>
 
 
 namespace scion {
-
 #if _WIN32
 const char* HOSTS_FILE = "%ProgramFiles%\\scion\\hosts";
 #else
 const char* HOSTS_FILE = "/etc/scion/hosts";
 #endif
-
-extern ScionErrorCondition scionErrorCondition;
-
 } // namespace scion
 
 struct CAresErrorCategory : public std::error_category
@@ -61,7 +57,7 @@ struct CAresErrorCategory : public std::error_category
     bool equivalent(int code, const std::error_condition& cond) const noexcept override
     {
         using scion::ErrorCondition;
-        if (cond.category() == scion::scionErrorCondition) {
+        if (cond.category() == scion::scion_error_condition()) {
             const auto value = static_cast<ErrorCondition>(cond.value());
             switch (value) {
             case ErrorCondition::Ok:
@@ -78,8 +74,8 @@ struct CAresErrorCategory : public std::error_category
                 return code == ARES_ENOTFOUND;
             case ErrorCondition::RemoteError:
                 return code == ARES_ENODATA || code == ARES_EFORMERR
-                    || code == ARES_ESERVFAIL || code == ARES_ENOTFOUND
-                    || code == ARES_ENOTIMP || code == ARES_EREFUSED;
+                    || code == ARES_ESERVFAIL || code == ARES_ENOTIMP
+                    || code == ARES_EREFUSED;
             default:
                 return false;
             }
@@ -88,7 +84,12 @@ struct CAresErrorCategory : public std::error_category
     }
 };
 
-CAresErrorCategory cAresErrorCategory;
+static CAresErrorCategory cAresErrorCategory;
+
+const std::error_category& scion::cares_error_category()
+{
+    return cAresErrorCategory;
+}
 
 std::error_code make_error_code(ares_status_t code)
 {

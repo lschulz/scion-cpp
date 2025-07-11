@@ -27,10 +27,6 @@
 #include <variant>
 
 
-namespace scion {
-extern ScionErrorCondition scionErrorCondition;
-}
-
 struct GrpcErrorCategory : public std::error_category
 {
     const char* name() const noexcept override
@@ -85,7 +81,7 @@ struct GrpcErrorCategory : public std::error_category
     {
         using grpc::StatusCode;
         using scion::ErrorCondition;
-        if (cond.category() == scion::scionErrorCondition) {
+        if (cond.category() == scion::scion_error_condition()) {
             const auto value = static_cast<ErrorCondition>(cond.value());
             if (value == ErrorCondition::ControlPlaneRPCError) return true;
             switch (static_cast<StatusCode>(code)) {
@@ -109,7 +105,12 @@ struct GrpcErrorCategory : public std::error_category
     }
 };
 
-GrpcErrorCategory grpcErrorCategory;
+static GrpcErrorCategory grpcErrorCategory;
+
+const std::error_category& scion::grpc_error_category()
+{
+    return grpcErrorCategory;
+}
 
 std::error_code grpc::make_error_code(grpc::StatusCode code)
 {

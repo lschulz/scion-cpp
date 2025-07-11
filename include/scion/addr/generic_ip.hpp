@@ -250,6 +250,9 @@ public:
     /// \brief Get the zone identifier or an empty string if there is none.
     std::string_view getZone() const { return addrInfo->zone; }
 
+    /// \brief Get the numerical zone ID or zero if the address has no zone.
+    unsigned int getZoneId() const;
+
     /// \brief Copy IPv4 address into byte array.
     void toBytes4(std::span<std::byte, 4> bytes) const
     {
@@ -620,6 +623,7 @@ struct std::formatter<scion::generic::IPEndpoint>
         } else {
             auto out = ctx.out();
             out++ = '[';
+            ctx.advance_to(out);
             out = ipFormatter.format(ep.getHost(), ctx);
             return std::format_to(out, "]:{}", ep.getPort());
         }

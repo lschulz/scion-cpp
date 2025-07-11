@@ -21,14 +21,14 @@
 #include "scion/addr/generic_ip.hpp"
 #include "scion/bsd/socket.hpp"
 
-#if __linux__
+#if _WIN32
+#include <ws2tcpip.h>
+#define close closesocket
+#else
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <unistd.h>
-#elif _WIN32
-#include <ws2tcpip.h>
-#define close closesocket
 #endif
 
 #include <optional>

@@ -37,6 +37,8 @@ namespace scion {
 
 extern const char* HOSTS_FILE;
 
+const std::error_category& cares_error_category();
+
 /// \brief Looks up a domain name in a file formatted in the same way as
 /// `/etc/hosts`.
 Maybe<std::vector<ScIPAddress>> queryHostsFile(

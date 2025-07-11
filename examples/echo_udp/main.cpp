@@ -247,7 +247,7 @@ int runClient(
         std::uniform_int_distribution<> dist(0, (int)(paths->size() - 1));
         path = (*paths)[dist(rng)];
     }
-    auto nextHop = toUnderlay<Socket::UnderlayEp>(path->nextHop()).value();
+    auto nextHop = toUnderlay<Socket::UnderlayEp>(path->nextHop(remote->getLocalEp())).value();
 
     Socket::Endpoint from;
     HeaderCache headers;

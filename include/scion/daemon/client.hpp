@@ -47,6 +47,9 @@ template <> struct is_error_code_enum<grpc::StatusCode> : true_type {};
 }
 
 namespace scion {
+
+const std::error_category& grpc_error_category();
+
 namespace daemon {
 
 enum class PathReqFlags : std::uint32_t

@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.28)
 
 project(scion-cpp C CXX)
 
+set(CMAKE_C_STANDARD 17)
+set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -127,6 +129,21 @@ target_include_directories(scion-cpp
     PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/generated" # TODO: Install generated files
 )
 
+# ===========
+# C Interface
+# ===========
+
+set(SRC_C
+    "src/scion_c/scion.cpp"
+    "src/scion_c/scion.c"
+)
+
+add_library(scion-c ${SRC_C})
+target_link_libraries(scion-c PRIVATE scion-cpp)
+target_include_directories(scion-c
+    PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
+)
+
 # ==========
 # Unit Tests
 # ==========
@@ -162,10 +179,11 @@ set(SRC_TEST
     "tests/asio/test_scmp_socket.cpp"
     "tests/asio/test_udp_socket.cpp"
     "tests/resolver/test_resolver.cpp"
+    "tests/scion_c/test_c_interface.cpp"
 )
 
 add_executable(unit-tests ${SRC_TEST})
-target_link_libraries(unit-tests PRIVATE gtest gmock scion-cpp)
+target_link_libraries(unit-tests PRIVATE gtest gmock scion-cpp scion-c)
 target_include_directories(unit-tests
     PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tests"
     PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated"

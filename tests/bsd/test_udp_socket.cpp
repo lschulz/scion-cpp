@@ -45,16 +45,16 @@ protected:
         ep1 = unwrap(Socket::Endpoint::Parse("[1-ff00:0:1,::1]:0"));
         ep2 = ep1;
 
-        sock1.bind(ep1);
+        ASSERT_FALSE(sock1.bind(ep1));
         ep1 = sock1.getLocalEp();
-        sock2.bind(ep2);
+        ASSERT_FALSE(sock2.bind(ep2));
         ep2 = sock2.getLocalEp();
 
-        sock1.setRecvTimeout(1s);
-        sock2.setRecvTimeout(1s);
+        ASSERT_FALSE(sock1.setRecvTimeout(1s));
+        ASSERT_FALSE(sock2.setRecvTimeout(1s));
 
-        sock1.connect(ep2);
-        sock2.connect(ep1);
+        ASSERT_FALSE(sock1.connect(ep2));
+        ASSERT_FALSE(sock2.connect(ep1));
     };
 
     static void TearDownTestSuite()

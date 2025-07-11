@@ -10,7 +10,8 @@
                 "${workspaceFolder}/build/generated",
                 "${workspaceFolder}/tests",
                 "${workspaceFolder}/deps/googletest/googlemock/include",
-                "${workspaceFolder}/examples/include"
+                "${workspaceFolder}/examples/include",
+                "${workspaceFolder}/examples/c/include"
             ],
             "defines": [
                 "AGRPC_BOOST_ASIO"

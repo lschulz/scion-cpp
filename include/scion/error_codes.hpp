@@ -44,6 +44,7 @@ enum class ErrorCode : int
     NotImplemented,   ///< not implemented (yet)
     InvalidArgument,  ///< invalid argument
     SyntaxError,      ///< input contains syntax error(s)
+    InvalidSocket,    ///< socket closed or invalid
     BufferTooSmall,   ///< provided buffer too small to hold output
     PacketTooBig,     ///< packet or payload too big
     RequiresZone,     ///< IPv6 address requires zone identifier
@@ -58,12 +59,7 @@ enum class ErrorCode : int
     SrcAddrMismatch,     ///< packet rejected because of unexpected source address
 };
 
-struct ScionErrorCategory : public std::error_category
-{
-    const char* name() const noexcept override;
-    std::string message(int code) const override;
-};
-
+const std::error_category& scion_error_category();
 std::error_code make_error_code(ErrorCode code);
 
 /// \brief Error conditions that errors from scion-cpp and it's underlying
@@ -80,6 +76,7 @@ enum class ErrorCondition : int
     NotImplemented,   ///< not implemented (yet)
     InvalidArgument,  ///< invalid argument
     SyntaxError,      ///< input contains syntax error(s)
+    InvalidSocket,    ///< socket closed or invalid
     BufferTooSmall,   ///< provided buffer too small to hold output
     PacketTooBig,     ///< packet or payload too big
     RequiresZone,     ///< IPv6 address requires zone identifier
@@ -98,13 +95,7 @@ enum class ErrorCondition : int
     ControlPlaneRPCError = 2048, ///< error in communication with control plane services
 };
 
-struct ScionErrorCondition : std::error_category
-{
-    const char* name() const noexcept override;
-    std::string message(int code) const override;
-    bool equivalent(const std::error_code& ec, int condition) const noexcept override;
-};
-
+const std::error_category& scion_error_condition();
 std::error_condition make_error_condition(ErrorCondition code);
 
 template <typename T> using Maybe = std::expected<T, std::error_code>;

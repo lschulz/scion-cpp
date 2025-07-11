@@ -126,7 +126,12 @@
         "stdfloat": "cpp",
         "valarray": "cpp",
         "*.inc": "cpp",
-        "__memory": "cpp"
+        "__memory": "cpp",
+        "stdbool.h": "c",
+        "types.h": "c",
+        "optparse.h": "c",
+        "console.h": "c",
+        "format.h": "c"
     },
     "C_Cpp.default.cppStandard": "c++23",
     "C_Cpp.default.cStandard": "c17",

@@ -125,6 +125,7 @@ TYPED_TEST(ScionIPv4EpTest, Format)
     auto ep1 = EpTraits::fromHostPort(unwrap(AddrTraits::fromString("127.0.0.1")), 50000);
 
     EXPECT_EQ(std::format("{}", Endpoint(ia1, ep1)), "1-ff00:0:1,127.0.0.1:50000");
+    EXPECT_EQ(std::formatted_size("{}", Endpoint(ia1, ep1)), 26);
 }
 
 template <typename T>
@@ -206,6 +207,7 @@ TYPED_TEST(ScionIPv6EpTest, Parse)
     EXPECT_TRUE(hasFailed(Endpoint::Parse("fd00:102:304:506:708:90a:b0c:d0e:80")));
     EXPECT_TRUE(hasFailed(Endpoint::Parse("[1-ff00:0:1,::1]:")));
     EXPECT_TRUE(hasFailed(Endpoint::Parse(":50000")));
+    EXPECT_TRUE(hasFailed(Endpoint::Parse("[1-ff00:0:0,::1],1024")));
 }
 
 TYPED_TEST(ScionIPv6EpTest, Format)
@@ -221,4 +223,5 @@ TYPED_TEST(ScionIPv6EpTest, Format)
 
     EXPECT_EQ(std::format("{}", ep1), "[fd00::1]:50000");
     EXPECT_EQ(std::format("{}", Endpoint(ia1, ep1)), "[1-ff00:0:1,fd00::1]:50000");
+    EXPECT_EQ(std::formatted_size("{}", Endpoint(ia1, ep1)), 26);
 }

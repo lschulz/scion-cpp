@@ -35,6 +35,7 @@ TEST(Path, LoadProtobuf)
 
     auto src = IsdAsn(Isd(1), Asn(0xff00'0000'0111));
     auto dst = IsdAsn(Isd(2), Asn(0xff00'0000'0222));
+    auto nh = unwrap(generic::IPEndpoint::Parse("[fd00:f00d:cafe::7f00:19]:31024"));
     proto::daemon::v1::Path pb;
     PathPtr path;
     {
@@ -53,8 +54,8 @@ TEST(Path, LoadProtobuf)
     EXPECT_EQ(path->mtu(), 1472);
     EXPECT_FALSE(path->empty());
     EXPECT_EQ(path->size(), 48);
-    EXPECT_EQ(path->nextHop(),
-        unwrap(generic::IPEndpoint::Parse("[fd00:f00d:cafe::7f00:19]:31024")));
+    EXPECT_EQ(path->nextHop(), nh);
+    EXPECT_EQ(path->nextHop(generic::IPEndpoint()), nh);
     EXPECT_THAT(path->encoded(), testing::ElementsAreArray(
         reinterpret_cast<const std::byte*>(pb.raw().data()),  pb.raw().size()
     ));
@@ -164,6 +165,15 @@ TEST(Path, UserAttributes)
     EXPECT_NE(path.getAttribute<MockAttribute>(MOCK_ATTRIBUTE), nullptr);
     path.removeAttribute(MOCK_ATTRIBUTE);
     EXPECT_EQ(path.getAttribute<MockAttribute>(MOCK_ATTRIBUTE), nullptr);
+}
+
+TEST(Path, Empty)
+{
+    using namespace scion;
+    Path path;
+    EXPECT_EQ(path.type(), hdr::PathType::Empty);
+    generic::IPEndpoint dst(generic::IPAddress::MakeIPv4(0x0a000001), 443);
+    EXPECT_EQ(path.nextHop(dst), dst);
 }
 
 class PathFixture : public testing::Test

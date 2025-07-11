@@ -49,6 +49,7 @@ TEST(IsdAsAddr, Isd)
 
     EXPECT_EQ(std::format("{}", Isd()), "0");
     EXPECT_EQ(std::format("{}", Isd(Isd::MAX_VALUE)), "65535");
+    EXPECT_EQ(std::formatted_size("{}", Isd(Isd::MAX_VALUE)), 5);
 }
 
 TEST(IsdAsAddr, Asn)
@@ -78,6 +79,7 @@ TEST(IsdAsAddr, Asn)
     EXPECT_EQ(std::format("{}", Asn()), "0");
     EXPECT_EQ(std::format("{}", Asn(Asn::MAX_BGP_VALUE)), "4294967295");
     EXPECT_EQ(std::format("{}", Asn(Asn::MAX_BGP_VALUE + 1)), "1:0:0");
+    EXPECT_EQ(std::formatted_size("{}", Asn(Asn::MAX_BGP_VALUE + 1)), 5);
 }
 
 TEST(IsdAsAddr, IsdAsn)
@@ -107,4 +109,5 @@ TEST(IsdAsAddr, IsdAsn)
 
     EXPECT_EQ(std::format("{}", IsdAsn()), "0-0");
     EXPECT_EQ(std::format("{}", IsdAsn(0x1'ff00'abcd'ffffull)), "1-ff00:abcd:ffff");
+    EXPECT_EQ(std::formatted_size("{}", IsdAsn(0x1'ff00'abcd'ffffull)), 16);
 }

@@ -23,14 +23,14 @@
 #include "scion/bsd/sockaddr.hpp"
 #include "scion/addr/generic_ip.hpp"
 
-#if __linux__
+#if _WIN32
+#include <Winsock2.h>
+#else
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
 #include <fcntl.h>
-#elif _WIN32
-#include <Winsock2.h>
 #endif
 
 #include <array>
@@ -42,12 +42,12 @@
 namespace scion {
 namespace bsd {
 
-#if __linux__
-using NativeHandle = int;
-constexpr NativeHandle INVALID_SOCKET_VALUE = -1;
-#elif _WIN32
+#if _WIN32
 using NativeHandle = SOCKET;
 constexpr NativeHandle INVALID_SOCKET_VALUE = INVALID_SOCKET;
+#else
+using NativeHandle = int;
+constexpr NativeHandle INVALID_SOCKET_VALUE = -1;
 #endif
 
 namespace details {
@@ -103,7 +103,7 @@ public:
     bool isOpen() const { return handle != INVALID_SOCKET_VALUE; }
 
     /// \brief Get the native socket handle.
-    NativeHandle getNativeHandle() { return handle; }
+    NativeHandle underlaySocket() { return handle; }
 
     NativeHandle release()
     {

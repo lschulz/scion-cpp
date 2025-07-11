@@ -25,15 +25,15 @@
 #include "scion/addr/endpoint.hpp"
 #include "scion/details/bit.hpp"
 
-#if __linux__
+#if _WIN32
+#include <Winsock2.h>
+#include <WS2tcpip.h>
+#else
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
 #include <arpa/inet.h>
-#elif _WIN32
-#include <Winsock2.h>
-#include <WS2tcpip.h>
 #endif
 
 #include <cstdint>

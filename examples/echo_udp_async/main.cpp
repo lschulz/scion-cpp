@@ -240,11 +240,7 @@ int runClient(
     }
     s.connect(*remote);
 
-    // give up after 1 second
     boost::asio::steady_timer timer(ioCtx);
-    timer.expires_after(1s);
-    timer.async_wait([&] (boost::system::error_code) { s.close(); });
-
     auto run = [&] (Socket& s) -> awaitable<std::error_code>
     {
         constexpr auto token = boost::asio::use_awaitable;
@@ -268,7 +264,11 @@ int runClient(
             std::uniform_int_distribution<> dist(0, (int)(paths->size() - 1));
             path = (*paths)[dist(rng)];
         }
-        auto nextHop = toUnderlay<Socket::UnderlayEp>(path->nextHop()).value();
+        auto nextHop = toUnderlay<Socket::UnderlayEp>(path->nextHop(remote->getLocalEp())).value();
+
+        // give up after 1 second
+        timer.expires_after(1s);
+        timer.async_wait([&] (boost::system::error_code) { s.close(); });
 
         Socket::Endpoint from;
         Socket::UnderlayEp ulSource;

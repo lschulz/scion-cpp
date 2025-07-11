@@ -65,7 +65,10 @@ public:
 
         std::error_code ec = ErrorCode::Ok;
         if (refresh) {
-            ec = queryPaths(*this, src, dst);
+            if (src != dst)
+                ec = queryPaths(*this, src, dst);
+            else
+                store(src, dst, std::array<PathPtr, 1>{makeEmptyPath(src)});
         }
 
         if (auto i = inner.cache.find(r); i != inner.cache.end() && !i->second.paths.empty()) {
@@ -100,7 +103,10 @@ public:
 
         std::error_code ec = ErrorCode::Ok;
         if (refresh) {
-            ec = queryPaths(*this, src, dst);
+            if (src != dst)
+                ec = queryPaths(*this, src, dst);
+            else
+                store(src, dst, std::array<PathPtr, 1>{makeEmptyPath(src)});
         }
 
         if (auto i = inner.cache.find(r); i != inner.cache.end() && !i->second.paths.empty()) {

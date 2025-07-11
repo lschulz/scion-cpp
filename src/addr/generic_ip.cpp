@@ -23,6 +23,14 @@
 
 #include <boost/algorithm/string.hpp>
 
+#if _WIN32
+#include <Winsock2.h>
+#include <WS2tcpip.h>
+#include <Iphlpapi.h>
+#else
+#include <net/if.h>
+#endif
+
 #include <list>
 #include <mutex>
 #include <ostream>
@@ -102,6 +110,16 @@ IPAddress::makeIPv6Zone(std::string_view zone)
     } else {
         return DynamicAddrInfo::Make(zone);
     }
+}
+
+unsigned int IPAddress::getZoneId() const
+{
+    char name[IF_NAMESIZE] = {};
+    auto zone = addrInfo->zone;
+    if (zone.empty()) return 0;
+    zone = zone.substr(0, std::min(zone.size(), (std::size_t)IF_NAMESIZE)-1);
+    std::ranges::copy(zone, name);
+    return if_nametoindex(name);
 }
 
 static Maybe<uint32_t> parseIPv4(std::string_view text) noexcept

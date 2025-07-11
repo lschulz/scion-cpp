@@ -150,6 +150,17 @@ public:
     /// \brief Returns the underlay address of the next router.
     const generic::IPEndpoint& nextHop() const { return m_nextHop; }
 
+    /// \brief Returns the underlay address of the next router or `dst` if the
+    /// path is empty, as packets with empty paths are send to the underlay
+    /// address of the recipent directly.
+    const generic::IPEndpoint& nextHop(const generic::IPEndpoint& dst) const
+    {
+        if (m_type == hdr::PathType::Empty)
+            return dst;
+        else
+            return m_nextHop;
+    }
+
     /// \brief Returns the path encoded for use in the data plane.
     std::span<const std::byte> encoded() const { return m_path; }
 
@@ -242,6 +253,13 @@ inline PathPtr makePath(IsdAsn source, IsdAsn target,
     return PathPtr(new Path(source, target, type, expiry, mtu, nh, dpPath));
 }
 
+/// \brief Helper for creating an empty path on the heap.
+inline PathPtr makeEmptyPath(IsdAsn isdAsn)
+{
+    return PathPtr(new Path(isdAsn, isdAsn, hdr::PathType::Empty, Path::Expiry::max(), 0,
+        generic::IPEndpoint(), std::span<std::byte>()));
+}
+
 } // namespace scion
 
 template <>
@@ -255,7 +273,7 @@ struct std::formatter<scion::Path>
     auto format(const scion::Path& path, auto& ctx) const
     {
         using namespace scion;
-        if (path.empty()) std::format_to(ctx.out(), "empty");
+        if (path.empty()) return std::format_to(ctx.out(), "empty {}", path.firstAS());
         if (auto hops = path.getAttribute<path_meta::Interfaces>(PATH_ATTRIBUTE_INTERFACES); hops) {
             return std::format_to(ctx.out(), "{}", *hops);
         } else {

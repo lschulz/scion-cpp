@@ -178,6 +178,9 @@ TEST(GenericIP, Format)
     EXPECT_EQ(std::format("{}",
         IPAddress::MakeIPv6(0xfe80ull << 48, 0xabcd, "eth0")),
         "fe80::abcd%eth0");
+    EXPECT_EQ(std::formatted_size("{}",
+        IPAddress::MakeIPv6(0xfe80ull << 48, 0xabcd, "eth0")),
+        15);
 }
 
 TEST(GenericIP, Parse)
@@ -276,6 +279,7 @@ TEST(GenericEP, Format)
         "[::ffff:10.255.255.255%eth0]:1024");
     EXPECT_EQ(std::format("{:lX}", IPEndpoint(ip6, 1024)),
         "[0:0:0:0:0:FFFF:10.255.255.255%eth0]:1024");
+    EXPECT_EQ(std::formatted_size("{:lX}", IPEndpoint(ip6, 1024)), 41);
 }
 
 TEST(GenericEP, Parse)

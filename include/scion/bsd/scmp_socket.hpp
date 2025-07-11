@@ -70,6 +70,13 @@ public:
         // Bind underlay socket
         auto underlayEp = generic::toUnderlay<UnderlayEp>(ep.getLocalEp());
         if (isError(underlayEp)) return getError(underlayEp);
+        if constexpr (std::is_same_v<UnderlayAddr, sockaddr_in6>) {
+            underlayEp->sin6_scope_id = scion::details::byteswapBE(
+                ep.getAddress().getHost().getZoneId());
+        } else if constexpr (std::is_same_v<UnderlayAddr, IPEndpoint>) {
+            underlayEp->data.v6.sin6_scope_id = scion::details::byteswapBE(
+                ep.getAddress().getHost().getZoneId());
+        }
         auto err = socket.bind_range(*underlayEp, firstPort, lastPort);
         if (err) return err;
 
@@ -100,10 +107,13 @@ public:
     bool isOpen() const { return socket.isOpen(); }
 
     /// \brief Get the native handle of the underlay socket.
-    NativeHandle getNativeHandle() { return socket.getNativeHandle(); }
+    NativeHandle underlaySocket() { return socket.underlaySocket(); }
 
     /// \brief Returns the full address of the socket.
     Endpoint getLocalEp() const { return packager.getLocalEp(); }
+
+    /// \brief Returns the address of the connected remote host.
+    Endpoint geRemoteEp() const { return packager.getRemoteEp(); }
 
     /// \brief Set the traffic class of sent packets. Only affects the SCION
     /// header, not the underlay socket.
