@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 #include "scion/addr/generic_ip.hpp"
-#include "scion/bsd/sockaddr.hpp"
+#include "scion/posix/sockaddr.hpp"
 
 #include "gtest/gtest.h"
 #include "utilities.hpp"

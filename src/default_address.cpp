@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 #include "scion/addr/generic_ip.hpp"
-#include "scion/bsd/socket.hpp"
+#include "scion/posix/underlay.hpp"
 
 #if _WIN32
 #include <ws2tcpip.h>
@@ -50,7 +50,7 @@ static std::optional<scion::generic::IPAddress> getDefaultAddr(int family)
     if (err != 0) return std::nullopt;
 
     addrinfo* cur;
-    bsd::NativeHandle sockfd = -1;
+    posix::NativeHandle sockfd = -1;
     for (cur = result; cur; cur = cur->ai_next) {
         sockfd = socket(cur->ai_family, cur->ai_socktype, cur->ai_protocol);
         if (sockfd < 0) continue;
@@ -70,12 +70,12 @@ static std::optional<scion::generic::IPAddress> getDefaultAddr(int family)
     if (err < 0) {
         return std::nullopt;
     } else {
-        return scion::generic::toGenericAddr(EndpointTraits<SockAddrT>::getHost(local));
+        return scion::generic::toGenericAddr(EndpointTraits<SockAddrT>::host(local));
     }
 }
 
 namespace scion {
-namespace bsd {
+namespace posix {
 namespace details {
 
 /// \brief Get a local IPv4 address that was able to connect to the Internet.
@@ -93,5 +93,5 @@ std::optional<generic::IPAddress> getDefaultInterfaceAddr6()
 }
 
 } // namespace details
-} // namespace bsd
+} // namespace posix
 } // namespace scion

@@ -60,31 +60,31 @@ public:
     using ScionAddr = EndpointTraits<LocalEp>::ScionAddr;
 
 private:
-    IsdAsn ia;
-    LocalEp ep;
+    IsdAsn m_ia;
+    LocalEp m_ep;
 
 public:
     Endpoint() = default;
 
     Endpoint(IsdAsn isdAsn, LocalEp endpoint)
-        : ia(isdAsn), ep(std::move(endpoint))
+        : m_ia(isdAsn), m_ep(std::move(endpoint))
     {}
 
     Endpoint(const ScionAddr& addr, std::uint16_t port)
-        : ia(addr.getIsdAsn())
-        , ep(EndpointTraits<LocalEp>::fromHostPort(addr.getHost(), port))
+        : m_ia(addr.isdAsn())
+        , m_ep(EndpointTraits<LocalEp>::fromHostPort(addr.host(), port))
     {}
 
     Endpoint(IsdAsn isdAsn, const HostAddr& host, std::uint16_t port)
-        : ia(isdAsn)
-        , ep(EndpointTraits<LocalEp>::fromHostPort(host, port))
+        : m_ia(isdAsn)
+        , m_ep(EndpointTraits<LocalEp>::fromHostPort(host, port))
     {}
 
-    IsdAsn getIsdAsn() const { return ia; }
-    LocalEp getLocalEp() const { return ep; }
-    ScionAddr getAddress() const { return ScionAddr(getIsdAsn(), getHost()); }
-    HostAddr getHost() const { return EndpointTraits<LocalEp>::getHost(ep); }
-    std::uint16_t getPort() const { return EndpointTraits<LocalEp>::getPort(ep); }
+    IsdAsn isdAsn() const { return m_ia; }
+    LocalEp localEp() const { return m_ep; }
+    ScionAddr address() const { return ScionAddr(isdAsn(), host()); }
+    HostAddr host() const { return EndpointTraits<LocalEp>::host(m_ep); }
+    std::uint16_t port() const { return EndpointTraits<LocalEp>::port(m_ep); }
 
     std::strong_ordering operator<=>(const Endpoint<T>&) const = default;
 
@@ -92,9 +92,9 @@ public:
     /// ISD-ASN, IP, or port.
     bool isFullySpecified() const
     {
-        return !ia.isUnspecified()
-            && !AddressTraits<HostAddr>::isUnspecified(getHost())
-            && getPort() != 0;
+        return !m_ia.isUnspecified()
+            && !AddressTraits<HostAddr>::isUnspecified(host())
+            && port() != 0;
     }
 
     /// \brief Parse a SCION endpoint with optional port. If no port is given, the
@@ -133,10 +133,10 @@ struct std::formatter<scion::Endpoint<T>>
     auto format(const scion::Endpoint<T>& ep, auto& ctx) const
     {
         using AddressTraits = scion::AddressTraits<typename scion::Endpoint<T>::HostAddr>;
-        if (AddressTraits::type(ep.getHost()) == scion::HostAddrType::IPv4) {
-            return std::format_to(ctx.out(), "{},{}:{}", ep.ia, ep.getHost(), ep.getPort());
+        if (AddressTraits::type(ep.host()) == scion::HostAddrType::IPv4) {
+            return std::format_to(ctx.out(), "{},{}:{}", ep.m_ia, ep.host(), ep.port());
         } else {
-            return std::format_to(ctx.out(), "[{},{}]:{}", ep.ia, ep.getHost(), ep.getPort());
+            return std::format_to(ctx.out(), "[{},{}]:{}", ep.m_ia, ep.host(), ep.port());
         }
     }
 };
@@ -146,8 +146,8 @@ struct std::hash<scion::Endpoint<T>>
     std::size_t operator()(const scion::Endpoint<T>& ep) const noexcept
     {
         std::size_t h = 0;
-        h ^= hash<scion::IsdAsn>{}(ep.getIsdAsn());
-        h ^= hash<T>{}(ep.getLocalEp());
+        h ^= hash<scion::IsdAsn>{}(ep.isdAsn());
+        h ^= hash<T>{}(ep.localEp());
         return h;
     }
 };

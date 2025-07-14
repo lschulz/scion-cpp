@@ -85,12 +85,12 @@ public:
 
 private:
     // Value of traffic class (aka. QoS) field in the SCION header.
-    std::uint8_t trafficClass = 0;
+    std::uint8_t m_trafficClass = 0;
     // Local bind address. The IPEndpoint must not be unspecified in IP or port.
-    Endpoint local;
+    Endpoint m_local;
     // "Connected" remote endpoint. If set (not unspecified), packets from
     // endpoints not matching remote are rejected.
-    Endpoint remote;
+    Endpoint m_remote;
 
 public:
     /// \brief Set the local address. The local address is used as source
@@ -103,28 +103,28 @@ public:
     /// unspecified IP or port results in an `InvalidArgument` error.
     std::error_code setLocalEp(const Endpoint& ep)
     {
-        if (ep.getHost().isUnspecified()) return ErrorCode::InvalidArgument;
-        if (ep.getPort() == 0) return ErrorCode::InvalidArgument;
-        local = ep;
+        if (ep.host().isUnspecified()) return ErrorCode::InvalidArgument;
+        if (ep.port() == 0) return ErrorCode::InvalidArgument;
+        m_local = ep;
         return ErrorCode::Ok;
     }
 
-    Endpoint getLocalEp() const { return local; }
+    Endpoint localEp() const { return m_local; }
 
     /// \brief Set the expected remote address. Set to an unspecified address
     /// to dissolve the association.
     std::error_code setRemoteEp(const Endpoint& ep)
     {
-        remote = ep;
+        m_remote = ep;
         return ErrorCode::Ok;
     }
 
-    Endpoint getRemoteEp() const { return remote; }
+    Endpoint remoteEp() const { return m_remote; }
 
     /// \brief Set the traffic class (QoS field) for outgoing SCION packets.
-    void setTrafficClass(std::uint8_t tc) { trafficClass = tc; }
+    void setTrafficClass(std::uint8_t tc) { m_trafficClass = tc; }
 
-    std::uint8_t getTrafficClass() const { return trafficClass; }
+    std::uint8_t trafficClass() const { return m_trafficClass; }
 
     /// \brief Prepare the packet headers for sending the given payload with the
     /// given parameters. If this method returned successfully, the
@@ -157,31 +157,31 @@ public:
         std::span<const std::byte> payload)
     {
         // A concrete local address must have been bound.
-        if (local.getHost().isUnspecified() || local.getPort() == 0) {
+        if (m_local.host().isUnspecified() || m_local.port() == 0) {
             return ErrorCode::NoLocalHostAddr;
         }
 
         // Determine source address
         Endpoint from;
-        if (local.getIsdAsn().isUnspecified()) {
+        if (m_local.isdAsn().isUnspecified()) {
             // Take the source ISD-ASN from path
-            from = Endpoint(path.firstAS(), local.getLocalEp());
+            from = Endpoint(path.firstAS(), m_local.localEp());
         } else {
-            if (!path.empty() && path.firstAS() != local.getIsdAsn()) {
+            if (!path.empty() && path.firstAS() != m_local.isdAsn()) {
                 return ErrorCode::InvalidArgument;
             }
-            from = local;
+            from = m_local;
         }
 
         // Determine destination address
         if (!to) {
-            if (!remote.getAddress().isFullySpecified()) return ErrorCode::InvalidArgument;
-            to = &remote;
+            if (!m_remote.address().isFullySpecified()) return ErrorCode::InvalidArgument;
+            to = &m_remote;
         } else {
-            if (!to->getAddress().isFullySpecified()) return ErrorCode::InvalidArgument;
+            if (!to->address().isFullySpecified()) return ErrorCode::InvalidArgument;
         }
 
-        return headers.build(trafficClass, *to, from, path,
+        return headers.build(m_trafficClass, *to, from, path,
             std::forward<ExtRange>(extensions), std::forward<L4>(l4), payload);
     }
 
@@ -217,7 +217,7 @@ public:
     /// \param path
     ///     Optional pointer to a path to store the raw path from the SCION
     ///     header in.
-    /// \param scmp
+    /// \param scmpCallback
     ///     Optional callable that is invoked if an SCMP packet was received
     ///     instead of the expected data.
     ///
@@ -280,7 +280,7 @@ public:
         }
         if (path) {
             path->assign(
-                pkt.sci.src.getIsdAsn(), pkt.sci.dst.getIsdAsn(),
+                pkt.sci.src.isdAsn(), pkt.sci.dst.isdAsn(),
                 pkt.sci.ptype, pkt.path);
         }
 
@@ -300,13 +300,13 @@ private:
     std::error_code verifyReceived(
         const ParsedPacket<L4>& pkt, const generic::IPAddress& ulSource)
     {
-        if (!local.getAddress().matches(pkt.sci.dst)) {
+        if (!m_local.address().matches(pkt.sci.dst)) {
             return ErrorCode::DstAddrMismatch;
         }
-        if (!remote.getAddress().matches(pkt.sci.src)) {
+        if (!m_remote.address().matches(pkt.sci.src)) {
             return ErrorCode::SrcAddrMismatch;
         }
-        if (pkt.sci.ptype == hdr::PathType::Empty && ulSource != pkt.sci.src.getHost()) {
+        if (pkt.sci.ptype == hdr::PathType::Empty && ulSource != pkt.sci.src.host()) {
             // For AS-internal communication with empty paths underlay address
             // of the sender must match the source host addressin the SCION
             // header.
@@ -323,7 +323,7 @@ private:
     template <typename L4, ScmpCallback ScmpHandler>
     void invokeScmpHandler(ParsedPacket<L4> pkt, ScmpHandler handler)
     {
-        RawPath rp(pkt.sci.src.getIsdAsn(), pkt.sci.dst.getIsdAsn(), pkt.sci.ptype, pkt.path);
+        RawPath rp(pkt.sci.src.isdAsn(), pkt.sci.dst.isdAsn(), pkt.sci.ptype, pkt.path);
         handler(pkt.sci.src, rp, std::get<hdr::SCMP>(pkt.l4).msg, pkt.payload);
     }
 };

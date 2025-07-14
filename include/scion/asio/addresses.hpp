@@ -193,12 +193,12 @@ struct EndpointTraits<boost::asio::ip::basic_endpoint<Protocol>>
         return LocalEp(host, port);
     }
 
-    static HostAddr getHost(const LocalEp& ep) noexcept
+    static HostAddr host(const LocalEp& ep) noexcept
     {
         return ep.address();
     }
 
-    static std::uint16_t getPort(const LocalEp& ep) noexcept
+    static std::uint16_t port(const LocalEp& ep) noexcept
     {
         return ep.port();
     }

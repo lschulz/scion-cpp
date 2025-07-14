@@ -91,12 +91,12 @@ TEST(IsdAsAddr, IsdAsn)
     EXPECT_TRUE(IsdAsn(Isd(1), Asn()).isUnspecified());
     EXPECT_FALSE(IsdAsn(Isd(1), Asn(1)).isUnspecified());
 
-    EXPECT_EQ(IsdAsn().getIsd(), Isd());
-    EXPECT_EQ(IsdAsn().getAsn(), Asn());
+    EXPECT_EQ(IsdAsn().isd(), Isd());
+    EXPECT_EQ(IsdAsn().asn(), Asn());
 
     IsdAsn ia{Isd(Isd::MAX_VALUE), Asn(Asn::MAX_VALUE)};
-    EXPECT_EQ(ia.getIsd(), Isd(Isd::MAX_VALUE));
-    EXPECT_EQ(ia.getAsn(), Asn(Asn::MAX_VALUE));
+    EXPECT_EQ(ia.isd(), Isd(Isd::MAX_VALUE));
+    EXPECT_EQ(ia.asn(), Asn(Asn::MAX_VALUE));
 
     EXPECT_LT(IsdAsn(0), IsdAsn(IsdAsn::MAX_VALUE));
     std::hash<IsdAsn> h;

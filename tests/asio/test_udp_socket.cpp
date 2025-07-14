@@ -34,7 +34,7 @@
 class AsioUdpSocketFixture : public testing::Test
 {
 public:
-    using Socket = scion::asio::UDPSocket;
+    using Socket = scion::asio::UdpSocket;
 
 protected:
     static void SetUpTestSuite()
@@ -46,11 +46,11 @@ protected:
 
         sock1 = std::make_unique<Socket>(ioCtx);
         sock1->bind(ep1);
-        ep1 = sock1->getLocalEp();
+        ep1 = sock1->localEp();
 
         sock2 = std::make_unique<Socket>(ioCtx);
         sock2->bind(ep2);
-        ep2 = sock2->getLocalEp();
+        ep2 = sock2->localEp();
 
         sock1->connect(ep2);
         sock2->connect(ep1);
@@ -116,7 +116,7 @@ TEST_F(AsioUdpSocketFixture, SendRecv)
     static const std::array<std::byte, 8> payload = {
         1_b, 2_b, 3_b, 4_b, 5_b, 6_b, 7_b, 8_b
     };
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.getLocalEp()));
+    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
     auto sent = sock1->send(headers, RawPath(), nh, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
     ASSERT_THAT(get(sent), testing::ElementsAreArray(payload));
@@ -145,7 +145,7 @@ TEST_F(AsioUdpSocketFixture, SendRecvAsync)
         ASSERT_THAT(*recvd, testing::ElementsAreArray(payload));
     };
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.getLocalEp()));
+    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
     auto sendCompletion = [&](Maybe<std::span<const std::byte>> sent) {
         ASSERT_FALSE(isError(sent)) << getError(sent);
         ASSERT_THAT(*sent, testing::ElementsAreArray(payload));
@@ -172,7 +172,7 @@ TEST_F(AsioUdpSocketFixture, SendRecvExt)
     std::array<ext::Extension*, 1> hbhExt = {&idint};
     auto& e2eExt = ext::NoExtensions;
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.getLocalEp()));
+    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
     auto sent = sock1->sendExt(headers, RawPath(), nh, hbhExt, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
     ASSERT_THAT(get(sent), testing::ElementsAreArray(payload));
@@ -205,7 +205,7 @@ TEST_F(AsioUdpSocketFixture, SendRecvExtAsync)
         ASSERT_THAT(*recvd, testing::ElementsAreArray(payload));
     };
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.getLocalEp()));
+    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
     auto sendCompletion = [&](Maybe<std::span<const std::byte>> sent) {
         ASSERT_FALSE(isError(sent)) << getError(sent);
         ASSERT_THAT(*sent, testing::ElementsAreArray(payload));
@@ -226,7 +226,7 @@ TEST_F(AsioUdpSocketFixture, SendToRecvFrom)
     static const std::array<std::byte, 8> payload = {
         1_b, 2_b, 3_b, 4_b, 5_b, 6_b, 7_b, 8_b
     };
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.getLocalEp()));
+    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
     auto sent = sock1->sendTo(headers, ep2, RawPath(), nh, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
     ASSERT_THAT(get(sent), testing::ElementsAreArray(payload));
@@ -259,7 +259,7 @@ TEST_F(AsioUdpSocketFixture, SendToRecvFromAsync)
         EXPECT_EQ(from, ep1);
     };
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.getLocalEp()));
+    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
     auto sendCompletion = [&](Maybe<std::span<const std::byte>> sent) {
         ASSERT_FALSE(isError(sent)) << getError(sent);
         ASSERT_THAT(*sent, testing::ElementsAreArray(payload));
@@ -285,7 +285,7 @@ TEST_F(AsioUdpSocketFixture, SendToRecvExtFrom)
     std::array<ext::Extension*, 1> hbhExt = {&idint};
     auto& e2eExt = ext::NoExtensions;
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.getLocalEp()));
+    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
     auto sent = sock1->sendToExt(headers, ep2, RawPath(), nh, hbhExt, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
     ASSERT_THAT(get(sent), testing::ElementsAreArray(payload));
@@ -322,7 +322,7 @@ TEST_F(AsioUdpSocketFixture, SendToRecvFromExtAsync)
         EXPECT_EQ(from, ep1);
     };
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.getLocalEp()));
+    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
     auto sendCompletion = [&](Maybe<std::span<const std::byte>> sent) {
         ASSERT_FALSE(isError(sent)) << getError(sent);
         ASSERT_THAT(*sent, testing::ElementsAreArray(payload));
@@ -343,7 +343,7 @@ TEST_F(AsioUdpSocketFixture, SendToRecvFromVia)
     static const std::array<std::byte, 8> payload = {
         1_b, 2_b, 3_b, 4_b, 5_b, 6_b, 7_b, 8_b
     };
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.getLocalEp()));
+    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
     auto sent = sock1->sendTo(headers, ep2, RawPath(), nh, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
     ASSERT_THAT(get(sent), testing::ElementsAreArray(payload));
@@ -383,7 +383,7 @@ TEST_F(AsioUdpSocketFixture, SendToRecvFromViaAsync)
         EXPECT_EQ(ulSource.address(), ip::make_address_v6("::1"));
     };
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.getLocalEp()));
+    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
     auto sendCompletion = [&](Maybe<std::span<const std::byte>> sent) {
         ASSERT_FALSE(isError(sent)) << getError(sent);
         ASSERT_THAT(*sent, testing::ElementsAreArray(payload));
@@ -409,7 +409,7 @@ TEST_F(AsioUdpSocketFixture, SendToRecvFromViaExt)
     std::array<ext::Extension*, 1> hbhExt = {&idint};
     auto& e2eExt = ext::NoExtensions;
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.getLocalEp()));
+    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
     auto sent = sock1->sendToExt(headers, ep2, RawPath(), nh, hbhExt, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
     ASSERT_THAT(get(sent), testing::ElementsAreArray(payload));
@@ -453,7 +453,7 @@ TEST_F(AsioUdpSocketFixture, SendToRecvFromViaExtAsync)
         EXPECT_EQ(ulSource.address(), ip::make_address_v6("::1"));
     };
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.getLocalEp()));
+    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
     auto sendCompletion = [&](Maybe<std::span<const std::byte>> sent) {
         ASSERT_FALSE(isError(sent)) << getError(sent);
         ASSERT_THAT(*sent, testing::ElementsAreArray(payload));
@@ -480,7 +480,7 @@ TEST_F(AsioUdpSocketFixture, SendCached)
     };
 
     // create headers from scratch
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.getLocalEp()));
+    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
     auto sent = sock1->send(headers, RawPath(), nh, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
     ASSERT_THAT(get(sent), testing::ElementsAreArray(payload));
@@ -528,7 +528,7 @@ TEST_F(AsioUdpSocketFixture, SendCachedAsync)
     auto test = [&] () -> awaitable<void>
     {
         // create headers from scratch
-        auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.getLocalEp()));
+        auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
         auto sent = co_await sock1->sendAsync(headers, RawPath(), nh, payload, token);
         EXPECT_FALSE(isError(sent)) << getError(sent);
         if (isError(sent)) co_return;
@@ -586,7 +586,7 @@ TEST(AsioUdpSocket, SCMPHandler)
     using namespace scion;
     using namespace boost::asio;
     using namespace std::chrono_literals;
-    using Socket = scion::asio::UDPSocket;
+    using Socket = scion::asio::UdpSocket;
     using testing::_;
 
     auto ep1 = unwrap(Socket::Endpoint::Parse("[1-ff00:0:1,::1]:0"));
@@ -595,9 +595,9 @@ TEST(AsioUdpSocket, SCMPHandler)
     io_context ioCtx;
     Socket sock1(ioCtx), sock2(ioCtx);
     sock1.bind(ep1);
-    ep1 = sock1.getLocalEp();
+    ep1 = sock1.localEp();
     sock2.bind(ep2);
-    ep2 = sock2.getLocalEp();
+    ep2 = sock2.localEp();
 
     sock1.connect(ep2);
     sock2.connect(ep1);
@@ -605,10 +605,10 @@ TEST(AsioUdpSocket, SCMPHandler)
     HeaderCache headers;
     std::vector<std::byte> buffer(1024);
 
-    auto from = ep1.getAddress();
-    RawPath rp(ep1.getIsdAsn(), ep2.getIsdAsn(), hdr::PathType::SCION, std::span<std::byte>());
+    auto from = ep1.address();
+    RawPath rp(ep1.isdAsn(), ep2.isdAsn(), hdr::PathType::SCION, std::span<std::byte>());
     hdr::ScmpMessage msg = hdr::ScmpExtIfDown{
-        ep1.getIsdAsn(), AsInterface(1)
+        ep1.isdAsn(), AsInterface(1)
     };
     std::span<const std::byte> payload;
 
@@ -616,7 +616,7 @@ TEST(AsioUdpSocket, SCMPHandler)
     EXPECT_CALL(handler, handleScmpCallback(from, rp, msg, _)).Times(1);
     sock2.setNextScmpHandler(&handler);
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.getLocalEp()));
+    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
     auto sent = sock1.sendScmpTo(headers, ep2, rp, nh, msg, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
     // send a normal packet so recv returns
@@ -632,7 +632,7 @@ TEST(AsioUdpSocket, SCMPHandlerAsync)
     using namespace scion;
     using namespace boost::asio;
     using namespace std::chrono_literals;
-    using Socket = scion::asio::UDPSocket;
+    using Socket = scion::asio::UdpSocket;
     using testing::_;
 
     auto ep1 = unwrap(Socket::Endpoint::Parse("[1-ff00:0:1,::1]:0"));
@@ -641,9 +641,9 @@ TEST(AsioUdpSocket, SCMPHandlerAsync)
     io_context ioCtx;
     Socket sock1(ioCtx), sock2(ioCtx);
     sock1.bind(ep1);
-    ep1 = sock1.getLocalEp();
+    ep1 = sock1.localEp();
     sock2.bind(ep2);
-    ep2 = sock2.getLocalEp();
+    ep2 = sock2.localEp();
 
     sock1.connect(ep2);
     sock2.connect(ep1);
@@ -651,10 +651,10 @@ TEST(AsioUdpSocket, SCMPHandlerAsync)
     HeaderCache headers;
     std::vector<std::byte> buffer(1024);
 
-    auto from = ep1.getAddress();
-    RawPath rp(ep1.getIsdAsn(), ep2.getIsdAsn(), hdr::PathType::SCION, std::span<std::byte>());
+    auto from = ep1.address();
+    RawPath rp(ep1.isdAsn(), ep2.isdAsn(), hdr::PathType::SCION, std::span<std::byte>());
     hdr::ScmpMessage msg = hdr::ScmpExtIfDown{
-        ep1.getIsdAsn(), AsInterface(1)
+        ep1.isdAsn(), AsInterface(1)
     };
     std::span<const std::byte> payload;
 
@@ -662,7 +662,7 @@ TEST(AsioUdpSocket, SCMPHandlerAsync)
     EXPECT_CALL(handler, handleScmpCallback(from, rp, msg, _)).Times(1);
     sock2.setNextScmpHandler(&handler);
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.getLocalEp()));
+    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
     Socket::UnderlayEp ulSource;
     auto recvHandler = [&] (Maybe<std::span<std::byte>> recvd) {
         ASSERT_FALSE(isError(recvd)) << getError(recvd);

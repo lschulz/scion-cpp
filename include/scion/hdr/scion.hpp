@@ -107,8 +107,8 @@ public:
         }
         if (!stream.serializeUint16(plen, err)) return err.propagate();
         if (!stream.serializeByte((std::uint8_t&)ptype, err)) return err.propagate();
-        HostAddrType dstType = AddressTraits<generic::IPAddress>::type(dst.getHost());
-        HostAddrType srcType = AddressTraits<generic::IPAddress>::type(src.getHost());
+        HostAddrType dstType = AddressTraits<generic::IPAddress>::type(dst.host());
+        HostAddrType srcType = AddressTraits<generic::IPAddress>::type(src.host());
         if (!stream.serializeBits((std::uint8_t&)dstType, 4, err)) return err.propagate();
         if (!stream.serializeBits((std::uint8_t&)srcType, 4, err)) return err.propagate();
         if constexpr (Stream::IsReading) {
@@ -120,11 +120,11 @@ public:
             }
         }
         if (!stream.advanceBytes(2, err)) return err.propagate();
-        if (!dst.getIsdAsn().serialize(stream, err)) return err.propagate();
-        if (!src.getIsdAsn().serialize(stream, err)) return err.propagate();
-        if (!dst.getHost().serialize(stream, dstType == HostAddrType::IPv4, err))
+        if (!dst.isdAsn().serialize(stream, err)) return err.propagate();
+        if (!src.isdAsn().serialize(stream, err)) return err.propagate();
+        if (!dst.host().serialize(stream, dstType == HostAddrType::IPv4, err))
             return err.propagate();
-        if (!src.getHost().serialize(stream, srcType == HostAddrType::IPv4, err))
+        if (!src.host().serialize(stream, srcType == HostAddrType::IPv4, err))
             return err.propagate();
         return true;
     }

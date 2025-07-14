@@ -130,7 +130,7 @@ public:
         co_return std::make_pair(response.dispatched_port_start(), response.dispatched_port_end());
     }
 
-    /// \copydoc GrpcDaemonClient:rpcDRKeyHostAS
+    /// \copydoc GrpcDaemonClient::rpcDRKeyHostAS
     auto rpcDRKeyHostAS(const DRKeyHostASRequest& hostASReq)
         -> boost::asio::awaitable<Maybe<drkey::Key>>
     {

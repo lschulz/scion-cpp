@@ -20,12 +20,12 @@
 
 #pragma once
 
-#include "scion/error_codes.hpp"
-#include "scion/path/path.hpp"
-#include "scion/path/path_meta.hpp"
 #include "scion/addr/isd_asn.hpp"
 #include "scion/details/flags.hpp"
 #include "scion/drkey/drkey.hpp"
+#include "scion/error_codes.hpp"
+#include "scion/path/path_meta.hpp"
+#include "scion/path/path.hpp"
 
 #include "proto/daemon/v1/daemon.grpc.pb.h"
 #include <grpcpp/client_context.h>

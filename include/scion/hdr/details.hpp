@@ -51,9 +51,9 @@ auto formatBytes(auto out, std::span<const std::byte> bytes)
     return out;
 }
 
-/// \brief Calculate the one's complemet sum of 16-bit words.
+/// \brief Calculate the one's complement sum of 16-bit words.
 /// \param buffer Input data the sum is computed over.
-/// \param initial Extra value added into the sum in host byte order.
+/// \param inital Extra value added into the sum in host byte order.
 /// \return Sum in host byte order.
 inline std::uint16_t onesComplementChecksum(
     std::span<const std::byte> buffer, std::uint32_t inital = 0)
@@ -79,7 +79,7 @@ inline std::uint16_t onesComplementChecksum(
 /// the given buffer. The result is returned in host byte order. A sum of zero
 /// is replaced by 0xffff.
 /// \param buffer Input data the sum is computed over.
-/// \param initial Extra value added into the sum in host byte order.
+/// \param inital Extra value added into the sum in host byte order.
 /// \return Checksum in network byte order.
 inline std::uint16_t internetChecksum(std::span<const std::byte> buffer, std::uint32_t inital = 0)
 {

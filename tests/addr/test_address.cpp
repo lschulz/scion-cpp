@@ -21,7 +21,7 @@
 #include "scion/addr/address.hpp"
 #include "scion/addr/generic_ip.hpp"
 #include "scion/asio/addresses.hpp"
-#include "scion/bsd/sockaddr.hpp"
+#include "scion/posix/sockaddr.hpp"
 
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
@@ -38,7 +38,7 @@ class ScionIPv4AddrTest : public testing::Test
 
 using IPv4Types = testing::Types<
     scion::generic::IPAddress,
-    scion::bsd::IPAddress,
+    scion::posix::IPAddress,
     in_addr,
     boost::asio::ip::address_v4,
     boost::asio::ip::address
@@ -79,8 +79,8 @@ TYPED_TEST(ScionIPv4AddrTest, ScionAddress)
     auto ip2 = unwrap(AddrTraits::fromString("127.0.0.2"));
 
     Address addr(ia1, ip1);
-    EXPECT_EQ(ia1, addr.getIsdAsn());
-    EXPECT_EQ(ip1, addr.getHost());
+    EXPECT_EQ(ia1, addr.isdAsn());
+    EXPECT_EQ(ip1, addr.host());
 
     EXPECT_EQ(Address(ia1, ip1), addr);
     EXPECT_GT(Address(ia2, ip2), addr);
@@ -137,7 +137,7 @@ class ScionIPv6AddrTest : public testing::Test
 
 using IPv6Types = testing::Types<
     scion::generic::IPAddress,
-    scion::bsd::IPAddress,
+    scion::posix::IPAddress,
     in6_addr,
     boost::asio::ip::address_v6,
     boost::asio::ip::address
@@ -183,8 +183,8 @@ TYPED_TEST(ScionIPv6AddrTest, ScionAddress)
     auto ip2 = unwrap(AddrTraits::fromString("::2"));
 
     Address addr(ia1, ip1);
-    EXPECT_EQ(ia1, addr.getIsdAsn());
-    EXPECT_EQ(ip1, addr.getHost());
+    EXPECT_EQ(ia1, addr.isdAsn());
+    EXPECT_EQ(ip1, addr.host());
 
     EXPECT_EQ(Address(ia1, ip1), addr);
     EXPECT_GT(Address(ia2, ip2), addr);

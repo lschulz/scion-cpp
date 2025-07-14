@@ -20,8 +20,8 @@
 
 #pragma once
 
-#include "scion/bsd/sockaddr.hpp"
 #include "scion/addr/generic_ip.hpp"
+#include "scion/posix/sockaddr.hpp"
 
 #if _WIN32
 #include <Winsock2.h>
@@ -40,7 +40,7 @@
 
 
 namespace scion {
-namespace bsd {
+namespace posix {
 
 #if _WIN32
 using NativeHandle = SOCKET;
@@ -61,10 +61,10 @@ inline std::error_code getLastError()
 }
 } // namespace details
 
-/// \brief Thin wrapper around a BSD datagram socket.
+/// \brief Thin wrapper around a POSIX datagram socket.
 /// \tparam T A sockaddr, like sockaddr_in or sockaddr_in6.
 template <typename T = IPEndpoint>
-class BSDSocket
+class PosixSocket
 {
 public:
     static_assert(std::is_standard_layout_v<T>);
@@ -74,27 +74,27 @@ private:
     NativeHandle handle = INVALID_SOCKET_VALUE;
 
 public:
-    BSDSocket() noexcept = default;
-    BSDSocket(const BSDSocket&) noexcept = delete;
-    BSDSocket(BSDSocket&& other) noexcept
+    PosixSocket() noexcept = default;
+    PosixSocket(const PosixSocket&) noexcept = delete;
+    PosixSocket(PosixSocket&& other) noexcept
         : handle(other.handle)
     {
         other.handle = INVALID_SOCKET_VALUE;
     }
 
-    BSDSocket& operator=(const BSDSocket&) noexcept = delete;
-    BSDSocket& operator=(BSDSocket&& other) noexcept
+    PosixSocket& operator=(const PosixSocket&) noexcept = delete;
+    PosixSocket& operator=(PosixSocket&& other) noexcept
     {
         swap(this, other);
         return *this;
     }
 
-    friend void swap(BSDSocket& a, BSDSocket& b)
+    friend void swap(PosixSocket& a, PosixSocket& b)
     {
         std::swap(a.handle, b.handle);
     }
 
-    ~BSDSocket()
+    ~PosixSocket()
     {
         close();
     }
@@ -133,8 +133,8 @@ public:
         if (firstPort == 0 && lastPort == 65535)
             return bind(addr);
 
-        auto ip = EndpointTraits<SockAddr>::getHost(addr);
-        auto port = EndpointTraits<SockAddr>::getPort(addr);
+        auto ip = EndpointTraits<SockAddr>::host(addr);
+        auto port = EndpointTraits<SockAddr>::port(addr);
         if (port != 0) return bind(addr);
 
         if (handle == INVALID_SOCKET_VALUE) {
@@ -389,13 +389,13 @@ std::optional<generic::IPAddress> getDefaultInterfaceAddr6();
 /// \brief Get the address the socket is bound to or in case it is bound to a
 /// wildcard address, an arbitrary local address.
 template <typename Sockaddr>
-Maybe<generic::IPEndpoint> findLocalAddress(const bsd::BSDSocket<Sockaddr>& s)
+Maybe<generic::IPEndpoint> findLocalAddress(const posix::PosixSocket<Sockaddr>& s)
 {
     using IPAddress = typename EndpointTraits<Sockaddr>::HostAddr;
     auto bound = s.getsockname();
     if (isError(bound)) return propagateError(bound);
-    auto ip = EndpointTraits<Sockaddr>::getHost(*bound);
-    auto port = EndpointTraits<Sockaddr>::getPort(*bound);
+    auto ip = EndpointTraits<Sockaddr>::host(*bound);
+    auto port = EndpointTraits<Sockaddr>::port(*bound);
     generic::IPAddress localAddr;
     if (AddressTraits<IPAddress>::isUnspecified(ip)) {
         std::optional<generic::IPAddress> defAddr;
@@ -412,5 +412,5 @@ Maybe<generic::IPEndpoint> findLocalAddress(const bsd::BSDSocket<Sockaddr>& s)
 }
 } // namespace details
 
-} // namespace bsd
+} // namespace posix
 } // namespace scion

@@ -20,10 +20,10 @@
 
 #pragma once
 
+#include "proto/daemon/v1/daemon.pb.h"
 #include "scion/addr/isd_asn.hpp"
 #include "scion/details/protobuf_time.hpp"
 #include "scion/path/attributes.hpp"
-#include "proto/daemon/v1/daemon.pb.h"
 
 #include <chrono>
 #include <cstdint>

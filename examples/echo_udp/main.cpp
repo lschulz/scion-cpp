@@ -21,12 +21,8 @@
 #include "console.hpp"
 #include "format.hpp"
 
-#include <scion/error_codes.hpp>
-#include <scion/daemon/client.hpp>
-#include <scion/bsd/udp_socket.hpp>
-#include <scion/path/cache.hpp>
-
 #include <CLI/CLI.hpp>
+#include <scion/scion.hpp>
 
 #include <cstdlib>
 #include <iostream>
@@ -51,12 +47,12 @@ struct Arguments
 };
 
 int runServer(
-    const scion::bsd::UDPSocket<>::Endpoint& bind,
+    const scion::posix::IpUdpSocket::Endpoint& bind,
     std::pair<uint16_t, uint16_t> ports,
     Arguments& args);
 int runClient(
     scion::daemon::GrpcDaemonClient& sciond,
-    const scion::bsd::UDPSocket<>::Endpoint& bind,
+    const scion::posix::IpUdpSocket::Endpoint& bind,
     std::pair<uint16_t, uint16_t> ports,
     Arguments& args);
 
@@ -113,7 +109,7 @@ int main(int argc, char* argv[])
             return EXIT_FAILURE;
         }
     }
-    bsd::UDPSocket<>::Endpoint bindAddress(localAS->isdAsn, bindIP);
+    posix::IpUdpSocket::Endpoint bindAddress(localAS->isdAsn, bindIP);
 
     try {
         if (args.remoteAddr.empty()) {
@@ -134,13 +130,13 @@ int main(int argc, char* argv[])
 }
 
 int runServer(
-    const scion::bsd::UDPSocket<>::Endpoint& bind,
+    const scion::posix::IpUdpSocket::Endpoint& bind,
     std::pair<uint16_t, uint16_t> ports,
     Arguments& args)
 {
     using namespace std::chrono_literals;
     using namespace scion;
-    using Socket = bsd::UDPSocket<>;
+    using Socket = posix::IpUdpSocket;
 
     Socket s;
     if (auto ec = s.bind(bind, ports.first, ports.second); ec) {
@@ -156,7 +152,7 @@ int runServer(
     CON_CURSES(ncurses::initServer());
 
     std::stringstream stream;
-    stream << "Server listening at " << s.getLocalEp() << '\n';
+    stream << "Server listening at " << s.localEp() << '\n';
     stream << "Press q to quit.\n";
     CON_WIN32(std::cout << stream.str());
     CON_CURSES(ncurses::print(stream.str().c_str()));
@@ -197,15 +193,15 @@ int runServer(
 
 int runClient(
     scion::daemon::GrpcDaemonClient& sciond,
-    const scion::bsd::UDPSocket<>::Endpoint& bind,
+    const scion::posix::IpUdpSocket::Endpoint& bind,
     std::pair<uint16_t, uint16_t> ports,
     Arguments& args)
 {
     using namespace std::chrono_literals;
     using namespace scion;
-    using Socket = bsd::UDPSocket<>;
+    using Socket = posix::IpUdpSocket;
 
-    auto remote = scion::bsd::UDPSocket<>::Endpoint::Parse(args.remoteAddr);
+    auto remote = scion::posix::IpUdpSocket::Endpoint::Parse(args.remoteAddr);
     if (isError(remote)) {
         std::cerr << "Invalid destination address: " << args.remoteAddr << '\n';
         return EXIT_FAILURE;
@@ -221,9 +217,9 @@ int runClient(
         return ErrorCode::Ok;
     };
 
-    auto paths = pool.lookup(bind.getIsdAsn(), remote->getIsdAsn(), queryPaths);
+    auto paths = pool.lookup(bind.isdAsn(), remote->isdAsn(), queryPaths);
     if (isError(paths) || paths->empty()) {
-        std::cerr << "No path to " << remote->getIsdAsn() << '\n';
+        std::cerr << "No path to " << remote->isdAsn() << '\n';
         return EXIT_FAILURE;
     }
 
@@ -247,7 +243,7 @@ int runClient(
         std::uniform_int_distribution<> dist(0, (int)(paths->size() - 1));
         path = (*paths)[dist(rng)];
     }
-    auto nextHop = toUnderlay<Socket::UnderlayEp>(path->nextHop(remote->getLocalEp())).value();
+    auto nextHop = toUnderlay<Socket::UnderlayEp>(path->nextHop(remote->localEp())).value();
 
     Socket::Endpoint from;
     HeaderCache headers;

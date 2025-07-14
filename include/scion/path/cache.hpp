@@ -103,11 +103,12 @@ public:
     /// \param src Source AS
     /// \param dst Destination AS
     /// \param queryPaths Callback that is invoked to query paths. May return
-    ///     ErrorCode::Pending if paths are fetched asynchronously. Paths
-    ///     must be written to the cache using the store() method.
-    ///     Signature: `std::error_code queryPaths(PathCache&, IsdAsn src, IsdAsn dst)`
-    /// \returns Paths or ErrorCode::Pending if no paths are in the cache, but
-    ///     a path query is still pending.
+    /// ErrorCode::Pending if paths are fetched asynchronously. Paths must be
+    /// written to the cache using the store() method. Signature:
+    /// `std::error_code queryPaths(PathCache&, IsdAsn src, IsdAsn dst)`
+    ///
+    /// \returns Paths or ErrorCode::Pending if no paths are in the cache, but a
+    /// path query is still pending.
     template <typename PathProvider>
     requires std::invocable<PathProvider, PathCache&, IsdAsn, IsdAsn>
     Maybe<std::vector<PathPtr>> lookup(
@@ -149,16 +150,16 @@ public:
     ///
     /// \param src Source AS
     /// \param dst Destination AS
-    /// \param receive Callback that is invoked if there are matching paths
-    ///     in the cache.
-    ///     Signature: `void receive(std::ranges::forward_range auto&&)`
+    /// \param receive Callback that is invoked if there are matching paths in
+    /// the cache. Signature: `void receive(std::ranges::forward_range auto&&)`
     /// \param queryPaths Callback that is invoked to query paths. May return
-    ///     ErrorCode::Pending if paths are fetched asynchronously. Paths
-    ///     must be written to the cache using the store() method.
-    ///     Signature: `std::error_code queryPaths(PathCache&, IsdAsn src, IsdAsn dst)`
+    /// ErrorCode::Pending if paths are fetched asynchronously. Paths must be
+    /// written to the cache using the store() method. Signature:
+    /// `std::error_code queryPaths(PathCache&, IsdAsn src, IsdAsn dst)`
+    ///
     /// \returns ErrorCode::Ok if successful (even if there are no paths).
-    ///     ErrorCode::Pending if no paths are in the cache, but a path query
-    ///     is still pending.
+    /// ErrorCode::Pending if no paths are in the cache, but a path query is
+    /// still pending.
     template <typename PathReceiver, typename PathProvider>
     requires std::invocable<PathProvider, PathCache&, IsdAsn, IsdAsn>
     std::error_code lookup(IsdAsn src, IsdAsn dst, PathReceiver receive, PathProvider queryPaths)
@@ -196,7 +197,6 @@ public:
     }
 
     /// \brief Look up paths in the cache. Never queries new paths.
-    ///
     /// \param src Source AS
     /// \param dst Destination AS
     std::vector<PathPtr> lookupCached(IsdAsn src, IsdAsn dst) const
@@ -209,12 +209,10 @@ public:
     }
 
     /// \brief Look up paths in the cache. Never queries new paths.
-    ///
     /// \param src Source AS
     /// \param dst Destination AS
-    /// \param receive Callback that is invoked if there are matching paths
-    ///     in the cache.
-    ///     Signature: `void receive(std::ranges::forward_range auto&&)`
+    /// \param receive Callback that is invoked if there are matching paths in
+    /// the cache. Signature: `void receive(std::ranges::forward_range auto&&)`
     template <typename PathReceiver>
     void lookupCached(IsdAsn src, IsdAsn dst, PathReceiver receive) const
     {

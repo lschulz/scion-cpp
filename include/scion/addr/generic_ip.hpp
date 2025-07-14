@@ -64,7 +64,7 @@ class IPAddress
 public:
     /// \brief Construct the address "::".
     IPAddress()
-        : addrInfo(&IPAddress::IPv6NoZone, false)
+        : m_addrInfo(&IPAddress::IPv6NoZone, false)
     {}
 
     /// \brief Returns the unspecified IPv4 address "0.0.0.0".
@@ -148,9 +148,8 @@ public:
 
     /// \brief Parse an IPv4 or IPv6 address. Recognizes all formats described
     /// in RFC 4291.
-    /// \param noZone Fail if the address requires storing a
-    /// zone identifier.
-    /// \retrun Returns `RequiresZone` if the address specifies a zone, but
+    /// \param noZone Fail if the address requires storing a zone identifier.
+    /// \return Returns `RequiresZone` if the address specifies a zone, but
     /// `noZone` is true.
     static Maybe<IPAddress> Parse(std::string_view text, bool noZone = false) noexcept;
 
@@ -161,18 +160,18 @@ public:
 
     std::strong_ordering operator<=>(const IPAddress& other) const
     {
-        if (addrInfo->type != other.addrInfo->type) {
-            return addrInfo->type <=> other.addrInfo->type;
+        if (m_addrInfo->type != other.m_addrInfo->type) {
+            return m_addrInfo->type <=> other.m_addrInfo->type;
         }
         if (is4()) {
-            return (lo & 0xffff'ffff) <=> (other.lo & 0xffff'ffff);
+            return (m_lo & 0xffff'ffff) <=> (other.m_lo & 0xffff'ffff);
         } else {
-            if (addrInfo->zone != other.addrInfo->zone) {
-                return addrInfo->zone <=> other.addrInfo->zone;
+            if (m_addrInfo->zone != other.m_addrInfo->zone) {
+                return m_addrInfo->zone <=> other.m_addrInfo->zone;
             } else {
-                auto order = hi <=> other.hi;
+                auto order = m_hi <=> other.m_hi;
                 if (order == std::strong_ordering::equal)
-                    return lo <=> other.lo;
+                    return m_lo <=> other.m_lo;
                 else
                     return order;
             }
@@ -185,8 +184,8 @@ public:
         using scion::details::byteswapBE;
         std::uint32_t sum = 0;
         for (int i = 0; i < 4; ++i) {
-            sum += (lo >> (16*i)) & 0xffff;
-            sum += (hi >> (16*i)) & 0xffff;
+            sum += (m_lo >> (16*i)) & 0xffff;
+            sum += (m_hi >> (16*i)) & 0xffff;
         }
         return sum;
     }
@@ -194,33 +193,33 @@ public:
     /// \brief Tell whether the address is the unspecified wildcard.
     bool isUnspecified() const
     {
-        return hi == 0 && lo == 0;
+        return m_hi == 0 && m_lo == 0;
     }
 
     /// \brief Tell whether this is an IPv4 address, but not an IPv4-mapped IPv6.
-    bool is4() const { return addrInfo->type == AddrType::IPv4; }
+    bool is4() const { return m_addrInfo->type == AddrType::IPv4; }
 
     /// \brief Tell whether this is an IPv4-mapped IPv6 address.
-    bool is4in6() const { return is6() && hi == 0 && (lo >> 16) & 0xffffllu; }
+    bool is4in6() const { return is6() && m_hi == 0 && (m_lo >> 16) & 0xffffllu; }
 
     /// \brief Tell whether this is an IPv6 address including IP4 mapped to IPv6.
-    bool is6() const { return addrInfo->type == AddrType::IPv6; }
+    bool is6() const { return m_addrInfo->type == AddrType::IPv6; }
 
     /// \brief Tell whether this is a SCION-mapped IPv6 address.
-    bool isScion() const { return is6() && ((hi >> 56) & 0xff) == 0xfc; }
+    bool isScion() const { return is6() && ((m_hi >> 56) & 0xff) == 0xfc; }
 
     /// \brief Tell whether this is a SCION-IPv4-mapped IPv6 address.
-    bool isScion4() const { return isScion() && (hi & 0xff'fffful) == 0 && (lo >> 32) & 0xffffllu; }
+    bool isScion4() const { return isScion() && (m_hi & 0xff'fffful) == 0 && (m_lo >> 32) & 0xffffllu; }
 
     /// \brief Tell whether this is a SCION-IPv6-mapped IPv6 address.
-    bool isScion6() const { return isScion() && ((hi & 0xff'fffful) != 0 || (lo >> 32) != 0xffffllu); }
+    bool isScion6() const { return isScion() && ((m_hi & 0xff'fffful) != 0 || (m_lo >> 32) != 0xffffllu); }
 
     /// \brief Unmaps IPv4-mapped IPv6 addresses to regular IPv4. Returns a copy
     /// of the address if it is not a 4-in-6 address.
     IPAddress unmap4in6() const
     {
         if (is4in6())
-            return IPAddress{hi, lo & 0xffff'ffffull, &IPAddress::IPv4};
+            return IPAddress{m_hi, m_lo & 0xffff'ffffull, &IPAddress::IPv4};
         else
             return *this;
     }
@@ -230,35 +229,35 @@ public:
     IPAddress map4in6() const
     {
         if (is4())
-            return IPAddress{0, (0xffffull << 32) | (lo & 0xffff'ffffull), &IPv6NoZone};
+            return IPAddress{0, (0xffffull << 32) | (m_lo & 0xffff'ffffull), &IPv6NoZone};
         else
             return *this;
     }
 
     /// \brief Get IPv4 address as big-endian integer.
-    std::uint32_t getIPv4() const { assert(is4()); return std::uint32_t(lo); }
+    std::uint32_t getIPv4() const { assert(is4()); return std::uint32_t(m_lo); }
 
     /// \brief Get IPv6 address as two big-endian integers.
     std::pair<std::uint64_t, std::uint64_t> getIPv6() const
     {
-        return std::make_pair(hi, lo);
+        return std::make_pair(m_hi, m_lo);
     }
 
     /// \brief Returns true if the address has an IPv6 interface identifier.
-    bool hasZone() const { return !addrInfo->zone.empty(); }
+    bool hasZone() const { return !m_addrInfo->zone.empty(); }
 
     /// \brief Get the zone identifier or an empty string if there is none.
-    std::string_view getZone() const { return addrInfo->zone; }
+    std::string_view zone() const { return m_addrInfo->zone; }
 
     /// \brief Get the numerical zone ID or zero if the address has no zone.
-    unsigned int getZoneId() const;
+    unsigned int zoneId() const;
 
     /// \brief Copy IPv4 address into byte array.
     void toBytes4(std::span<std::byte, 4> bytes) const
     {
         assert(is4());
         for (int i = 0; i < 4; ++i)
-            bytes[i] = std::byte((lo >> 8*(3-i)) & 0xff);
+            bytes[i] = std::byte((m_lo >> 8*(3-i)) & 0xff);
     }
 
     /// \brief Copy IPv6 address into byte array.
@@ -266,9 +265,9 @@ public:
     {
         assert(is6());
         for (int i = 0; i < 8; ++i)
-            bytes[i] = std::byte((hi >> 8*(7-i)) & 0xff);
+            bytes[i] = std::byte((m_hi >> 8*(7-i)) & 0xff);
         for (int i = 0; i < 8; ++i)
-            bytes[8+i] = std::byte((lo >> 8*(7-i)) & 0xff);
+            bytes[8+i] = std::byte((m_lo >> 8*(7-i)) & 0xff);
     }
 
     std::size_t size() const { return is4() ? 4 : 16; }
@@ -284,19 +283,19 @@ public:
                 return err.error("address type does not match expectation");
             }
         } else {
-            hi = 0;
-            lo = 0;
-            addrInfo = v4 ? &IPv4 : &IPv6NoZone;
+            m_hi = 0;
+            m_lo = 0;
+            m_addrInfo = v4 ? &IPv4 : &IPv6NoZone;
         }
         if (v4) {
-            auto ip = (std::uint32_t)lo;
+            auto ip = (std::uint32_t)m_lo;
             if (!stream.serializeUint32(ip, err)) return err.propagate();
             if constexpr (Stream::IsReading) {
-                lo = (std::uint64_t)ip;
+                m_lo = (std::uint64_t)ip;
             }
         } else {
-            if (!stream.serializeUint64(hi, err)) return err.propagate();
-            if (!stream.serializeUint64(lo, err)) return err.propagate();
+            if (!stream.serializeUint64(m_hi, err)) return err.propagate();
+            if (!stream.serializeUint64(m_lo, err)) return err.propagate();
         }
         return true;
     }
@@ -342,7 +341,7 @@ private:
 
     IPAddress(
         std::uint64_t hi, std::uint64_t lo, boost::intrusive_ptr<const AddrInfo> info)
-        : hi(hi), lo(lo), addrInfo(std::move(info))
+        : m_hi(hi), m_lo(lo), m_addrInfo(std::move(info))
     {}
 
     static boost::intrusive_ptr<const AddrInfo> makeIPv6Zone(std::string_view zone);
@@ -355,24 +354,28 @@ private:
 private:
     // Stores 128-bit IPv6 address in two 64-bit integers in host byte order.
     // IPv4 addresses are stored as IPv4-mapped IPv6. Mapped IPv4 is
-    // distinguished from native IPv4 by `addrInfo->type`.
-    std::uint64_t hi = 0;
-    std::uint64_t lo = 0;
+    // distinguished from native IPv4 by `m_addrInfo->type`.
+    std::uint64_t m_hi = 0;
+    std::uint64_t m_lo = 0;
 
     // Discriminates between IPv4 and IPv6 and contains the zone identifier.
     // Must bot be null.
-    boost::intrusive_ptr<const AddrInfo> addrInfo;
+    boost::intrusive_ptr<const AddrInfo> m_addrInfo;
 };
 
 class IPEndpoint
 {
+private:
+    IPAddress m_host;
+    std::uint16_t m_port = 0;
+
 public:
     /// \brief Construct "[::]:0"
     IPEndpoint() = default;
 
     /// \brief Construct from host address and port.
     IPEndpoint(IPAddress host, std::uint16_t port)
-        : host(host), port(port)
+        : m_host(host), m_port(port)
     {}
 
     /// \brief Returns the unspecified IPv4 endpoint "0.0.0.0:0".
@@ -387,39 +390,34 @@ public:
         return {IPAddress::UnspecifiedIPv6(), 0};
     }
 
-    const IPAddress& getHost() const { return host; }
-    std::uint16_t getPort() const { return port; }
+    const IPAddress& host() const { return m_host; }
+    std::uint16_t port() const { return m_port; }
 
     /// Parse an endpoint of the format "[<IP>]:<Port>" where IP is an IPv4 or
     /// IPv6 address and Port is a valid decimal port number. The colon and port
     /// number may be are omitted if the port is 0. The square brackets are
     /// optional for IPv4 addresses.
-    /// \param noZone Fail if the IP address requires storing a
-    /// zone identifier.
-    /// \retrun Returns `RequiresZone` if the address specifies a zone, but
+    /// \param noZone Fail if the IP address requires storing a zone identifier.
+    /// \returns Returns `RequiresZone` if the address specifies a zone, but
     /// `noZone` is true.
     static Maybe<IPEndpoint> Parse(std::string_view text, bool noZone = false) noexcept;
 
     bool operator==(const IPEndpoint& other) const
     {
-        return host == other.host && port == other.port;
+        return m_host == other.m_host && m_port == other.m_port;
     }
 
     std::strong_ordering operator<=>(const IPEndpoint& other) const
     {
-        auto order = host <=> other.host;
+        auto order = m_host <=> other.m_host;
         if (order == std::strong_ordering::equal)
-            return port <=> other.port;
+            return m_port <=> other.m_port;
         else
             return order;
     }
 
     friend struct std::hash<scion::generic::IPEndpoint>;
     friend std::ostream& operator<<(std::ostream& stream, const IPEndpoint& addr);
-
-private:
-    IPAddress host;
-    std::uint16_t port = 0;
 };
 
 /// \brief Convert an underlay-specific IPv4 or IPv6 address to a generic IP
@@ -462,8 +460,8 @@ template <typename T>
 IPEndpoint toGenericEp(const T& ep)
 {
     using AddrType = EndpointTraits<T>::HostAddr;
-    const auto& addr = EndpointTraits<T>::getHost(ep);
-    const auto port = EndpointTraits<T>::getPort(ep);
+    const auto& addr = EndpointTraits<T>::host(ep);
+    const auto port = EndpointTraits<T>::port(ep);
     std::array<std::byte, 16> bytes;
     [[maybe_unused]] auto ec = AddressTraits<AddrType>::toBytes(addr, bytes);
     assert(!ec);
@@ -481,9 +479,9 @@ template <typename T>
 Maybe<T> toUnderlay(const IPEndpoint& ep)
 {
     using AddrType = EndpointTraits<T>::HostAddr;
-    auto host = toUnderlay<AddrType>(ep.getHost());
+    auto host = toUnderlay<AddrType>(ep.host());
     if (isError(host)) return propagateError(host);
-    return EndpointTraits<T>::fromHostPort(get(host), ep.getPort());
+    return EndpointTraits<T>::fromHostPort(get(host), ep.port());
 }
 
 } // namespace generic
@@ -562,14 +560,14 @@ struct scion::EndpointTraits<scion::generic::IPEndpoint>
         return LocalEp(host, port);
     }
 
-    static HostAddr getHost(const LocalEp& ep) noexcept
+    static HostAddr host(const LocalEp& ep) noexcept
     {
-        return ep.getHost();
+        return ep.host();
     }
 
-    static std::uint16_t getPort(const LocalEp& ep) noexcept
+    static std::uint16_t port(const LocalEp& ep) noexcept
     {
-        return ep.getPort();
+        return ep.port();
     }
 };
 
@@ -617,15 +615,15 @@ struct std::formatter<scion::generic::IPEndpoint>
 
     auto format(const scion::generic::IPEndpoint& ep, auto& ctx) const
     {
-        if (ep.getHost().is4()) {
-            auto out = ipFormatter.format(ep.getHost(), ctx);
-            return std::format_to(out, ":{}", ep.getPort());
+        if (ep.host().is4()) {
+            auto out = ipFormatter.format(ep.host(), ctx);
+            return std::format_to(out, ":{}", ep.port());
         } else {
             auto out = ctx.out();
             out++ = '[';
             ctx.advance_to(out);
-            out = ipFormatter.format(ep.getHost(), ctx);
-            return std::format_to(out, "]:{}", ep.getPort());
+            out = ipFormatter.format(ep.host(), ctx);
+            return std::format_to(out, "]:{}", ep.port());
         }
     }
 
@@ -642,18 +640,18 @@ struct std::hash<scion::generic::IPAddress>
         if constexpr (sizeof(std::size_t) == 4) {
             std::uint32_t h = 0;
             if (ip.is4()) {
-                scion::details::MurmurHash3_x86_32(&ip.lo, sizeof(ip.lo), seed, &h);
+                scion::details::MurmurHash3_x86_32(&ip.m_lo, sizeof(ip.m_lo), seed, &h);
             } else {
-                std::uint64_t value[] = {ip.hi, ip.lo};
+                std::uint64_t value[] = {ip.m_hi, ip.m_lo};
                 scion::details::MurmurHash3_x86_32(&value, sizeof(value), seed, &h);
             }
             return h;
         } else {
             std::uint64_t h[2] = {};
             if (ip.is4()) {
-                scion::details::MurmurHash3_x64_128(&ip.lo, sizeof(ip.lo), seed, &h);
+                scion::details::MurmurHash3_x64_128(&ip.m_lo, sizeof(ip.m_lo), seed, &h);
             } else {
-                std::uint64_t value[] = {ip.hi, ip.lo};
+                std::uint64_t value[] = {ip.m_hi, ip.m_lo};
                 scion::details::MurmurHash3_x64_128(&value, sizeof(value), seed, &h);
             }
             return h[0] ^ h[1];
@@ -669,21 +667,21 @@ struct std::hash<scion::generic::IPEndpoint>
         auto seed = scion::details::randomSeed();
         if constexpr (sizeof(std::size_t) == 4) {
             std::uint32_t h = 0;
-            if (ep.host.is4()) {
-                std::uint64_t value[] = {ep.host.lo, ep.port};
+            if (ep.m_host.is4()) {
+                std::uint64_t value[] = {ep.m_host.m_lo, ep.m_port};
                 scion::details::MurmurHash3_x86_32(&value, sizeof(value), seed, &h);
             } else {
-                std::uint64_t value[] = {ep.host.hi, ep.host.lo, ep.port};
+                std::uint64_t value[] = {ep.m_host.m_hi, ep.m_host.m_lo, ep.m_port};
                 scion::details::MurmurHash3_x86_32(&value, sizeof(value), seed, &h);
             }
             return h;
         } else {
             std::uint64_t h[2] = {};
-            if (ep.host.is4()) {
-                std::uint64_t value[] = {ep.host.lo, ep.port};
+            if (ep.m_host.is4()) {
+                std::uint64_t value[] = {ep.m_host.m_lo, ep.m_port};
                 scion::details::MurmurHash3_x64_128(&value, sizeof(value), seed, &h);
             } else {
-                std::uint64_t value[] = {ep.host.hi, ep.host.lo, ep.port};
+                std::uint64_t value[] = {ep.m_host.m_hi, ep.m_host.m_lo, ep.m_port};
                 scion::details::MurmurHash3_x64_128(&value, sizeof(value), seed, &h);
             }
             return h[0] ^ h[1];

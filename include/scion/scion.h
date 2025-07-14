@@ -193,7 +193,7 @@ struct scion_timer_t;
 typedef struct scion_timer_t scion_timer;
 
 /// \name Addresses
-/// @{
+///@{
 
 /// \brief SCION host address. All fields are in network byte order.
 struct scion_addr {
@@ -240,6 +240,8 @@ struct sockaddr_scion
     uint32_t sscion_flowinfo;      ///< SCION flow information
     struct scion_addr sscion_addr; ///< SCION address
 };
+
+///@}
 
 /// \brief A 128-bit hash value.
 struct scion_digest
@@ -423,7 +425,7 @@ void scion_restart(scion_context* ctx);
 ///////////////
 
 /// \name Addresses
-/// @{
+///@{
 
 /// \brief Test whether two addresses are equal.
 bool scion_addr_are_equal(const struct scion_addr* a, const struct scion_addr* b);

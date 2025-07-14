@@ -114,12 +114,12 @@ struct scion::EndpointTraits<sockaddr_in>
         };
     }
 
-    static HostAddr getHost(const LocalEp& ep) noexcept
+    static HostAddr host(const LocalEp& ep) noexcept
     {
         return ep.sin_addr;
     }
 
-    static std::uint16_t getPort(const LocalEp& ep) noexcept
+    static std::uint16_t port(const LocalEp& ep) noexcept
     {
         return details::byteswapBE(ep.sin_port);
     }
@@ -303,12 +303,12 @@ struct scion::EndpointTraits<sockaddr_in6>
         };
     }
 
-    static HostAddr getHost(const LocalEp& ep) noexcept
+    static HostAddr host(const LocalEp& ep) noexcept
     {
         return ep.sin6_addr;
     }
 
-    static std::uint16_t getPort(const LocalEp& ep) noexcept
+    static std::uint16_t port(const LocalEp& ep) noexcept
     {
         return details::byteswapBE(ep.sin6_port);
     }
@@ -425,11 +425,11 @@ struct std::hash<sockaddr_in6>
 };
 
 //////////////////////////////////////////////////////
-// scion::bsd::IPAddress and scion::bsd::IPEndpoint //
+// scion::posix::IPAddress and scion::posix::IPEndpoint //
 //////////////////////////////////////////////////////
 
 namespace scion {
-namespace bsd {
+namespace posix {
 
 using IPAddress = std::variant<in_addr, in6_addr>;
 
@@ -444,7 +444,7 @@ public:
     } data;
 };
 
-inline bool operator==(const scion::bsd::IPEndpoint& lhs, const scion::bsd::IPEndpoint& rhs)
+inline bool operator==(const scion::posix::IPEndpoint& lhs, const scion::posix::IPEndpoint& rhs)
 {
     if (lhs.data.generic.sa_family != rhs.data.generic.sa_family) return false;
     if (lhs.data.generic.sa_family == AF_INET) {
@@ -452,13 +452,13 @@ inline bool operator==(const scion::bsd::IPEndpoint& lhs, const scion::bsd::IPEn
     } else if (lhs.data.generic.sa_family == AF_INET6) {
         return lhs.data.v6 == rhs.data.v6;
     } else {
-        assert(false && "unexpected address family in scion::bsd::IPEndpoint");
+        assert(false && "unexpected address family in scion::posix::IPEndpoint");
         return true;
     }
 }
 
 inline std::strong_ordering operator<=>(
-    const scion::bsd::IPEndpoint& lhs, const scion::bsd::IPEndpoint& rhs)
+    const scion::posix::IPEndpoint& lhs, const scion::posix::IPEndpoint& rhs)
 {
     auto order = lhs.data.generic.sa_family <=> rhs.data.generic.sa_family;
     if (order != std::strong_ordering::equal) return order;
@@ -467,18 +467,18 @@ inline std::strong_ordering operator<=>(
     } else if (lhs.data.generic.sa_family == AF_INET6) {
         return lhs.data.v6 <=> rhs.data.v6;
     } else {
-        assert(false && "unexpected address family in scion::bsd::IPEndpoint");
+        assert(false && "unexpected address family in scion::posix::IPEndpoint");
         return std::strong_ordering::equal;
     }
 }
 
-} // namespace bsd
+} // namespace posix
 } // namespace scion
 
 template <>
-struct scion::AddressTraits<scion::bsd::IPAddress>
+struct scion::AddressTraits<scion::posix::IPAddress>
 {
-    using HostAddr = scion::bsd::IPAddress;
+    using HostAddr = scion::posix::IPAddress;
 
     static HostAddrType type(const HostAddr& addr) noexcept
     {
@@ -547,10 +547,10 @@ struct scion::AddressTraits<scion::bsd::IPAddress>
 };
 
 template <>
-struct scion::EndpointTraits<scion::bsd::IPEndpoint>
+struct scion::EndpointTraits<scion::posix::IPEndpoint>
 {
-    using LocalEp = scion::bsd::IPEndpoint;
-    using HostAddr = scion::bsd::IPAddress;
+    using LocalEp = scion::posix::IPEndpoint;
+    using HostAddr = scion::posix::IPAddress;
     using ScionAddr = scion::Address<HostAddr>;
 
     static LocalEp fromHostPort(HostAddr host, std::uint16_t port) noexcept
@@ -573,36 +573,36 @@ struct scion::EndpointTraits<scion::bsd::IPEndpoint>
         }
     }
 
-    static HostAddr getHost(const LocalEp& ep) noexcept
+    static HostAddr host(const LocalEp& ep) noexcept
     {
         if (ep.data.generic.sa_family == AF_INET)
             return ep.data.v4.sin_addr;
         else if (ep.data.generic.sa_family == AF_INET6)
             return ep.data.v6.sin6_addr;
-        assert(false && "unexpected address family in scion::bsd::IPEndpoint");
+        assert(false && "unexpected address family in scion::posix::IPEndpoint");
         return in_addr{};
     }
 
-    static std::uint16_t getPort(const LocalEp& ep) noexcept
+    static std::uint16_t port(const LocalEp& ep) noexcept
     {
         if (ep.data.generic.sa_family == AF_INET)
             return details::byteswapBE(ep.data.v4.sin_port);
         else if (ep.data.generic.sa_family == AF_INET6)
             return details::byteswapBE(ep.data.v6.sin6_port);
-        assert(false && "unexpected address family in scion::bsd::IPEndpoint");
+        assert(false && "unexpected address family in scion::posix::IPEndpoint");
         return 0;
     }
 };
 
 template <>
-struct std::formatter<scion::bsd::IPAddress>
+struct std::formatter<scion::posix::IPAddress>
 {
     constexpr auto parse(auto& ctx)
     {
         return ctx.begin();
     }
 
-    auto format(const scion::bsd::IPAddress& addr, auto& ctx) const
+    auto format(const scion::posix::IPAddress& addr, auto& ctx) const
     {
         auto out = ctx.out();
         int family = std::holds_alternative<in_addr>(addr) ? AF_INET : AF_INET6;
@@ -615,14 +615,14 @@ struct std::formatter<scion::bsd::IPAddress>
 };
 
 template <>
-struct std::formatter<scion::bsd::IPEndpoint>
+struct std::formatter<scion::posix::IPEndpoint>
 {
     constexpr auto parse(auto& ctx)
     {
         return ctx.begin();
     }
 
-    auto format(const scion::bsd::IPEndpoint& addr, auto& ctx) const
+    auto format(const scion::posix::IPEndpoint& addr, auto& ctx) const
     {
         auto out = ctx.out();
         std::array<char, INET6_ADDRSTRLEN> host;
@@ -642,9 +642,9 @@ struct std::formatter<scion::bsd::IPEndpoint>
 };
 
 template <>
-struct std::hash<scion::bsd::IPEndpoint>
+struct std::hash<scion::posix::IPEndpoint>
 {
-    std::size_t operator()(const scion::bsd::IPEndpoint& ep) const noexcept
+    std::size_t operator()(const scion::posix::IPEndpoint& ep) const noexcept
     {
         auto seed = scion::details::randomSeed();
         if constexpr (sizeof(std::size_t) == 4) {
@@ -654,7 +654,7 @@ struct std::hash<scion::bsd::IPEndpoint>
             } else if (ep.data.generic.sa_family == AF_INET6) {
                 scion::details::MurmurHash3_x86_32(&ep.data.v6, sizeof(ep.data.v6), seed, &h);
             } else {
-                assert(false && "unexpected address family in scion::bsd::IPEndpoint");
+                assert(false && "unexpected address family in scion::posix::IPEndpoint");
             }
             return h;
         } else {
@@ -664,7 +664,7 @@ struct std::hash<scion::bsd::IPEndpoint>
             } else if (ep.data.generic.sa_family == AF_INET6) {
                 scion::details::MurmurHash3_x64_128(&ep.data.v6, sizeof(ep.data.v6), seed, &h);
             } else {
-                assert(false && "unexpected address family in scion::bsd::IPEndpoint");
+                assert(false && "unexpected address family in scion::posix::IPEndpoint");
             }
             return h[0] ^ h[1];
         }

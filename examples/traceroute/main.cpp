@@ -20,15 +20,9 @@
 
 #include "format.hpp"
 
-#include <scion/error_codes.hpp>
-#include <scion/bit_stream.hpp>
-#include <scion/path/raw.hpp>
-#include <scion/path/decoded_scion.hpp>
-#include <scion/daemon/client.hpp>
-#include <scion/asio/scmp_socket.hpp>
-
 #include <CLI/CLI.hpp>
 #include <boost/asio.hpp>
+#include <scion/scion_asio.hpp>
 
 #include <cstdlib>
 #include <format>
@@ -64,7 +58,7 @@ int main(int argc, char* argv[])
     using namespace scion;
     using namespace scion::asio;
     using namespace std::chrono_literals;
-    using Socket = scion::asio::SCMPSocket;
+    using Socket = scion::asio::ScmpSocket;
     using boost::asio::awaitable;
 
     // Get local AS info from daemon
@@ -107,15 +101,15 @@ int main(int argc, char* argv[])
         std::cerr << "Can't bind to " << bindAddress << " : " << fmtError(ec) << '\n';
         return EXIT_FAILURE;
     }
-    std::cout << "Bound to " << s.getLocalEp() << '\n';
+    std::cout << "Bound to " << s.localEp() << '\n';
 
     // Get path to destination
     std::vector<PathPtr> paths;
     auto flags = daemon::PathReqFlags::Refresh | daemon::PathReqFlags::AllMetadata;
-    auto ec = sciond.rpcPaths(bindAddress.getIsdAsn(), remote->getIsdAsn(), flags,
+    auto ec = sciond.rpcPaths(bindAddress.isdAsn(), remote->isdAsn(), flags,
         std::back_inserter(paths));
     if (ec || paths.empty()) {
-        std::cerr << "No path to " << remote->getIsdAsn() << '\n';
+        std::cerr << "No path to " << remote->isdAsn() << '\n';
         return EXIT_FAILURE;
     }
     PathPtr path;
@@ -152,7 +146,7 @@ int main(int argc, char* argv[])
         constexpr auto token = boost::asio::use_awaitable;
         boost::asio::high_resolution_timer timer(ioCtx);
         hdr::ScmpTraceRequest request = {
-            .id = s.getLocalEp().getPort(), // routers use id as the port to respond to
+            .id = s.localEp().port(), // routers use id as the port to respond to
             .seq = 0,
         };
 

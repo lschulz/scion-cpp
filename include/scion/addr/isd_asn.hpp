@@ -40,12 +40,15 @@ namespace scion {
 /// \brief SCION 16-bit ISD number.
 class Isd
 {
+private:
+    std::uint_fast16_t m_isd = 0;
+
 public:
     constexpr Isd() = default;
 
-    explicit constexpr Isd(std::uint_fast16_t isd) : isd(isd) { assert(isd <= MAX_VALUE); }
+    explicit constexpr Isd(std::uint_fast16_t isd) : m_isd(isd) { assert(isd <= MAX_VALUE); }
 
-    constexpr operator std::uint_fast16_t() const { return isd; }
+    constexpr operator std::uint_fast16_t() const { return m_isd; }
 
     /// \brief Number of bits in ISD number.
     static constexpr std::size_t BITS = 16;
@@ -54,7 +57,7 @@ public:
     static constexpr std::size_t MAX_VALUE = (1ull << BITS) - 1;
 
     /// \brief Check whether the ISD is unspecified (equal to zero).
-    bool isUnspecified() const { return isd == 0; }
+    bool isUnspecified() const { return m_isd == 0; }
 
     auto operator<=>(const Isd&) const = default;
 
@@ -63,20 +66,20 @@ public:
 
     friend std::ostream& operator<<(std::ostream &stream, Isd isd);
     friend struct std::formatter<scion::Isd>;
-
-private:
-    std::uint_fast16_t isd = 0;
 };
 
 /// \brief SCION 48-bit AS number.
 class Asn
 {
+private:
+    std::uint64_t m_asn = 0;
+
 public:
     constexpr Asn() = default;
 
-    explicit constexpr Asn(std::uint64_t asn) : asn(asn) { assert(asn <= MAX_VALUE); }
+    explicit constexpr Asn(std::uint64_t asn) : m_asn(asn) { assert(asn <= MAX_VALUE); }
 
-    constexpr operator std::uint64_t() const { return asn; }
+    constexpr operator std::uint64_t() const { return m_asn; }
 
     /// \brief Number of bits in AS number.
     static constexpr std::size_t BITS = 48;
@@ -88,7 +91,7 @@ public:
     static constexpr std::size_t MAX_BGP_VALUE = (1ull << 32) - 1;
 
     /// \brief Check whether the ASN is unspecified (equal to zero).
-    bool isUnspecified() const { return asn == 0; }
+    bool isUnspecified() const { return m_asn == 0; }
 
     auto operator<=>(const Asn&) const = default;
 
@@ -102,20 +105,20 @@ public:
 
     friend std::ostream& operator<<(std::ostream &stream, Asn asn);
     friend struct std::formatter<scion::Asn>;
-
-private:
-    std::uint64_t asn = 0;
 };
 
 /// \brief Combined 64-bit SCION ISD-ASN.
 class IsdAsn
 {
+private:
+    std::uint64_t m_ia = 0;
+
 public:
     constexpr IsdAsn() = default;
 
-    explicit constexpr IsdAsn(std::uint64_t ia) : ia(ia) {}
+    explicit constexpr IsdAsn(std::uint64_t ia) : m_ia(ia) {}
 
-    constexpr IsdAsn(Isd isd, Asn asn) : ia(((std::uint64_t)isd << Asn::BITS) | asn) {}
+    constexpr IsdAsn(Isd isd, Asn asn) : m_ia(((std::uint64_t)isd << Asn::BITS) | asn) {}
 
     /// \brief Number of bits in ISD-ASN pair.
     static constexpr std::size_t BITS = 48;
@@ -123,15 +126,15 @@ public:
     /// \brief Maximum possible ISD-ASN value.
     static constexpr std::size_t MAX_VALUE = (1ull << BITS) - 1;
 
-    constexpr operator std::uint64_t() const { return ia; }
+    constexpr operator std::uint64_t() const { return m_ia; }
 
-    Isd getIsd() const { return Isd(ia >> Asn::BITS); }
-    Asn getAsn() const { return Asn(ia & ((1ull << Asn::BITS) - 1)); }
+    Isd isd() const { return Isd(m_ia >> Asn::BITS); }
+    Asn asn() const { return Asn(m_ia & ((1ull << Asn::BITS) - 1)); }
 
     /// \brief Check whether ISD or ASN are unspecified (equal to zero).
     bool isUnspecified() const
     {
-        return getIsd().isUnspecified() || getAsn().isUnspecified();
+        return isd().isUnspecified() || asn().isUnspecified();
     }
 
     auto operator<=>(const IsdAsn&) const = default;
@@ -148,7 +151,7 @@ public:
 
     std::uint32_t checksum() const
     {
-        return (std::uint32_t)(ia & 0xffff'fffful) + (std::uint32_t)(ia >> 32);
+        return (std::uint32_t)(m_ia & 0xffff'fffful) + (std::uint32_t)(m_ia >> 32);
     }
 
     std::size_t size() const { return 8; }
@@ -156,15 +159,12 @@ public:
     template <typename Stream, typename Error>
     bool serialize(Stream& stream, Error& err)
     {
-        if (!stream.serializeUint64(ia, err)) return err.propagate();
+        if (!stream.serializeUint64(m_ia, err)) return err.propagate();
         return true;
     }
 
     friend std::ostream& operator<<(std::ostream &stream, IsdAsn ia);
     friend struct std::formatter<scion::IsdAsn>;
-
-private:
-    std::uint64_t ia = 0;
 };
 
 } // namespace scion
@@ -174,7 +174,7 @@ struct std::formatter<scion::Isd> : std::formatter<std::uint_fast16_t>
 {
     auto format(const scion::Isd& isd, auto& ctx) const
     {
-        return std::formatter<std::uint_fast16_t>::format(isd.isd, ctx);
+        return std::formatter<std::uint_fast16_t>::format(isd.m_isd, ctx);
     }
 };
 
@@ -190,13 +190,13 @@ struct std::formatter<scion::Asn>
     {
         constexpr auto GROUP_BITS = 16ull;
         constexpr auto GROUP_MAX_VALUE = (1ull << GROUP_BITS) - 1;
-        if (asn.asn <= scion::Asn::MAX_BGP_VALUE) {
-            return std::format_to(ctx.out(), "{}", asn.asn);
+        if (asn.m_asn <= scion::Asn::MAX_BGP_VALUE) {
+            return std::format_to(ctx.out(), "{}", asn.m_asn);
         } else {
             return std::format_to(ctx.out(), "{:x}:{:x}:{:x}",
-                (asn.asn >> 2 * GROUP_BITS) & GROUP_MAX_VALUE,
-                (asn.asn >> GROUP_BITS) & GROUP_MAX_VALUE,
-                (asn.asn) & GROUP_MAX_VALUE);
+                (asn.m_asn >> 2 * GROUP_BITS) & GROUP_MAX_VALUE,
+                (asn.m_asn >> GROUP_BITS) & GROUP_MAX_VALUE,
+                (asn.m_asn) & GROUP_MAX_VALUE);
         }
     }
 };
@@ -211,7 +211,7 @@ struct std::formatter<scion::IsdAsn>
 
     auto format(const scion::IsdAsn& ia, auto& ctx) const
     {
-        return std::format_to(ctx.out(), "{}-{}", ia.getIsd(), ia.getAsn());
+        return std::format_to(ctx.out(), "{}-{}", ia.isd(), ia.asn());
     }
 };
 

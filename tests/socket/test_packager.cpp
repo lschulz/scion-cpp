@@ -104,13 +104,13 @@ TEST_F(PacketSocketFixture, PrepareSendUDP)
     Endpoint<IPEndpoint> remote(dst, 8000);
 
     packager.setLocalEp(local);
-    EXPECT_EQ(packager.getLocalEp(), local);
+    EXPECT_EQ(packager.localEp(), local);
 
     packager.setTrafficClass(64);
-    EXPECT_EQ(packager.getTrafficClass(), 64);
+    EXPECT_EQ(packager.trafficClass(), 64);
 
     HeaderCache hdr;
-    RawPath rp(src.getIsdAsn(), dst.getIsdAsn(), hdr::PathType::SCION, pathBytes);
+    RawPath rp(src.isdAsn(), dst.isdAsn(), hdr::PathType::SCION, pathBytes);
     hdr::UDP udp;
     ASSERT_EQ(
         packager.pack(hdr, &remote, rp, ext::NoExtensions, udp, payload),
@@ -131,30 +131,30 @@ TEST_F(PacketSocketFixture, PrepareSendUDPConnected)
     using namespace scion::generic;
 
     ScionPackager packager;
-    Endpoint<IPEndpoint> local(IsdAsn{}, src.getHost(), 3000); // will get ISD-ASN from path
+    Endpoint<IPEndpoint> local(IsdAsn{}, src.host(), 3000); // will get ISD-ASN from path
     Endpoint<IPEndpoint> remote(dst, 8000);
     HeaderCache hdr;
-    RawPath rp(src.getIsdAsn(), dst.getIsdAsn(), hdr::PathType::SCION, pathBytes);
+    RawPath rp(src.isdAsn(), dst.isdAsn(), hdr::PathType::SCION, pathBytes);
     hdr::UDP udp;
 
     packager.setLocalEp(local);
-    EXPECT_EQ(packager.getLocalEp(), local);
+    EXPECT_EQ(packager.localEp(), local);
 
     packager.setTrafficClass(64);
-    EXPECT_EQ(packager.getTrafficClass(), 64);
+    EXPECT_EQ(packager.trafficClass(), 64);
 
     ASSERT_EQ(
         packager.pack(hdr, nullptr, rp, ext::NoExtensions, udp, payload),
         ErrorCode::InvalidArgument);
 
-    packager.setRemoteEp(Endpoint<IPEndpoint>(IsdAsn{}, dst.getHost(), 8000));
+    packager.setRemoteEp(Endpoint<IPEndpoint>(IsdAsn{}, dst.host(), 8000));
 
     ASSERT_EQ(
         packager.pack(hdr, nullptr, rp, ext::NoExtensions, udp, payload),
         ErrorCode::InvalidArgument);
 
     packager.setRemoteEp(remote);
-    EXPECT_EQ(packager.getRemoteEp(), remote);
+    EXPECT_EQ(packager.remoteEp(), remote);
 
     ASSERT_EQ(
         packager.pack(hdr, nullptr, rp, ext::NoExtensions, udp, payload),
@@ -179,13 +179,13 @@ TEST_F(PacketSocketFixture, PrepareSendUDPUpdate)
     Endpoint<IPEndpoint> remote(dst, 8000);
 
     packager.setLocalEp(local);
-    EXPECT_EQ(packager.getLocalEp(), local);
+    EXPECT_EQ(packager.localEp(), local);
 
     packager.setTrafficClass(64);
-    EXPECT_EQ(packager.getTrafficClass(), 64);
+    EXPECT_EQ(packager.trafficClass(), 64);
 
     HeaderCache hdr;
-    RawPath rp(src.getIsdAsn(), dst.getIsdAsn(), hdr::PathType::SCION, pathBytes);
+    RawPath rp(src.isdAsn(), dst.isdAsn(), hdr::PathType::SCION, pathBytes);
     hdr::UDP udp;
     ASSERT_EQ(
         packager.pack(hdr, &remote, rp, ext::NoExtensions, udp, payload),
@@ -218,9 +218,9 @@ TEST_F(PacketSocketFixture, ReceiveUDP)
     Endpoint<IPEndpoint> remote(src, 3000);
 
     packager.setLocalEp(local);
-    EXPECT_EQ(packager.getLocalEp(), local);
+    EXPECT_EQ(packager.localEp(), local);
 
-    auto ulSource = remote.getHost();
+    auto ulSource = remote.host();
     ScionPackager::Endpoint from;
     RawPath path;
     auto recv = packager.unpack<hdr::UDP>(
@@ -228,7 +228,7 @@ TEST_F(PacketSocketFixture, ReceiveUDP)
     ASSERT_FALSE(isError(recv)) << getError(recv);
 
     EXPECT_EQ(from, remote);
-    EXPECT_EQ(path, RawPath(src.getIsdAsn(), dst.getIsdAsn(), hdr::PathType::SCION, pathBytes));
+    EXPECT_EQ(path, RawPath(src.isdAsn(), dst.isdAsn(), hdr::PathType::SCION, pathBytes));
     EXPECT_TRUE(std::ranges::equal(get(recv), payload)) << printBufferDiff(get(recv), payload);
 }
 
@@ -240,7 +240,7 @@ TEST_F(PacketSocketFixture, ReceiveUDPConnected)
     ScionPackager packager;
     Endpoint<IPEndpoint> local(dst, 8000);
     Endpoint<IPEndpoint> remote(src, 3000);
-    auto ulSource = remote.getHost();
+    auto ulSource = remote.host();
 
     // Receive from anyone at any address
     auto recv = packager.unpack<hdr::UDP>(
@@ -289,13 +289,13 @@ TEST_F(PacketSocketFixture, ReceiveUDPLocal)
     ScionPackager::Endpoint from;
     RawPath path;
 
-    auto ulSource = local.getHost();
+    auto ulSource = local.host();
     auto recv = packager.unpack<hdr::UDP>(
         buf, ulSource, ext::NoExtensions, ext::NoExtensions, &from, &path);
     ASSERT_TRUE(isError(recv));
     EXPECT_EQ(getError(recv), ErrorCode::InvalidPacket);
 
-    ulSource = remote.getHost();
+    ulSource = remote.host();
     recv = packager.unpack<hdr::UDP>(
         buf, ulSource, ext::NoExtensions, ext::NoExtensions, &from, &path);
     ASSERT_FALSE(isError(recv)) << getError(recv);
@@ -316,9 +316,9 @@ TEST_F(PacketSocketFixture, ReceiveUDPChksumError)
     Endpoint<IPEndpoint> remote(src, 3000);
 
     packager.setLocalEp(local);
-    EXPECT_EQ(packager.getLocalEp(), local);
+    EXPECT_EQ(packager.localEp(), local);
 
-    auto ulSource = remote.getHost();
+    auto ulSource = remote.host();
     auto recv = packager.unpack<hdr::UDP>(
         packets.at(5), ulSource, ext::NoExtensions, ext::NoExtensions, nullptr, nullptr);
         ASSERT_TRUE(isError(recv));
@@ -335,14 +335,14 @@ TEST_F(PacketSocketFixture, ReceiveSCMP)
     Endpoint<IPEndpoint> local(dst, 8000);
 
     packager.setLocalEp(local);
-    EXPECT_EQ(packager.getLocalEp(), local);
+    EXPECT_EQ(packager.localEp(), local);
 
-    auto ulSource = src.getHost();
+    auto ulSource = src.host();
     auto scmp = [&] (const Address<IPAddress>& from, const RawPath& path,
         const hdr::ScmpMessage& msg, std::span<const std::byte> data)
     {
         EXPECT_EQ(from, src);
-        EXPECT_EQ(path, RawPath(src.getIsdAsn(), dst.getIsdAsn(), hdr::PathType::SCION, pathBytes));
+        EXPECT_EQ(path, RawPath(src.isdAsn(), dst.isdAsn(), hdr::PathType::SCION, pathBytes));
         ASSERT_TRUE(std::holds_alternative<hdr::ScmpEchoRequest>(msg));
         EXPECT_EQ(std::get<hdr::ScmpEchoRequest>(msg), (hdr::ScmpEchoRequest{1, 100}));
         EXPECT_TRUE(std::ranges::equal(data, payload)) << printBufferDiff(data, payload);
@@ -364,9 +364,9 @@ TEST_F(PacketSocketFixture, ReceiveIdInt)
     Endpoint<IPEndpoint> remote(src, 3000);
 
     packager.setLocalEp(local);
-    EXPECT_EQ(packager.getLocalEp(), local);
+    EXPECT_EQ(packager.localEp(), local);
 
-    auto ulSource = remote.getHost();
+    auto ulSource = remote.host();
     ext::IdInt idint;
     std::array<ext::Extension*, 1> hbhExt = {&idint};
     ScionPackager::Endpoint from;
@@ -377,7 +377,7 @@ TEST_F(PacketSocketFixture, ReceiveIdInt)
     ASSERT_FALSE(isError(recv)) << getError(recv);
 
     EXPECT_EQ(from, remote);
-    EXPECT_EQ(path, RawPath(src.getIsdAsn(), dst.getIsdAsn(), hdr::PathType::SCION, pathBytes));
+    EXPECT_EQ(path, RawPath(src.isdAsn(), dst.isdAsn(), hdr::PathType::SCION, pathBytes));
     EXPECT_TRUE(std::ranges::equal(get(recv), payload)) << printBufferDiff(get(recv), payload);
 
     ASSERT_TRUE(idint.isValid());

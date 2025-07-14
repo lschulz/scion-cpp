@@ -43,21 +43,21 @@ class HeaderCache
 {
 private:
 #ifndef SCION_DISABLE_CHECKSUM
-    std::uint32_t scionHdrChksum = 0;
+    std::uint32_t m_scionHdrChksum = 0;
 #endif
-    std::uint16_t payloadSize = 0;
-    std::uint16_t nhOffset = 0;
-    std::uint16_t l4Offset = 0;
-    std::vector<std::byte, Alloc> buffer;
+    std::uint16_t m_payloadSize = 0;
+    std::uint16_t m_nhOffset = 0;
+    std::uint16_t m_l4Offset = 0;
+    std::vector<std::byte, Alloc> m_buffer;
 
 public:
     explicit HeaderCache(Alloc alloc = Alloc())
-        : buffer(alloc)
+        : m_buffer(alloc)
     {}
 
-    auto size() const { return buffer.size(); }
+    auto size() const { return m_buffer.size(); }
 
-    auto get() const { return std::span<const std::byte>(buffer); }
+    auto get() const { return std::span<const std::byte>(m_buffer); }
 
     /// \brief Build headers from scratch.
     template <
@@ -78,14 +78,14 @@ public:
         scHdr.qos = tc;
         scHdr.nh = std::remove_reference<L4>::type::PROTO;
         scHdr.ptype = path.type();
-        scHdr.dst = to.getAddress();
-        scHdr.src = from.getAddress();
-        nhOffset = 4;
+        scHdr.dst = to.address();
+        scHdr.src = from.address();
+        m_nhOffset = 4;
 
         // Update transport header
         if constexpr (!std::is_convertible_v<L4, hdr::SCMP>) {
-            l4.sport = from.getPort();
-            l4.dport = to.getPort();
+            l4.sport = from.port();
+            l4.dport = to.port();
         }
         l4.setPayload(payload);
 
@@ -101,15 +101,15 @@ public:
     #endif
 
         // Serialize headers
-        buffer.resize(4*scHdr.hlen + hbhExtSize + e2eExtSize + l4.size());
-        WriteStream ws(buffer);
+        m_buffer.resize(4*scHdr.hlen + hbhExtSize + e2eExtSize + l4.size());
+        WriteStream ws(m_buffer);
         SCION_STREAM_ERROR err;
         if (!writeHeaders(ws, scHdr, path, extensions, l4, err)) {
             SCION_DEBUG_PRINT(err << std::endl);
             return ErrorCode::LogicError;
         }
 
-        payloadSize = (std::uint16_t)payload.size();
+        m_payloadSize = (std::uint16_t)payload.size();
         return ErrorCode::Ok;
     }
 
@@ -120,7 +120,7 @@ public:
         std::uint16_t oldLen = 0;
         auto nh = hdr::ScionProto(0);
         {
-            ReadStream rs(buffer);
+            ReadStream rs(m_buffer);
             rs.seek(4, 0);
             if (!rs.serializeByte((std::uint8_t&)nh, NullStreamError))
                 return ErrorCode::LogicError;
@@ -130,20 +130,20 @@ public:
         }
 
         // Recompute length and checksum
-        auto newLen = (std::uint16_t)(oldLen - (buffer.size() - l4Offset) - payloadSize);
-        payloadSize = (std::uint16_t)(payload.size());
-        newLen += (std::uint16_t)(l4.size() + payloadSize);
+        auto newLen = (std::uint16_t)(oldLen - (m_buffer.size() - m_l4Offset) - m_payloadSize);
+        m_payloadSize = (std::uint16_t)(payload.size());
+        newLen += (std::uint16_t)(l4.size() + m_payloadSize);
         l4.setPayload(payload);
     #ifndef SCION_DISABLE_CHECKSUM
-        scionHdrChksum += (std::uint32_t)std::remove_reference<L4>::type::PROTO - (std::uint32_t)nh;
-        scionHdrChksum += newLen - oldLen;
+        m_scionHdrChksum += (std::uint32_t)std::remove_reference<L4>::type::PROTO - (std::uint32_t)nh;
+        m_scionHdrChksum += newLen - oldLen;
         l4.chksum = 0;
-        l4.chksum = hdr::details::internetChecksum(payload, scionHdrChksum + l4.checksum());
+        l4.chksum = hdr::details::internetChecksum(payload, m_scionHdrChksum + l4.checksum());
     #endif
 
         // Update headers
-        buffer.resize(l4Offset + l4.size());
-        WriteStream ws(buffer);
+        m_buffer.resize(m_l4Offset + l4.size());
+        WriteStream ws(m_buffer);
         SCION_STREAM_ERROR err;
         if (!updateHeaders(ws, newLen, l4, err)) {
             SCION_DEBUG_PRINT(err << std::endl);
@@ -169,7 +169,7 @@ private:
             hdr::HopByHopOpts hbh;
             hbh.nh = e2eExtSize > 0 ? hdr::ScionProto::E2EOpt : L4::PROTO;
             hbh.extLen = (std::uint8_t)((hbhExtSize / 4) - 1);
-            nhOffset = (std::uint16_t)(ws.getPos().first);
+            m_nhOffset = (std::uint16_t)(ws.getPos().first);
             if (!hbh.serialize(ws, err)) return err.propagate();
         }
         auto isHbH = [](auto ext) {
@@ -182,7 +182,7 @@ private:
             hdr::EndToEndOpts e2e;
             e2e.nh = L4::PROTO;
             e2e.extLen = (std::uint8_t)((e2eExtSize / 4) - 1);
-            nhOffset = (std::uint16_t)(ws.getPos().first);
+            m_nhOffset = (std::uint16_t)(ws.getPos().first);
             if (!e2e.serialize(ws, err)) return err.propagate();
         }
         auto isE2E = [](auto ext) {
@@ -191,7 +191,7 @@ private:
         for (auto ext : extensions | filter(isE2E)) {
             if (!ext->write(ws, ws.getPos().first, err)) return err.propagate();
         }
-        l4Offset = (std::uint16_t)(ws.getPos().first);
+        m_l4Offset = (std::uint16_t)(ws.getPos().first);
         if (!const_cast<L4&>(l4).serialize(ws, err)) return err.propagate();
         return true;
     }
@@ -203,11 +203,11 @@ private:
         ws.seek(6, 0);
         if (!ws.serializeUint16(plen, err)) return err.propagate();
         // Update next header type
-        ws.seek(nhOffset, 0);
+        ws.seek(m_nhOffset, 0);
         if (!ws.serializeByte(
             (std::uint8_t)std::remove_reference<L4>::type::PROTO, err)) return err.propagate();
         // Replace L4 header
-        ws.seek(l4Offset, 0);
+        ws.seek(m_l4Offset, 0);
         if (!l4.serialize(ws, err)) return err.propagate();
         return true;
     }
@@ -229,7 +229,7 @@ private:
     {
         auto chksum = scHdr.checksum((std::uint16_t)(l4.size() + payload.size()), L4::PROTO);
     #ifndef SCION_DISABLE_CHECKSUM
-        scionHdrChksum = chksum;
+        m_scionHdrChksum = chksum;
     #endif
         chksum += l4.checksum();
         return hdr::details::internetChecksum(payload, chksum);

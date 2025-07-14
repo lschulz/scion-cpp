@@ -40,7 +40,7 @@ TEST(GenericIP, IPv4)
     EXPECT_TRUE(ipv4.is4());
     EXPECT_FALSE(ipv4.is4in6());
     EXPECT_FALSE(ipv4.is6());
-    EXPECT_EQ(ipv4.getZone(), "");
+    EXPECT_EQ(ipv4.zone(), "");
 
     EXPECT_EQ(ipv4, IPAddress::MakeIPv4(0x0aff0001ul));
     EXPECT_EQ(ipv4.getIPv4(), 0x0aff0001);
@@ -64,7 +64,7 @@ TEST(GenericIP, IPv6)
     EXPECT_FALSE(ipv6.is4());
     EXPECT_FALSE(ipv6.is4in6());
     EXPECT_TRUE(ipv6.is6());
-    EXPECT_EQ(ipv6.getZone(), "");
+    EXPECT_EQ(ipv6.zone(), "");
 
     EXPECT_EQ(ipv6, IPAddress::MakeIPv6(0xfc00010203040506ul, 0x0708090a0b0c0d0eul));
     EXPECT_EQ(ipv6.getIPv6(), std::make_pair(0xfc00010203040506ul, 0x0708090a0b0c0d0eul));
@@ -109,13 +109,13 @@ TEST(GenericIP, ZoneIdentifier)
     auto c = IPAddress::MakeIPv6(0, 0, "eth0");
 
     EXPECT_TRUE(a.is6());
-    EXPECT_EQ(a.getZone(), "eth0"sv);
+    EXPECT_EQ(a.zone(), "eth0"sv);
 
     EXPECT_TRUE(b.is6());
-    EXPECT_EQ(b.getZone(), "Ethernet 1"sv);
+    EXPECT_EQ(b.zone(), "Ethernet 1"sv);
 
     EXPECT_TRUE(c.is6());
-    EXPECT_EQ(c.getZone(), "eth0"sv);
+    EXPECT_EQ(c.zone(), "eth0"sv);
 
     EXPECT_NE(a, b);
     EXPECT_EQ(a, c);

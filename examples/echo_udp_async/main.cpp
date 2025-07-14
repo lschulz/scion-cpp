@@ -20,15 +20,11 @@
 
 #include "format.hpp"
 
-#include <scion/error_codes.hpp>
-#include <scion/daemon/co_client.hpp>
-#include <scion/asio/udp_socket.hpp>
-#include <scion/path/shared_cache.hpp>
-
 #include <CLI/CLI.hpp>
 #include <boost/asio.hpp>
 #include <boost/asio/experimental/awaitable_operators.hpp>
 #include <boost/asio/experimental/concurrent_channel.hpp>
+#include <scion/scion_asio.hpp>
 
 #include <random>
 #include <thread>
@@ -49,12 +45,12 @@ struct Arguments
 };
 
 int runServer(
-    const scion::asio::UDPSocket::Endpoint& bind,
+    const scion::asio::UdpSocket::Endpoint& bind,
     std::pair<uint16_t, uint16_t> ports,
     Arguments& args);
 int runClient(
     scion::daemon::GrpcDaemonClient& sciond,
-    const scion::asio::UDPSocket::Endpoint& bind,
+    const scion::asio::UdpSocket::Endpoint& bind,
     std::pair<uint16_t, uint16_t> ports,
     Arguments& args);
 
@@ -122,7 +118,7 @@ int main(int argc, char* argv[])
             return EXIT_FAILURE;
         }
     }
-    scion::asio::UDPSocket::Endpoint bindAddress(localAS.isdAsn, bindIP);
+    scion::asio::UdpSocket::Endpoint bindAddress(localAS.isdAsn, bindIP);
 
     try {
         if (args.remoteAddr.empty()) {
@@ -143,13 +139,13 @@ int main(int argc, char* argv[])
 }
 
 int runServer(
-    const scion::asio::UDPSocket::Endpoint& bind,
+    const scion::asio::UdpSocket::Endpoint& bind,
     std::pair<uint16_t, uint16_t> ports,
     Arguments& args)
 {
     using namespace scion;
     using namespace scion::asio;
-    using Socket = UDPSocket;
+    using Socket = UdpSocket;
     using boost::asio::awaitable;
 
     boost::asio::io_context ioCtx(1);
@@ -158,7 +154,7 @@ int runServer(
         std::cerr << "Can't bind to " << bind << " : " << fmtError(ec) << '\n';
         return EXIT_FAILURE;
     }
-    std::cout << "Server listening at " << s.getLocalEp() << '\n';
+    std::cout << "Server listening at " << s.localEp() << '\n';
 
     auto echo = [&args] (Socket& s) -> awaitable<std::error_code>
     {
@@ -198,14 +194,14 @@ int runServer(
 
 int runClient(
     scion::daemon::GrpcDaemonClient& sciond,
-    const scion::asio::UDPSocket::Endpoint& bind,
+    const scion::asio::UdpSocket::Endpoint& bind,
     std::pair<uint16_t, uint16_t> ports,
     Arguments& args)
 {
     using namespace scion;
     using namespace scion::asio;
     using namespace std::chrono_literals;
-    using Socket = UDPSocket;
+    using Socket = UdpSocket;
     using boost::asio::awaitable;
 
     auto remote = Socket::Endpoint::Parse(args.remoteAddr);
@@ -245,14 +241,14 @@ int runClient(
     {
         constexpr auto token = boost::asio::use_awaitable;
 
-        auto paths = pool.lookup(bind.getIsdAsn(), remote->getIsdAsn(), queryPaths);
+        auto paths = pool.lookup(bind.isdAsn(), remote->isdAsn(), queryPaths);
         if (isError(paths) && paths.error() == ErrorCode::Pending) {
             // wait for first batch of paths
             co_await event.async_receive();
-            paths = pool.lookupCached(bind.getIsdAsn(), remote->getIsdAsn());
+            paths = pool.lookupCached(bind.isdAsn(), remote->isdAsn());
         }
         if (isError(paths) || paths->empty()) {
-            std::cerr << "No path to " << remote->getIsdAsn() << '\n';
+            std::cerr << "No path to " << remote->isdAsn() << '\n';
             co_return ErrorCode::Cancelled;
         }
 
@@ -264,7 +260,7 @@ int runClient(
             std::uniform_int_distribution<> dist(0, (int)(paths->size() - 1));
             path = (*paths)[dist(rng)];
         }
-        auto nextHop = toUnderlay<Socket::UnderlayEp>(path->nextHop(remote->getLocalEp())).value();
+        auto nextHop = toUnderlay<Socket::UnderlayEp>(path->nextHop(remote->localEp())).value();
 
         // give up after 1 second
         timer.expires_after(1s);

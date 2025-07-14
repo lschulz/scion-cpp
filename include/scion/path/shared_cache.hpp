@@ -122,14 +122,20 @@ public:
         return ErrorCode::Ok;
     }
 
-    /// \copydoc PathCache::lookupCached(IsdAsn, IsdAsn)
+    /// \brief Look up paths in the cache. Never queries new paths.
+    /// \param src Source AS
+    /// \param dst Destination AS
     std::vector<PathPtr> lookupCached(IsdAsn src, IsdAsn dst) const
     {
         std::shared_lock<std::shared_mutex> lock(mutex);
         return inner.lookupCached(src, dst);
     }
 
-    /// \copydoc PathCache::lookupCached(IsdAsn, IsdAsn, PathReceiver)
+    /// \brief Look up paths in the cache. Never queries new paths.
+    /// \param src Source AS
+    /// \param dst Destination AS
+    /// \param receive Callback that is invoked if there are matching paths in
+    /// the cache. Signature: `void receive(std::ranges::forward_range auto&&)`
     template <typename PathReceiver>
     void lookupCached(IsdAsn src, IsdAsn dst, PathReceiver receive) const
     {
@@ -188,6 +194,5 @@ public:
         inner.setNextScmpHandler(handler);
     }
 };
-
 
 } // namespace scion

@@ -26,12 +26,12 @@
 #include "scion/addr/generic_ip.hpp"
 #include "scion/addr/isd_asn.hpp"
 #include "scion/asio/udp_socket.hpp"
-#include "scion/bsd/sockaddr.hpp"
 #include "scion/daemon/client.hpp"
 #include "scion/details/bit.hpp"
 #include "scion/error_codes.hpp"
 #include "scion/path/raw.hpp"
 #include "scion/path/shared_cache.hpp"
+#include "scion/posix/sockaddr.hpp"
 #include "scion/resolver.hpp"
 
 #include <ares.h>
@@ -129,16 +129,16 @@ scion_addr addr_cast(const scion::ScIPAddress& addr)
     using namespace scion;
     scion_addr saddr = {};
     saddr.sscion_host_type = static_cast<scion_host_addr_type>(
-        AddressTraits<ScIPAddress::HostAddr>::type(addr.getHost()));
-    if (addr.getHost().hasZone()) {
-        saddr.sscion_scope_id = details::byteswapBE(addr.getHost().getZoneId());
+        AddressTraits<ScIPAddress::HostAddr>::type(addr.host()));
+    if (addr.host().hasZone()) {
+        saddr.sscion_scope_id = details::byteswapBE(addr.host().zoneId());
     }
-    saddr.sscion_isd_asn = details::byteswapBE((uint64_t)addr.getIsdAsn());
-    if (addr.getHost().is4()) {
-        addr.getHost().toBytes4(std::span<std::byte, 4>(
+    saddr.sscion_isd_asn = details::byteswapBE((uint64_t)addr.isdAsn());
+    if (addr.host().is4()) {
+        addr.host().toBytes4(std::span<std::byte, 4>(
             reinterpret_cast<std::byte*>(saddr.u.sscion_addr), 4));
     } else {
-        addr.getHost().toBytes16(std::span<std::byte, 16>(
+        addr.host().toBytes16(std::span<std::byte, 16>(
             reinterpret_cast<std::byte*>(saddr.u.sscion_addr), 16));
     }
     return saddr;
@@ -176,8 +176,8 @@ sockaddr_scion endpoint_cast(const scion::ScIPEndpoint& ep)
 {
     using namespace scion;
     sockaddr_scion sa = {AF_SCION, 0, 0, {}};
-    sa.sscion_port = details::byteswapBE(ep.getPort());
-    sa.sscion_addr = addr_cast(ep.getAddress());
+    sa.sscion_port = details::byteswapBE(ep.port());
+    sa.sscion_addr = addr_cast(ep.address());
     return sa;
 }
 
@@ -764,7 +764,7 @@ scion_error scion_path_next_hop(scion_path* path, sockaddr* next_hop, socklen_t*
 
     if (reinterpret_cast<Path*>(path)->empty()) return SCION_PATH_IS_EMPTY;
     auto nh = reinterpret_cast<Path*>(path)->nextHop();
-    if (nh.getHost().is4()) {
+    if (nh.host().is4()) {
         if (auto underlay = toUnderlay<sockaddr_in>(nh); isError(underlay)) {
             return SCION_LOGIC_ERROR;
         } else {
@@ -957,7 +957,7 @@ static scion_error asio_to_sockaddr(
 struct scion_socket_t
 {
     scion_context* ctx;
-    std::variant<scion::asio::UDPSocket> v;
+    std::variant<scion::asio::UdpSocket> v;
 };
 
 extern "C"
@@ -966,9 +966,9 @@ scion_error scion_socket_create(scion_context* ctx, scion_socket** socket, int s
     if (socket_type != SOCK_DGRAM) return SCION_NOT_IMPLEMENTED;
     *socket = new scion_socket_t{
         .ctx = ctx,
-        .v = scion::asio::UDPSocket(ctx->ioCtx)
+        .v = scion::asio::UdpSocket(ctx->ioCtx)
     };
-    auto s = &std::get<scion::asio::UDPSocket>((*socket)->v);
+    auto s = &std::get<scion::asio::UdpSocket>((*socket)->v);
     s->setNextScmpHandler(&ctx->scmpHandler);
     return SCION_OK;
 }
@@ -1055,7 +1055,7 @@ void scion_getsockname(scion_socket* socket, struct sockaddr_scion* addr)
 {
     using namespace scion;
     auto local = std::visit([&](auto&& s) -> ScIPEndpoint {
-        return s.getLocalEp();
+        return s.localEp();
     }, socket->v);
     *addr = details::endpoint_cast(local);
 }
@@ -1065,7 +1065,7 @@ void scion_getpeername(scion_socket* socket, struct sockaddr_scion* addr)
 {
     using namespace scion;
     auto local = std::visit([&](auto&& s) -> ScIPEndpoint {
-        return s.getRemoteEp();
+        return s.remoteEp();
     }, socket->v);
     *addr = details::endpoint_cast(local);
 }

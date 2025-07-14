@@ -112,10 +112,10 @@ IPAddress::makeIPv6Zone(std::string_view zone)
     }
 }
 
-unsigned int IPAddress::getZoneId() const
+unsigned int IPAddress::zoneId() const
 {
     char name[IF_NAMESIZE] = {};
-    auto zone = addrInfo->zone;
+    auto zone = m_addrInfo->zone;
     if (zone.empty()) return 0;
     zone = zone.substr(0, std::min(zone.size(), (std::size_t)IF_NAMESIZE)-1);
     std::ranges::copy(zone, name);
@@ -286,7 +286,7 @@ std::format_context::iterator IPAddress::formatTo(
     std::format_context::iterator out, bool longForm, bool upperCase) const
 {
     if (is4()) {
-        return formatIPv4(out, lo);
+        return formatIPv4(out, m_lo);
     }
 
     std::byte addr[16];
@@ -316,11 +316,11 @@ std::format_context::iterator IPAddress::formatTo(
 
     if (length == 12) {
         (out++) = ':';
-        out = formatIPv4(out, lo);
+        out = formatIPv4(out, m_lo);
     }
 
-    if (!getZone().empty()) {
-        return std::format_to(out, "%{}", getZone());
+    if (!zone().empty()) {
+        return std::format_to(out, "%{}", zone());
     }
     return out;
 }

@@ -29,15 +29,15 @@ namespace asio {
 
 /// \brief A UDP SCION socket supporting synchronous and asynchronous operations
 /// via Asio.
-class UDPSocket : public SCMPSocket
+class UdpSocket : public ScmpSocket
 {
 protected:
     ScmpHandler* scmpHandler;
 
 public:
     template <typename Executor>
-    explicit UDPSocket(Executor& ex)
-        : SCMPSocket(ex)
+    explicit UdpSocket(Executor& ex)
+        : ScmpSocket(ex)
     {}
 
     void setNextScmpHandler(ScmpHandler* handler) { scmpHandler = handler; }
@@ -107,8 +107,8 @@ public:
         std::span<const std::byte> payload)
     {
         hdr::UDP udp;
-        udp.sport = packager.getLocalEp().getPort();
-        udp.dport = packager.getRemoteEp().getPort();
+        udp.sport = packager.localEp().port();
+        udp.dport = packager.remoteEp().port();
         auto ec = packager.pack(headers, udp, payload);
         if (ec) return Error(ec);
         return sendUnderlay(headers.get(), payload, nextHop);
@@ -122,8 +122,8 @@ public:
         std::span<const std::byte> payload)
     {
         hdr::UDP udp;
-        udp.sport = packager.getLocalEp().getPort();
-        udp.dport = to.getPort();
+        udp.sport = packager.localEp().port();
+        udp.dport = to.port();
         auto ec = packager.pack(headers, udp, payload);
         if (ec) return Error(ec);
         return sendUnderlay(headers.get(), payload, nextHop);
@@ -532,9 +532,9 @@ private:
             };
 
             hdr::UDP udp;
-            udp.sport = packager.getLocalEp().getPort();
-            if (to) udp.dport = to->getPort();
-            else udp.dport = packager.getRemoteEp().getPort();
+            udp.sport = packager.localEp().port();
+            if (to) udp.dport = to->port();
+            else udp.dport = packager.remoteEp().port();
             auto ec = packager.pack(headers, udp, payload);
             if (ec) {
                 auto executor = boost::asio::get_associated_executor(
@@ -622,7 +622,7 @@ private:
                     };
                     auto payload = packager_.template unpack<hdr::UDP>(
                         buf_.subspan(0, n),
-                        generic::toGenericAddr(EndpointTraits<UnderlayEp>::getHost(ulSource_)),
+                        generic::toGenericAddr(EndpointTraits<UnderlayEp>::host(ulSource_)),
                         hbhExt_, e2eExt_, from_, path_, scmpCallback);
                     if (isError(payload)) {
                         if (getError(payload) != ErrorCode::ScmpReceived) {

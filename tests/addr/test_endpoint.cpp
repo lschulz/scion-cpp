@@ -21,7 +21,7 @@
 #include "scion/addr/endpoint.hpp"
 #include "scion/addr/generic_ip.hpp"
 #include "scion/asio/addresses.hpp"
-#include "scion/bsd/sockaddr.hpp"
+#include "scion/posix/sockaddr.hpp"
 
 #include "gtest/gtest.h"
 #include "utilities.hpp"
@@ -38,7 +38,7 @@ class ScionIPv4EpTest : public testing::Test
 
 using IPv4Types = testing::Types<
     scion::generic::IPEndpoint,
-    scion::bsd::IPEndpoint,
+    scion::posix::IPEndpoint,
     sockaddr_in,
     boost::asio::ip::udp::endpoint
 >;
@@ -55,8 +55,8 @@ TYPED_TEST(ScionIPv4EpTest, EndpointTraits)
     auto ip = unwrap(AddrTraits::fromString("10.255.0.1"));
     uint16_t port = 1024;
     auto ep = EpTraits::fromHostPort(ip, port);
-    EXPECT_EQ(EpTraits::getHost(ep), ip);
-    EXPECT_EQ(EpTraits::getPort(ep), port);
+    EXPECT_EQ(EpTraits::host(ep), ip);
+    EXPECT_EQ(EpTraits::port(ep), port);
 }
 
 TYPED_TEST(ScionIPv4EpTest, Endpoint)
@@ -73,8 +73,8 @@ TYPED_TEST(ScionIPv4EpTest, Endpoint)
     auto ep2 = EpTraits::fromHostPort(unwrap(AddrTraits::fromString("255.255.255.255")), 50001);
 
     Endpoint endpoint(ia1, ep1);
-    EXPECT_EQ(ia1, endpoint.getIsdAsn());
-    EXPECT_EQ(ep1, endpoint.getLocalEp());
+    EXPECT_EQ(ia1, endpoint.isdAsn());
+    EXPECT_EQ(ep1, endpoint.localEp());
 
     EXPECT_EQ(Endpoint(ia1, ep1), endpoint);
     EXPECT_GT(Endpoint(ia2, ep2), endpoint);
@@ -134,7 +134,7 @@ class ScionIPv6EpTest : public testing::Test
 
 using IPv6Types = testing::Types<
     scion::generic::IPEndpoint,
-    scion::bsd::IPEndpoint,
+    scion::posix::IPEndpoint,
     sockaddr_in6,
     boost::asio::ip::udp::endpoint
 >;
@@ -151,8 +151,8 @@ TYPED_TEST(ScionIPv6EpTest, EndpointTraits)
     auto ip = unwrap(AddrTraits::fromString("fd00:102:304:506:708:90a:b0c:d0e"));
     uint16_t port = 1024;
     auto ep = EpTraits::fromHostPort(ip, port);
-    EXPECT_EQ(EpTraits::getHost(ep), ip);
-    EXPECT_EQ(EpTraits::getPort(ep), port);
+    EXPECT_EQ(EpTraits::host(ep), ip);
+    EXPECT_EQ(EpTraits::port(ep), port);
 }
 
 TYPED_TEST(ScionIPv6EpTest, Endpoint)
@@ -169,8 +169,8 @@ TYPED_TEST(ScionIPv6EpTest, Endpoint)
     auto ep2 = EpTraits::fromHostPort(unwrap(AddrTraits::fromString("fd00::2")), 50001);
 
     Endpoint endpoint(ia1, ep1);
-    EXPECT_EQ(ia1, endpoint.getIsdAsn());
-    EXPECT_EQ(ep1, endpoint.getLocalEp());
+    EXPECT_EQ(ia1, endpoint.isdAsn());
+    EXPECT_EQ(ep1, endpoint.localEp());
 
     EXPECT_EQ(Endpoint(ia1, ep1), endpoint);
     EXPECT_GT(Endpoint(ia2, ep2), endpoint);

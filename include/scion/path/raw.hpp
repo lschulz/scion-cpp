@@ -52,7 +52,7 @@ public:
     static constexpr std::size_t MAX_SIZE = 984;
 
 private:
-    IsdAsn m_source, m_target;
+    IsdAsn m_source, m_destination;
     hdr::PathType m_type = hdr::PathType::Empty;
     std::size_t m_size = 0;
     mutable std::optional<PathDigest> m_digest;
@@ -63,18 +63,18 @@ public:
     RawPath() = default;
 
     /// \brief Construct from raw header bytes.
-    RawPath(IsdAsn source, IsdAsn target, hdr::PathType type, std::span<const std::byte> data)
+    RawPath(IsdAsn source, IsdAsn destination, hdr::PathType type, std::span<const std::byte> data)
     {
-        assign(source, target, type, data);
+        assign(source, destination, type, data);
     }
 
-    void assign(IsdAsn source, IsdAsn target, hdr::PathType type, std::span<const std::byte> data)
+    void assign(IsdAsn source, IsdAsn destination, hdr::PathType type, std::span<const std::byte> data)
     {
         if (data.size() > MAX_SIZE) {
             throw std::logic_error("supplied path is longer than the theoretical maximum");
         }
         m_source = source;
-        m_target = target;
+        m_destination = destination;
         m_type = type;
         m_size = data.size();
         m_digest = std::nullopt;
@@ -83,7 +83,7 @@ public:
 
     bool operator==(const RawPath& other) const
     {
-        return m_source == other.m_source && m_target == other.m_target
+        return m_source == other.m_source && m_destination == other.m_destination
             && m_type == other.m_type
             && std::ranges::equal(encoded(), other.encoded());
     }
@@ -93,7 +93,7 @@ public:
     bool encode(const Path& path, Error& err)
     {
         m_source = path.firstAS();
-        m_target = path.lastAS();
+        m_destination = path.lastAS();
         m_type = path.type();
         m_digest = std::nullopt;
         WriteStream ws(m_path);
@@ -116,7 +116,7 @@ public:
     IsdAsn firstAS() const { return m_source; }
 
     /// \brief Returns the last AS on the path (the destination).
-    IsdAsn lastAS() const { return m_target; }
+    IsdAsn lastAS() const { return m_destination; }
 
     /// \brief Iterate over hops as pairs of ingress and egress interface
     /// ID in path direction (not path construction direction).
@@ -146,7 +146,7 @@ public:
         auto err = details::reversePathInPlace(m_type,
             std::span<std::byte>(m_path.data(), m_path.data() + m_size));
         if (err) return err;
-        std::swap(m_source, m_target);
+        std::swap(m_source, m_destination);
         m_digest = std::nullopt;
         return ErrorCode::Ok;
     }

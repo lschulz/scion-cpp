@@ -18,8 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "scion/bsd/scmp_socket.hpp"
 #include "scion/extensions/idint.hpp"
+#include "scion/posix/scmp_socket.hpp"
 
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
@@ -33,7 +33,7 @@
 class ScmpSocketFixture : public testing::Test
 {
 public:
-    using Socket = scion::bsd::SCMPSocket<scion::bsd::BSDSocket<scion::bsd::IPEndpoint>>;
+    using Socket = scion::posix::ScmpSocket<scion::posix::PosixSocket<scion::posix::IPEndpoint>>;
 
 protected:
     static void SetUpTestSuite()
@@ -45,9 +45,9 @@ protected:
         ep2 = ep1;
 
         sock1.bind(ep1);
-        ep1 = sock1.getLocalEp();
+        ep1 = sock1.localEp();
         sock2.bind(ep2);
-        ep2 = sock2.getLocalEp();
+        ep2 = sock2.localEp();
 
         sock1.setRecvTimeout(1s);
         sock2.setRecvTimeout(1s);
@@ -115,7 +115,7 @@ TEST_F(ScmpSocketFixture, SendToRecvFrom)
     };
     auto msg = hdr::ScmpEchoRequest{0, 1};
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.getLocalEp()));
+    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
     auto sent = sock1.sendScmpTo(headers, ep2, RawPath(), nh, msg, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
     ASSERT_THAT(get(sent), testing::ElementsAreArray(payload));
@@ -144,7 +144,7 @@ TEST_F(ScmpSocketFixture, SendToRecvFromExt)
     std::array<ext::Extension*, 1> hbhExt = {&idint};
     auto& e2eExt = ext::NoExtensions;
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.getLocalEp()));
+    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
     auto sent = sock1.sendScmpToExt(headers, ep2, RawPath(), nh, hbhExt, msg, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
     ASSERT_THAT(get(sent), testing::ElementsAreArray(payload));
@@ -157,9 +157,9 @@ TEST_F(ScmpSocketFixture, SendToRecvFromExt)
     auto recvd = sock2.recvScmpFromViaExt(buffer, from, path, ulSource, hbhExt, e2eExt, scmp);
     ASSERT_FALSE(isError(recvd)) << getError(recvd);
     ASSERT_THAT(get(recvd), testing::ElementsAreArray(payload));
-    EXPECT_EQ(from.getAddress(), ep1.getAddress());
+    EXPECT_EQ(from.address(), ep1.address());
     EXPECT_TRUE(path.empty());
     EXPECT_EQ(
-        EndpointTraits<bsd::IPEndpoint>::getHost(ulSource),
-        unwrap(AddressTraits<bsd::IPAddress>::fromString("::1")));
+        EndpointTraits<posix::IPEndpoint>::host(ulSource),
+        unwrap(AddressTraits<posix::IPAddress>::fromString("::1")));
 }

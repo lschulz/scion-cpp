@@ -18,8 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "scion/bsd/udp_socket.hpp"
 #include "scion/extensions/idint.hpp"
+#include "scion/posix/udp_socket.hpp"
 #include "scion/scmp/handler.hpp"
 
 #include "gtest/gtest.h"
@@ -34,7 +34,7 @@
 class UdpSocketFixture : public testing::Test
 {
 public:
-    using Socket = scion::bsd::UDPSocket<scion::bsd::BSDSocket<scion::bsd::IPEndpoint>>;
+    using Socket = scion::posix::UdpSocket<scion::posix::PosixSocket<scion::posix::IPEndpoint>>;
 
 protected:
     static void SetUpTestSuite()
@@ -46,9 +46,9 @@ protected:
         ep2 = ep1;
 
         ASSERT_FALSE(sock1.bind(ep1));
-        ep1 = sock1.getLocalEp();
+        ep1 = sock1.localEp();
         ASSERT_FALSE(sock2.bind(ep2));
-        ep2 = sock2.getLocalEp();
+        ep2 = sock2.localEp();
 
         ASSERT_FALSE(sock1.setRecvTimeout(1s));
         ASSERT_FALSE(sock2.setRecvTimeout(1s));
@@ -115,7 +115,7 @@ TEST_F(UdpSocketFixture, SendRecv)
         1_b, 2_b, 3_b, 4_b, 5_b, 6_b, 7_b, 8_b
     };
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.getLocalEp()));
+    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
     auto sent = sock1.send(headers, RawPath(), nh, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
     ASSERT_THAT(get(sent), testing::ElementsAreArray(payload));
@@ -139,7 +139,7 @@ TEST_F(UdpSocketFixture, SendRecvExt)
     std::array<ext::Extension*, 1> hbhExt = {&idint};
     auto& e2eExt = ext::NoExtensions;
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.getLocalEp()));
+    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
     auto sent = sock1.sendExt(headers, RawPath(), nh, hbhExt, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
     ASSERT_THAT(get(sent), testing::ElementsAreArray(payload));
@@ -159,7 +159,7 @@ TEST_F(UdpSocketFixture, SendToRecvFrom)
         1_b, 2_b, 3_b, 4_b, 5_b, 6_b, 7_b, 8_b
     };
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.getLocalEp()));
+    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
     auto sent = sock1.sendTo(headers, ep2, RawPath(), nh, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
     ASSERT_THAT(get(sent), testing::ElementsAreArray(payload));
@@ -185,7 +185,7 @@ TEST_F(UdpSocketFixture, SendToRecvFromExt)
     std::array<ext::Extension*, 1> hbhExt = {&idint};
     auto& e2eExt = ext::NoExtensions;
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.getLocalEp()));
+    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
     auto sent = sock1.sendToExt(headers, ep2, RawPath(), nh, hbhExt, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
     ASSERT_THAT(get(sent), testing::ElementsAreArray(payload));
@@ -207,7 +207,7 @@ TEST_F(UdpSocketFixture, SendToRecvFromVia)
         1_b, 2_b, 3_b, 4_b, 5_b, 6_b, 7_b, 8_b
     };
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.getLocalEp()));
+    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
     auto sent = sock1.sendTo(headers, ep2, RawPath(), nh, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
     ASSERT_THAT(get(sent), testing::ElementsAreArray(payload));
@@ -222,8 +222,8 @@ TEST_F(UdpSocketFixture, SendToRecvFromVia)
     EXPECT_EQ(from, ep1);
     EXPECT_TRUE(path.empty());
     EXPECT_EQ(
-        EndpointTraits<bsd::IPEndpoint>::getHost(ulSource),
-        unwrap(AddressTraits<bsd::IPAddress>::fromString("::1")));
+        EndpointTraits<posix::IPEndpoint>::host(ulSource),
+        unwrap(AddressTraits<posix::IPAddress>::fromString("::1")));
 }
 
 TEST_F(UdpSocketFixture, SendToRecvFromViaExt)
@@ -239,7 +239,7 @@ TEST_F(UdpSocketFixture, SendToRecvFromViaExt)
     std::array<ext::Extension*, 1> hbhExt = {&idint};
     auto& e2eExt = ext::NoExtensions;
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.getLocalEp()));
+    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
     auto sent = sock1.sendToExt(headers, ep2, RawPath(), nh, hbhExt, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
     ASSERT_THAT(get(sent), testing::ElementsAreArray(payload));
@@ -254,8 +254,8 @@ TEST_F(UdpSocketFixture, SendToRecvFromViaExt)
     EXPECT_EQ(from, ep1);
     EXPECT_TRUE(path.empty());
     EXPECT_EQ(
-        EndpointTraits<bsd::IPEndpoint>::getHost(ulSource),
-        unwrap(AddressTraits<bsd::IPAddress>::fromString("::1")));
+        EndpointTraits<posix::IPEndpoint>::host(ulSource),
+        unwrap(AddressTraits<posix::IPAddress>::fromString("::1")));
 }
 
 TEST_F(UdpSocketFixture, SendCached)
@@ -272,7 +272,7 @@ TEST_F(UdpSocketFixture, SendCached)
     };
 
     // create headers from scratch
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.getLocalEp()));
+    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
     auto sent = sock1.send(headers, RawPath(), nh, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
     ASSERT_THAT(get(sent), testing::ElementsAreArray(payload));
@@ -306,8 +306,8 @@ TEST_F(UdpSocketFixture, SendCached)
 TEST(UdpSocket, WrongBindAddr)
 {
     using namespace scion;
-    using namespace scion::bsd;
-    using Socket = UDPSocket<BSDSocket<sockaddr_in>>;
+    using namespace scion::posix;
+    using Socket = UdpSocket<PosixSocket<sockaddr_in>>;
 
     Socket sock;
     auto local = unwrap(Socket::Endpoint::Parse("[1-ff00:0:1,::1]:0"));
@@ -318,20 +318,20 @@ TEST(UdpSocket, WrongBindAddr)
 TEST(UdpSocket, NotConnected)
 {
     using namespace scion;
-    using namespace scion::bsd;
+    using namespace scion::posix;
 
     static const std::array<std::byte, 8> payload = {
         1_b, 2_b, 3_b, 4_b, 5_b, 6_b, 7_b, 8_b
     };
 
-    using Socket = UDPSocket<BSDSocket<sockaddr_in>>;
+    using Socket = UdpSocket<PosixSocket<sockaddr_in>>;
 
     Socket sock;
     auto local = unwrap(Socket::Endpoint::Parse("[1-ff00:0:1,127.0.0.1]:0"));
     sock.bind(local);
 
     HeaderCache headers;
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(local.getLocalEp()));
+    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(local.localEp()));
     auto sent = sock.send(headers, RawPath(), nh, payload);
     ASSERT_TRUE(isError(sent));
     ASSERT_EQ(getError(sent), ErrorCode::InvalidArgument);
@@ -352,7 +352,7 @@ TEST(UdpSocket, SCMPHandler)
 {
     using namespace scion;
     using namespace std::chrono_literals;
-    using Socket = scion::bsd::UDPSocket<scion::bsd::BSDSocket<scion::bsd::IPEndpoint>>;
+    using Socket = scion::posix::UdpSocket<scion::posix::PosixSocket<scion::posix::IPEndpoint>>;
     using testing::_;
 
     auto ep1 = unwrap(Socket::Endpoint::Parse("[1-ff00:0:1,::1]:0"));
@@ -360,9 +360,9 @@ TEST(UdpSocket, SCMPHandler)
 
     Socket sock1, sock2;
     sock1.bind(ep1);
-    ep1 = sock1.getLocalEp();
+    ep1 = sock1.localEp();
     sock2.bind(ep2);
-    ep2 = sock2.getLocalEp();
+    ep2 = sock2.localEp();
 
     sock1.setRecvTimeout(1s);
     sock2.setRecvTimeout(1s);
@@ -373,10 +373,10 @@ TEST(UdpSocket, SCMPHandler)
     HeaderCache headers;
     std::vector<std::byte> buffer(1024);
 
-    auto from = ep1.getAddress();
-    RawPath rp(ep1.getIsdAsn(), ep2.getIsdAsn(), hdr::PathType::SCION, std::span<std::byte>());
+    auto from = ep1.address();
+    RawPath rp(ep1.isdAsn(), ep2.isdAsn(), hdr::PathType::SCION, std::span<std::byte>());
     hdr::ScmpMessage msg = hdr::ScmpExtIfDown{
-        ep1.getIsdAsn(), AsInterface(1)
+        ep1.isdAsn(), AsInterface(1)
     };
     std::span<const std::byte> payload;
 
@@ -384,7 +384,7 @@ TEST(UdpSocket, SCMPHandler)
     EXPECT_CALL(handler, handleScmpCallback(from, rp, msg, _)).Times(1);
     sock2.setNextScmpHandler(&handler);
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.getLocalEp()));
+    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
     auto sent = sock1.sendScmpTo(headers, ep2, rp, nh, msg, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
     // send a normal packet so recv doesn't wait for the timeout

@@ -24,8 +24,8 @@
 #include "scion/addr/endpoint.hpp"
 #include "scion/addr/generic_ip.hpp"
 #include "scion/asio/addresses.hpp"
-#include "scion/bsd/socket.hpp"
 #include "scion/extensions/extension.hpp"
+#include "scion/posix/underlay.hpp"
 #include "scion/socket/packager.hpp"
 
 #include <boost/asio.hpp>
@@ -34,7 +34,7 @@
 namespace scion {
 namespace asio {
 
-class SCMPSocket
+class ScmpSocket
 {
 public:
     using UnderlaySocket = boost::asio::ip::udp::socket;
@@ -49,7 +49,7 @@ protected:
 
 public:
     template <typename Executor>
-    explicit SCMPSocket(Executor& ex)
+    explicit ScmpSocket(Executor& ex)
         : socket(ex)
     {}
 
@@ -69,23 +69,23 @@ public:
         const Endpoint& ep, std::uint16_t firstPort, std::uint16_t lastPort)
     {
         // Bind underlay socket
-        auto underlayEp = generic::toUnderlay<bsd::IPEndpoint>(ep.getLocalEp());
+        auto underlayEp = generic::toUnderlay<posix::IPEndpoint>(ep.localEp());
         if (isError(underlayEp)) return getError(underlayEp);
         if (underlayEp->data.generic.sa_family == AF_INET6) {
             underlayEp->data.v6.sin6_scope_id = details::byteswapBE(
-                ep.getAddress().getHost().getZoneId());
+                ep.address().host().zoneId());
         }
-        bsd::BSDSocket<bsd::IPEndpoint> s;
+        posix::PosixSocket<posix::IPEndpoint> s;
         auto err = s.bind_range(*underlayEp, firstPort, lastPort);
         if (err) return err;
 
         // Find local address for SCION layer
-        auto local = scion::bsd::details::findLocalAddress(s);
+        auto local = scion::posix::details::findLocalAddress(s);
         if (isError(local)) return getError(local);
 
         // Assign bound socket to Asio
         boost::system::error_code ec;
-        if (local->getHost().is4())
+        if (local->host().is4())
             socket.assign(boost::asio::ip::udp::v4(), s.underlaySocket(), ec);
         else
             socket.assign(boost::asio::ip::udp::v6(), s.underlaySocket(), ec);
@@ -93,7 +93,7 @@ public:
         else s.release();
 
         // Propagate bound address and port to packet socket
-        return packager.setLocalEp(Endpoint(ep.getIsdAsn(), local->getHost(), local->getPort()));
+        return packager.setLocalEp(Endpoint(ep.isdAsn(), local->host(), local->port()));
     }
 
     /// \brief Locally store a default remote address. Receive methods will only
@@ -130,17 +130,17 @@ public:
     }
 
     /// \brief Returns the full address of the socket.
-    Endpoint getLocalEp() const { return packager.getLocalEp(); }
+    Endpoint localEp() const { return packager.localEp(); }
 
     /// \brief Returns the address of the connected remote host.
-    Endpoint getRemoteEp() const { return packager.getRemoteEp(); }
+    Endpoint remoteEp() const { return packager.remoteEp(); }
 
     /// \brief Set the traffic class of sent packets. Only affects the SCION
     /// header, not the underlay socket.
     void setTrafficClass(std::uint8_t tc) { packager.setTrafficClass(tc); }
 
     /// \brief Returns the current traffic class.
-    std::uint8_t getTrafficClass() const { return packager.getTrafficClass(); }
+    std::uint8_t trafficClass() const { return packager.trafficClass(); }
 
     /// \brief Sets the non-blocking mode of the socket.
     std::error_code setNonblocking(bool nonblocking)

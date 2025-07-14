@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include "scion/bsd/scmp_socket.hpp"
+#include "scion/posix/scmp_socket.hpp"
 #include "scion/scmp/handler.hpp"
 
 #include <cstdint>
@@ -30,11 +30,11 @@
 
 
 namespace scion {
-namespace bsd {
+namespace posix {
 
-/// \brief A UDP SCION socket backed by the BSD socket interface.
-template <typename Underlay = bsd::BSDSocket<IPEndpoint>>
-class UDPSocket : public SCMPSocket<Underlay>
+/// \brief A UDP SCION socket backed by the POSIX socket interface.
+template <typename Underlay = PosixSocket<IPEndpoint>>
+class UdpSocket : public ScmpSocket<Underlay>
 {
 public:
     using UnderlayEp = typename Underlay::SockAddr;
@@ -46,8 +46,8 @@ protected:
     ScmpHandler* scmpHandler;
 
 private:
-    using SCMPSocket<Underlay>::socket;
-    using SCMPSocket<Underlay>::packager;
+    using ScmpSocket<Underlay>::socket;
+    using ScmpSocket<Underlay>::packager;
 
 public:
     void setNextScmpHandler(ScmpHandler* handler) { scmpHandler = handler; }
@@ -63,7 +63,7 @@ public:
         auto ec = packager.pack(
             headers, nullptr, path, ext::NoExtensions, hdr::UDP{}, payload);
         if (ec) return Error(ec);
-        return SCMPSocket<Underlay>::sendUnderlay(headers.get(), payload, nextHop);
+        return ScmpSocket<Underlay>::sendUnderlay(headers.get(), payload, nextHop);
     }
 
     template <typename Path, ext::extension_range ExtRange, typename Alloc>
@@ -77,7 +77,7 @@ public:
         auto ec = packager.pack(
             headers, nullptr, path, std::forward<ExtRange>(extensions), hdr::UDP{}, payload);
         if (ec) return Error(ec);
-        return SCMPSocket<Underlay>::sendUnderlay(headers.get(), payload, nextHop);
+        return ScmpSocket<Underlay>::sendUnderlay(headers.get(), payload, nextHop);
     }
 
     template <typename Path, typename Alloc>
@@ -91,7 +91,7 @@ public:
         auto ec = packager.pack(
             headers, &to, path, ext::NoExtensions, hdr::UDP{}, payload);
         if (ec) return Error(ec);
-        return SCMPSocket<Underlay>::sendUnderlay(headers.get(), payload, nextHop);
+        return ScmpSocket<Underlay>::sendUnderlay(headers.get(), payload, nextHop);
     }
 
     template <typename Path, ext::extension_range ExtRange, typename Alloc>
@@ -106,7 +106,7 @@ public:
         auto ec = packager.pack(
             headers, &to, path, std::forward<ExtRange>(extensions), hdr::UDP{}, payload);
         if (ec) return Error(ec);
-        return SCMPSocket<Underlay>::sendUnderlay(headers.get(), payload, nextHop);
+        return ScmpSocket<Underlay>::sendUnderlay(headers.get(), payload, nextHop);
     }
 
     template <typename Alloc>
@@ -116,11 +116,11 @@ public:
         std::span<const std::byte> payload)
     {
         hdr::UDP udp;
-        udp.sport = packager.getLocalEp().getPort();
-        udp.dport = packager.getRemoteEp().getPort();
+        udp.sport = packager.localEp().port();
+        udp.dport = packager.remoteEp().port();
         auto ec = packager.pack(headers, udp, payload);
         if (ec) return Error(ec);
-        return SCMPSocket<Underlay>::sendUnderlay(headers.get(), payload, nextHop);
+        return ScmpSocket<Underlay>::sendUnderlay(headers.get(), payload, nextHop);
     }
 
     template <typename Alloc>
@@ -131,11 +131,11 @@ public:
         std::span<const std::byte> payload)
     {
         hdr::UDP udp;
-        udp.sport = packager.getLocalEp().getPort();
-        udp.dport = to.getPort();
+        udp.sport = packager.localEp().port();
+        udp.dport = to.port();
         auto ec = packager.pack(headers, udp, payload);
         if (ec) return Error(ec);
-        return SCMPSocket<Underlay>::sendUnderlay(headers.get(), payload, nextHop);
+        return ScmpSocket<Underlay>::sendUnderlay(headers.get(), payload, nextHop);
     }
 
     Maybe<std::span<std::byte>> recv(std::span<std::byte> buf)
@@ -218,7 +218,7 @@ private:
             auto recvd = socket.recvfrom(buf, ulSource);
             if (isError(recvd)) return propagateError(recvd);
             auto payload = packager.template unpack<hdr::UDP>(get(recvd),
-                generic::toGenericAddr(EndpointTraits<UnderlayEp>::getHost(ulSource)),
+                generic::toGenericAddr(EndpointTraits<UnderlayEp>::host(ulSource)),
                 std::forward<HbHExt>(hbhExt), std::forward<E2EExt>(e2eExt),
                 from, path, scmpCallback);
             if (payload.has_value()) {
@@ -235,5 +235,8 @@ private:
     }
 };
 
-} // namespace bsd
+/// \brief SCION UDP socket with IPv4/IPv6 UDP underlay.
+using IpUdpSocket = UdpSocket<PosixSocket<IPEndpoint>>;
+
+} // namespace posix
 } // namespace scion

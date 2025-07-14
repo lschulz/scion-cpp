@@ -29,8 +29,8 @@
 #include "scion/details/bit.hpp"
 #include "scion/path/path.hpp"
 #include "scion/daemon/client.hpp"
-#include "scion/bsd/sockaddr.hpp"
-#include "scion/bsd/udp_socket.hpp"
+#include "scion/posix/sockaddr.hpp"
+#include "scion/posix/udp_socket.hpp"
 
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
@@ -63,9 +63,9 @@ TEST(CInterface, ScionAddress)
     EXPECT_TRUE(SCION_IS_ADDR_UNSPECIFIED(&addr));
 
     IsdAsn isdAsn(Isd(1), Asn(0xff00'abcd'ffff));
-    auto ia = SCION_ISD_ASN((uint16_t)isdAsn.getIsd(), (uint64_t)isdAsn.getAsn());
-    EXPECT_EQ(Isd(SCION_ISD_ASN_GET_ISD(ia)), isdAsn.getIsd());
-    EXPECT_EQ(Asn(SCION_ISD_ASN_GET_ASN(ia)), isdAsn.getAsn());
+    auto ia = SCION_ISD_ASN((uint16_t)isdAsn.isd(), (uint64_t)isdAsn.asn());
+    EXPECT_EQ(Isd(SCION_ISD_ASN_GET_ISD(ia)), isdAsn.isd());
+    EXPECT_EQ(Asn(SCION_ISD_ASN_GET_ASN(ia)), isdAsn.asn());
 
     std::uint64_t n = 0;
     std::array<std::byte, sizeof(n)> buffer;
@@ -140,7 +140,7 @@ TEST(CInterface, ScionSockaddrTextIO)
 class CInterfaceFixture : public testing::Test
 {
 protected:
-    using Socket = scion::bsd::UDPSocket<scion::bsd::BSDSocket<scion::bsd::IPEndpoint>>;
+    using Socket = scion::posix::UdpSocket<scion::posix::PosixSocket<scion::posix::IPEndpoint>>;
 
     static void SetUpTestSuite()
     {
@@ -170,7 +170,7 @@ protected:
         ep1 = details::endpoint_cast(&sa1);
 
         ASSERT_FALSE(socket2.bind(ep2));
-        ep2 = socket2.getLocalEp();
+        ep2 = socket2.localEp();
         sa2 = details::endpoint_cast(ep2);
 
         ASSERT_FALSE(scion_connect(socket.get(), &sa2));
@@ -300,7 +300,7 @@ TEST_F(CInterfaceFixture, Recv)
     };
     HeaderCache headers;
     RawPath path;
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep1.getLocalEp()));
+    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep1.localEp()));
     auto sent = socket2.sendTo(headers, ep1, path, nh, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
 
@@ -331,7 +331,7 @@ TEST_F(CInterfaceFixture, SCMPHandler)
     };
     HeaderCache headers;
     RawPath path;
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep1.getLocalEp()));
+    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep1.localEp()));
 
     struct Handler {
         static void callback(const scion_scmp_message* message, void* user_ptr) {
@@ -437,7 +437,7 @@ TEST_F(CInterfaceFixture, AsyncRecv)
         1_b, 2_b, 3_b, 4_b, 5_b, 6_b, 7_b, 8_b
     };
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep1.getLocalEp()));
+    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep1.localEp()));
     auto sent = socket2.send(headers, RawPath(), nh, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
 
@@ -476,7 +476,7 @@ TEST_F(CInterfaceFixture, AsyncRecvFromVia)
         1_b, 2_b, 3_b, 4_b, 5_b, 6_b, 7_b, 8_b
     };
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep1.getLocalEp()));
+    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep1.localEp()));
     auto sent = socket2.send(headers, RawPath(), nh, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
 

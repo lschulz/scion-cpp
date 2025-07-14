@@ -61,7 +61,7 @@ private:
         std::unique_ptr<PathAttributeBase> data;
     };
 
-    IsdAsn m_source, m_target;
+    IsdAsn m_source, m_destination;
     hdr::PathType m_type = hdr::PathType::Empty;
     Expiry m_expires_by;
     std::uint16_t m_mtu;
@@ -74,13 +74,13 @@ private:
 public:
     Path() = default;
 
-    Path(IsdAsn source, IsdAsn target,
+    Path(IsdAsn source, IsdAsn destination,
         hdr::PathType type,
         Expiry expiry,
         std::uint16_t mtu,
         const generic::IPEndpoint& nh,
         std::span<const std::byte> dpPath)
-        : m_source(source), m_target(target)
+        : m_source(source), m_destination(destination)
         , m_type(type)
         , m_expires_by(expiry)
         , m_mtu(mtu)
@@ -90,7 +90,7 @@ public:
 
     bool operator==(const Path& other) const
     {
-        return m_source == other.m_source && m_target == other.m_target
+        return m_source == other.m_source && m_destination == other.m_destination
             && m_type == other.m_type && m_expires_by == other.m_expires_by
             && m_nextHop == other.m_nextHop
             && std::ranges::equal(m_path, other.m_path);
@@ -100,7 +100,7 @@ public:
     IsdAsn firstAS() const { return m_source; }
 
     /// \brief Returns the last AS on the path (the destination).
-    IsdAsn lastAS() const { return m_target; }
+    IsdAsn lastAS() const { return m_destination; }
 
     /// \brief Returns the path type.
     hdr::PathType type() const { return m_type; }
@@ -243,14 +243,14 @@ public:
 using PathPtr = boost::intrusive_ptr<Path>;
 
 /// \brief Helper for creating a path on the heap.
-inline PathPtr makePath(IsdAsn source, IsdAsn target,
+inline PathPtr makePath(IsdAsn source, IsdAsn destination,
     hdr::PathType type,
     Path::Expiry expiry,
     std::uint16_t mtu,
     const generic::IPEndpoint& nh,
     std::span<const std::byte> dpPath)
 {
-    return PathPtr(new Path(source, target, type, expiry, mtu, nh, dpPath));
+    return PathPtr(new Path(source, destination, type, expiry, mtu, nh, dpPath));
 }
 
 /// \brief Helper for creating an empty path on the heap.

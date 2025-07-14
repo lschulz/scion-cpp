@@ -187,7 +187,7 @@ public:
         auto verifAddrType = HostAddrType::IPv4;
         if constexpr (Stream::IsWriting) {
             if (vtype == Verifier::ThirdParty) {
-                verifAddrType = AddressTraits<generic::IPAddress>::type(verifier.getHost());
+                verifAddrType = AddressTraits<generic::IPAddress>::type(verifier.host());
             }
         }
         if (!stream.serializeBits((std::uint8_t&)verifAddrType, 4, err)) return err.propagate();
@@ -205,8 +205,8 @@ public:
         if (!stream.serializeBits(sourceTS, 48, err)) return err.propagate();
         if (!stream.serializeUint16(sourcePort, err)) return err.propagate();
         if (vtype == Verifier::ThirdParty) {
-            if (!verifier.getIsdAsn().serialize(stream, err)) return err.propagate();
-            if (!verifier.getHost().serialize(stream, verifAddrType == HostAddrType::IPv4, err))
+            if (!verifier.isdAsn().serialize(stream, err)) return err.propagate();
+            if (!verifier.host().serialize(stream, verifAddrType == HostAddrType::IPv4, err))
                 return err.propagate();
         }
         return true;

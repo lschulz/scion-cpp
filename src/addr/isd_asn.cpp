@@ -38,12 +38,12 @@ Maybe<Isd> Isd::Parse(std::string_view text)
     Isd isd;
     const auto begin = text.data();
     const auto end = begin + text.size();
-    auto res = std::from_chars(begin, end, isd.isd, 10);
+    auto res = std::from_chars(begin, end, isd.m_isd, 10);
     if (res.ptr != end)
         return Error(ErrorCode::SyntaxError);
     else if (res.ec == std::errc::invalid_argument || res.ec == std::errc::result_out_of_range)
         return Error(std::make_error_code(res.ec));
-    else if (isd.isd > Isd::MAX_VALUE)
+    else if (isd.m_isd > Isd::MAX_VALUE)
         return Error(ErrorCode::SyntaxError);
     return isd;
 }

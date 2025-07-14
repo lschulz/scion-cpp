@@ -20,8 +20,9 @@
 
 #pragma once
 
-#include "scion/hdr/idint.hpp"
 #include "scion/bit_stream.hpp"
+#include "scion/extensions/extension.hpp"
+#include "scion/hdr/idint.hpp"
 
 #include <memory>
 #include <vector>

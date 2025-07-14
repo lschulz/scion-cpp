@@ -45,7 +45,7 @@ Maybe<ScIPAddress> getLocalhost(const char* sciond)
     if (isError(localAS)) return propagateError(localAS);
     auto localhost = generic::IPAddress::MakeIPv6(0, 1);
     if (auto addr = generic::IPEndpoint::Parse(sciond); addr.has_value()) {
-        if (addr->getHost().is4()) {
+        if (addr->host().is4()) {
             localhost = generic::IPAddress::MakeIPv4(0x7f000001);
         }
     }

@@ -48,20 +48,20 @@ private:
     using HopVec = std::vector<hdr::HopField,
         typename std::allocator_traits<Alloc>::template rebind_alloc<hdr::HopField>>;
 
-    IsdAsn source, target;
+    IsdAsn source, destination;
     hdr::PathMeta meta;
     InfoVec ifs;
     HopVec hfs;
 
 public:
-    DecodedScionPath(IsdAsn source, IsdAsn target, Alloc alloc = Alloc())
-        : source(source), target(target), ifs(alloc), hfs(alloc)
+    DecodedScionPath(IsdAsn source, IsdAsn destination, Alloc alloc = Alloc())
+        : source(source), destination(destination), ifs(alloc), hfs(alloc)
     {}
 
     template <typename OtherAlloc>
     bool operator==(const DecodedScionPath<OtherAlloc>& other) const
     {
-        return source == other.source && target == other.target
+        return source == other.source && destination == other.destination
             && meta == other.meta
             && std::ranges::equal(ifs, other.ifs)
             && std::ranges::equal(hfs, other.hfs);
@@ -74,7 +74,7 @@ public:
     IsdAsn firstAS() const { return source; }
 
     /// \brief Returns the last AS on the path (the destination).
-    IsdAsn lastAS() const { return target; }
+    IsdAsn lastAS() const { return destination; }
 
     /// \brief Returns the path meta header.
     const hdr::PathMeta& metaHeader() const { return meta; }
@@ -180,7 +180,7 @@ public:
     std::error_code reverseInPlace()
     {
         if (hfs.empty()) return ErrorCode::LogicError;
-        std::swap(source, target);
+        std::swap(source, destination);
 
         // Reverse order of info fields
         auto numInf = ifs.size();

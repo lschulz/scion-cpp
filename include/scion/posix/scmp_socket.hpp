@@ -23,10 +23,10 @@
 #include "scion/addr/address.hpp"
 #include "scion/addr/endpoint.hpp"
 #include "scion/addr/generic_ip.hpp"
-#include "scion/bsd/sockaddr.hpp"
-#include "scion/bsd/socket.hpp"
 #include "scion/extensions/extension.hpp"
 #include "scion/path/raw.hpp"
+#include "scion/posix/sockaddr.hpp"
+#include "scion/posix/underlay.hpp"
 #include "scion/socket/packager.hpp"
 
 #include <chrono>
@@ -36,10 +36,10 @@
 
 
 namespace scion {
-namespace bsd {
+namespace posix {
 
-template <typename Underlay = BSDSocket<IPEndpoint>>
-class SCMPSocket
+template <typename Underlay = PosixSocket<IPEndpoint>>
+class ScmpSocket
 {
 public:
     using UnderlayEp = typename Underlay::SockAddr;
@@ -68,14 +68,14 @@ public:
         const Endpoint& ep, std::uint16_t firstPort, std::uint16_t lastPort)
     {
         // Bind underlay socket
-        auto underlayEp = generic::toUnderlay<UnderlayEp>(ep.getLocalEp());
+        auto underlayEp = generic::toUnderlay<UnderlayEp>(ep.localEp());
         if (isError(underlayEp)) return getError(underlayEp);
         if constexpr (std::is_same_v<UnderlayAddr, sockaddr_in6>) {
             underlayEp->sin6_scope_id = scion::details::byteswapBE(
-                ep.getAddress().getHost().getZoneId());
+                ep.address().host().zoneId());
         } else if constexpr (std::is_same_v<UnderlayAddr, IPEndpoint>) {
             underlayEp->data.v6.sin6_scope_id = scion::details::byteswapBE(
-                ep.getAddress().getHost().getZoneId());
+                ep.address().host().zoneId());
         }
         auto err = socket.bind_range(*underlayEp, firstPort, lastPort);
         if (err) return err;
@@ -85,7 +85,7 @@ public:
         if (isError(local)) return getError(local);
 
         // Propagate bound address and port to packet socket
-        return packager.setLocalEp(Endpoint(ep.getIsdAsn(), local->getHost(), local->getPort()));
+        return packager.setLocalEp(Endpoint(ep.isdAsn(), local->host(), local->port()));
     }
 
     /// \brief Locally store a default remote address. Receive methods will only
@@ -110,19 +110,19 @@ public:
     NativeHandle underlaySocket() { return socket.underlaySocket(); }
 
     /// \brief Returns the full address of the socket.
-    Endpoint getLocalEp() const { return packager.getLocalEp(); }
+    Endpoint localEp() const { return packager.localEp(); }
 
     /// \brief Returns the address of the connected remote host.
-    Endpoint geRemoteEp() const { return packager.getRemoteEp(); }
+    Endpoint remoteEp() const { return packager.remoteEp(); }
 
     /// \brief Set the traffic class of sent packets. Only affects the SCION
     /// header, not the underlay socket.
     void setTrafficClass(std::uint8_t tc) { packager.setTrafficClass(tc); }
 
     /// \brief Returns the current traffic class.
-    std::uint8_t getTrafficClass() const { return packager.getTrafficClass(); }
+    std::uint8_t trafficClass() const { return packager.trafficClass(); }
 
-    /// \copydoc BSDSocket::setNonblocking()
+    /// \copydoc PosixSocket::setNonblocking()
     std::error_code setNonblocking(bool nonblocking)
     {
         return socket.setNonblocking(nonblocking);
@@ -227,7 +227,7 @@ private:
             auto recvd = socket.recvfrom(buf, ulSource);
             if (isError(recvd)) return propagateError(recvd);
             auto decoded = packager.unpack<hdr::UDP>(get(recvd),
-                generic::toGenericAddr(EndpointTraits<UnderlayEp>::getHost(ulSource)),
+                generic::toGenericAddr(EndpointTraits<UnderlayEp>::host(ulSource)),
                 std::forward<HbHExt>(hbhExt), std::forward<E2EExt>(e2eExt), from, path, scmp);
             if (isError(decoded) && getError(decoded) == ErrorCode::ScmpReceived) {
                 return payload;
@@ -249,5 +249,8 @@ protected:
     }
 };
 
-} // namespace bsd
+/// \brief SCMP socket with IPv4/IPv6 UDP underlay.
+using IpScmpSocket = ScmpSocket<PosixSocket<IPEndpoint>>;
+
+} // namespace posix
 } // namespace scion

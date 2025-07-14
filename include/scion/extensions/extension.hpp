@@ -20,8 +20,8 @@
 
 #pragma once
 
-#include "scion/hdr/scion.hpp"
 #include "scion/bit_stream.hpp"
+#include "scion/hdr/scion.hpp"
 
 #include <cassert>
 #include <concepts>

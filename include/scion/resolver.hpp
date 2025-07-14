@@ -104,7 +104,7 @@ public:
     /// \brief Set path to a file formatted similar to /etc/hosts that will be
     /// used for resolving host names.
     /// \details By default the file is /etc/scion/hosts on Unix-like systems
-    /// and %ProgramFiles%\scion\hosts on Windows. Set to an empty string to
+    /// and %ProgramFiles%\\scion\\hosts on Windows. Set to an empty string to
     /// disable querying the hosts file.
     void setHostsFile(std::string_view hosts) { hostsFile = hosts; }
 
