@@ -218,7 +218,7 @@ public:
         out = std::format_to(out, "###[ ID-INT Option ]###\n");
         out = formatIndented(out, indent, "type       = {}\n", (unsigned)type);
         out = formatIndented(out, indent, "dataLen    = {}\n", dataLen);
-        out = formatIndented(out, indent, "flags      = {:#02x}\n", (unsigned)flags);
+        out = formatIndented(out, indent, "flags      = {:#02x}\n", (std::uint8_t)flags);
         out = formatIndented(out, indent, "agrMode    = {}\n", (unsigned)agrMode);
         out = formatIndented(out, indent, "vtype      = {}\n", (unsigned)vtype);
         out = formatIndented(out, indent, "stackLen   = {}\n", stackLen);
@@ -336,9 +336,9 @@ public:
         out = std::format_to(out, "###[ ID-INT Entry ]###\n");
         out = formatIndented(out, indent, "type     = {}\n", (unsigned)type);
         out = formatIndented(out, indent, "dataLen  = {}\n", dataLen);
-        out = formatIndented(out, indent, "flags    = {:#02x}\n", (unsigned)flags);
+        out = formatIndented(out, indent, "flags    = {:#02x}\n", (std::uint8_t)flags);
         out = formatIndented(out, indent, "hop      = {}\n", hop);
-        out = formatIndented(out, indent, "mask     = {:#02x}\n", (unsigned)mask);
+        out = formatIndented(out, indent, "mask     = {:#02x}\n", (std::uint8_t)mask);
         for (int i = 0; i < 4; ++i) {
             out = formatIndented(out, indent, "ml{}      = {}\n", i + 1, ml[i]);
         }

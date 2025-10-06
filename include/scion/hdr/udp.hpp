@@ -36,7 +36,7 @@
 namespace scion {
 namespace hdr {
 
-/// \brief UDP Header.
+/// \brief UDP header.
 class UDP
 {
 public:

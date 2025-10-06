@@ -154,7 +154,8 @@
         "drkey",
         "pmtu",
         "recvmmsg",
-        "sendmmsg"
+        "sendmmsg",
+        "urgptr"
     ],
     "python.analysis.extraPaths": [
         "./python/scapy-scion-int",
