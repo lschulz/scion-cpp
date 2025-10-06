@@ -105,6 +105,22 @@ protected:
     inline static std::unique_ptr<Socket> sock1, sock2;
 };
 
+TEST_F(AsioScmpSocketFixture, MeasureTo)
+{
+    using namespace scion;
+    auto msg = hdr::ScmpEchoRequest{0, 1};
+    ASSERT_EQ(unwrap(sock1->measureScmpTo(ep2, RawPath(), msg)), 68);
+}
+
+TEST_F(AsioScmpSocketFixture, MeasureToExt)
+{
+    using namespace scion;
+    ext::IdInt idint;
+    std::array<ext::Extension*, 1> hbhExt = {&idint};
+    auto msg = hdr::ScmpEchoRequest{0, 1};
+    ASSERT_EQ(unwrap(sock1->measureScmpToExt(ep2, RawPath(), hbhExt, msg)), 92);
+}
+
 TEST_F(AsioScmpSocketFixture, SendToRecvFrom)
 {
     using namespace scion;

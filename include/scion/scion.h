@@ -81,11 +81,11 @@
 #include <netinet/in.h>
 #endif
 
-#if __cplusplus
+#ifdef __cplusplus
 #include <type_traits>
 #endif
 
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -361,6 +361,8 @@ typedef void (*scion_scmp_handler)(const struct scion_scmp_message* message, voi
 /// \name Host Context
 ///@{
 
+#define SCION_HOST_CTX_MTU_DISCOVER 0x01
+
 struct scion_context_opts
 {
     /// \brief Address of local SCION daemon. If NULL, will not connect to
@@ -378,6 +380,15 @@ struct scion_context_opts
     /// by SCION. Set `parts_begin` and `ports_end` to 0 to determine
     /// automatically.
     uint16_t ports_end;
+    /// \brief Flags that modify the behavior if the context and its sockets.
+    /// \details Possible values are a combination of the following flags:
+    /// - `SCION_HOST_CTX_MTU_DISCOVER` Enable Path MTU discovery via SCMP
+    ///   messages. If this option is enabled, the maximum size of a SCION
+    ///   datagram can be calculated using scion_path_discoverd_mtu(),
+    ///   scion_raw_path_discovered_mtu() and scion_measure(). Even when PMTU
+    ///   discovery is enabled, sockets are not guaranteed to return
+    ///   SCION_PACKET_TOO_BIG if the resulting packet is too big.
+    int flags;
 };
 
 /// \brief Create a host context with the options given by a scion_context_opts
@@ -393,6 +404,20 @@ void scion_delete_host_context(scion_context* ctx);
 /// \returns The previously stored value of user_ptr.
 void* scion_set_scmp_handler(
     scion_context* ctx, scion_scmp_handler handler, void* user_ptr);
+
+/// \brief Returns the dynamically discovered PMTU between the local host and
+/// `dest` via `path`. If PMTU discovery is disabled this value matches
+/// `scion_path_mtu(path)`.
+/// \returns 0 if no PMTU is known or the arguments are invalid. Otherwise, the
+/// PMTU in bytes.
+uint16_t scion_discovered_pmtu(scion_context* ctx, scion_path* path, const struct scion_addr* dest);
+
+/// \brief Returns the dynamically discovered PMTU between the local host and
+/// `dest` via `path`.
+/// \returns 0 if no PMTU is known or the arguments are invalid. Otherwise, the
+/// PMTU in bytes.
+uint16_t scion_discovered_pmtu_raw(
+    scion_context* ctx, scion_raw_path* path, const struct scion_addr* dest);
 
 /// \brief Execute callbacks for operations that have completed.
 /// \returns The number of callbacks that have been executed.
@@ -585,6 +610,11 @@ void scion_path_set_broken(scion_path* path, bool broken);
 scion_error scion_path_meta_hops(
     scion_path* path, struct scion_hop* hops, size_t* hops_len);
 
+/// \brief Returns the length of the path in inter-AS hops (i.e., the number of
+/// visited ASes - 1). This value is derived from the raw data plane path and
+/// does not necessarily match the hop count given by metadata.
+uint32_t scion_path_hop_count(scion_path* path);
+
 /// \brief Returns the path digest in `digest`.
 void scion_path_digest(scion_path* path, struct scion_digest* digest);
 
@@ -742,7 +772,7 @@ struct scion_packet
     void* _path;                 ///< Pointer to data plane path. Set via SCION_SET_PATH() macro.
 };
 
-#if __cplusplus
+#ifdef __cplusplus
 /// \brief Associates a path with a scion_packet struct. Set the path to NULL
 /// to reset the association.
 #define SCION_SET_PATH(packet, path) do { \
@@ -763,6 +793,20 @@ struct scion_packet
     packet._path = (path); \
 }
 #endif
+
+/// \brief Calculate the total size of the SCION and L4 headers on the wire if a
+/// packet would be sent with the given parameters.
+///
+/// \param[in] args Packet arguments. This function calculates the header size
+/// from the destination address `args->addr` (optional for connected sockets)
+/// and the path which should be initialized by calling SCION_SET_PATH with a
+/// scion_path or scion_raw_path. The underlay address is ignored.
+/// \param[out] hdr_size Pointer to a size_t that is set to the calculated
+/// header size on successful return.
+/// \returns Returns an error if argument validation fails. Does not return I/O
+/// errors as this function does not perform socket I/O.
+scion_error scion_measure(
+    scion_socket* socket, const struct scion_packet* args, size_t* hdr_size);
 
 /// \brief Transmits a message.
 ///
@@ -913,6 +957,6 @@ void scion_timer_wait_async(scion_timer* timer, struct scion_wait_handler handle
 
 ///@}
 
-#if __cplusplus
+#ifdef __cplusplus
 } // extern "C"
 #endif

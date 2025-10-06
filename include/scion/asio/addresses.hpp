@@ -51,6 +51,11 @@ struct AddressTraits<boost::asio::ip::address_v4>
         return 4;
     }
 
+    static bool is4in6(const HostAddr& addr) noexcept
+    {
+        return false;
+    }
+
     static bool isUnspecified(const HostAddr& addr) noexcept
     {
         return addr.is_unspecified();
@@ -95,9 +100,18 @@ struct AddressTraits<boost::asio::ip::address_v6>
         return 16;
     }
 
+    static bool is4in6(const HostAddr& addr) noexcept
+    {
+        return addr.is_v4_mapped();
+    }
+
     static bool isUnspecified(const HostAddr& addr) noexcept
     {
-        return addr.is_unspecified();
+        using namespace boost::asio::ip;
+        if (AddressTraits<HostAddr>::is4in6(addr))
+            return addr == make_address_v6(v4_mapped, address_v4());
+        else
+            return addr.is_unspecified();
     }
 
     static std::error_code toBytes(const HostAddr& addr, std::span<std::byte, 16> bytes) noexcept
@@ -139,9 +153,18 @@ struct AddressTraits<boost::asio::ip::address>
         return addr.is_v4() ? 4 : 16;
     }
 
+    static bool is4in6(const HostAddr& addr) noexcept
+    {
+        return addr.is_v6() && addr.to_v6().is_v4_mapped();
+    }
+
     static bool isUnspecified(const HostAddr& addr) noexcept
     {
-        return addr.is_unspecified();
+        using namespace boost::asio::ip;
+        if (AddressTraits<HostAddr>::is4in6(addr))
+            return addr == make_address_v6(v4_mapped, address_v4());
+        else
+            return addr.is_unspecified();
     }
 
     static std::error_code toBytes(const HostAddr& addr, std::span<std::byte> bytes) noexcept

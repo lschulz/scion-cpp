@@ -106,6 +106,34 @@ protected:
     inline static Socket sock1, sock2;
 };
 
+TEST_F(UdpSocketFixture, Measure)
+{
+    using namespace scion;
+    ASSERT_EQ(unwrap(sock1.measure(RawPath())), 68);
+}
+
+TEST_F(UdpSocketFixture, MeasureExt)
+{
+    using namespace scion;
+    ext::IdInt idint;
+    std::array<ext::Extension*, 1> hbhExt = {&idint};
+    ASSERT_EQ(unwrap(sock1.measureExt(RawPath(), hbhExt)), 92);
+}
+
+TEST_F(UdpSocketFixture, MeasureTo)
+{
+    using namespace scion;
+    ASSERT_EQ(unwrap(sock1.measureTo(ep2, RawPath())), 68);
+}
+
+TEST_F(UdpSocketFixture, MeasureToExt)
+{
+    using namespace scion;
+    ext::IdInt idint;
+    std::array<ext::Extension*, 1> hbhExt = {&idint};
+    ASSERT_EQ(unwrap(sock1.measureToExt(ep2, RawPath(), hbhExt)), 92);
+}
+
 TEST_F(UdpSocketFixture, SendRecv)
 {
     using namespace scion;

@@ -55,6 +55,18 @@ add_executable(traceroute ${SRC_TRACEROUTE})
 target_include_directories(traceroute PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(traceroute PRIVATE scion-cpp CLI11::CLI11)
 
+# ====
+# pmtu
+# ====
+
+SET(SRC_PMTU
+    "pmtu/main.cpp"
+    "include/format.cpp"
+)
+add_executable(pmtu ${SRC_PMTU})
+target_include_directories(pmtu PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(pmtu PRIVATE scion-cpp CLI11::CLI11)
+
 # ========
 # resolver
 # ========

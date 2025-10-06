@@ -190,17 +190,18 @@ public:
         return sum;
     }
 
-    /// \brief Tell whether the address is the unspecified wildcard.
+    /// \brief Tell whether the address is the unspecified wildcard. This
+    /// includes the IPv4 wildcard address as IPv4-mapped IPv6.
     bool isUnspecified() const
     {
-        return m_hi == 0 && m_lo == 0;
+        return m_hi == 0 && (m_lo == 0 || m_lo == (0xffffull << 32));
     }
 
     /// \brief Tell whether this is an IPv4 address, but not an IPv4-mapped IPv6.
     bool is4() const { return m_addrInfo->type == AddrType::IPv4; }
 
     /// \brief Tell whether this is an IPv4-mapped IPv6 address.
-    bool is4in6() const { return is6() && m_hi == 0 && (m_lo >> 16) & 0xffffllu; }
+    bool is4in6() const { return is6() && m_hi == 0 && (m_lo >> 32) & 0xffffull; }
 
     /// \brief Tell whether this is an IPv6 address including IP4 mapped to IPv6.
     bool is6() const { return m_addrInfo->type == AddrType::IPv6; }
@@ -209,10 +210,10 @@ public:
     bool isScion() const { return is6() && ((m_hi >> 56) & 0xff) == 0xfc; }
 
     /// \brief Tell whether this is a SCION-IPv4-mapped IPv6 address.
-    bool isScion4() const { return isScion() && (m_hi & 0xff'fffful) == 0 && (m_lo >> 32) & 0xffffllu; }
+    bool isScion4() const { return isScion() && (m_hi & 0xff'fffful) == 0 && (m_lo >> 32) & 0xffffull; }
 
     /// \brief Tell whether this is a SCION-IPv6-mapped IPv6 address.
-    bool isScion6() const { return isScion() && ((m_hi & 0xff'fffful) != 0 || (m_lo >> 32) != 0xffffllu); }
+    bool isScion6() const { return isScion() && ((m_hi & 0xff'fffful) != 0 || (m_lo >> 32) != 0xffffull); }
 
     /// \brief Unmaps IPv4-mapped IPv6 addresses to regular IPv4. Returns a copy
     /// of the address if it is not a 4-in-6 address.
@@ -393,6 +394,13 @@ public:
     const IPAddress& host() const { return m_host; }
     std::uint16_t port() const { return m_port; }
 
+    /// \brief Returns true if this endpoint does not contain an unspecified
+    /// IP or port.
+    bool isFullySpecified() const
+    {
+        return !m_host.isUnspecified() && m_port != 0;
+    }
+
     /// Parse an endpoint of the format "[<IP>]:<Port>" where IP is an IPv4 or
     /// IPv6 address and Port is a valid decimal port number. The colon and port
     /// number may be are omitted if the port is 0. The square brackets are
@@ -507,6 +515,11 @@ struct scion::AddressTraits<scion::generic::IPAddress>
     static std::size_t size(const HostAddr& addr) noexcept
     {
         return addr.size();
+    }
+
+    static bool is4in6(const HostAddr& addr) noexcept
+    {
+        return addr.is4in6();
     }
 
     static bool isUnspecified(const HostAddr& addr) noexcept

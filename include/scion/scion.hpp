@@ -46,6 +46,7 @@
 #include <scion/path/shared_cache.hpp>
 
 #include <scion/scmp/handler.hpp>
+#include <scion/scmp/path_mtu.hpp>
 
 #include <scion/posix/scmp_socket.hpp>
 #include <scion/posix/udp_socket.hpp>

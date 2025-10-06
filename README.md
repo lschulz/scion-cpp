@@ -13,6 +13,10 @@ Still a work in progress.
 - [googletest](https://github.com/google/googletest) (included as submodule)
 - [CLI11](https://github.com/CLIUtils/CLI11) (included as submodule)
 
+For interposer:
+- [re2](https://github.com/google/re2)
+- [toml++](https://marzer.github.io/tomlplusplus/)
+
 Dependencies can be installed locally with vcpkg:
 ```bash
 vcpkg install
@@ -46,8 +50,11 @@ Running the unit tests:
 # Set TEST_BASE_PATH to the absolute path of the tests/ directory.
 export TEST_BASE_PATH=$(realpath tests)
 build/Debug/unit-tests
+export SCION_CONFIG="$PWD/interposer/integration/config/scion_interposer.toml"
+build/interposer/Debug/interposer-tests
 # Or run
 make test
+make test-interposer
 ```
 
 Make or update test data:
@@ -57,6 +64,14 @@ python3 -m venv .venv
 . .venv/bin/activate
 pip install -r python/requirements.txt
 make test-data
+```
+
+### Integration Tests
+
+The integration tests require a copy of the [SCION source code](https://github.com/scionproto/scion).
+Set `SCION_ROOT` to the root of the repository.
+```bash
+make SCION_ROOT=~/scionproto-scion test-integration
 ```
 
 ### Examples

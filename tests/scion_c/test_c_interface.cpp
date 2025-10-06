@@ -152,6 +152,7 @@ protected:
         opts.default_isd_asn = unwrap(scion::IsdAsn::Parse("1-ff00:0:1"));
         opts.ports_begin = 31000;
         opts.ports_end = 32767;
+        opts.flags = SCION_HOST_CTX_MTU_DISCOVER;
         {
             scion_context* c = nullptr;
             ASSERT_EQ(scion_create_host_context(&c, &opts), SCION_OK);
@@ -196,6 +197,29 @@ protected:
     inline static scion::ScIPEndpoint ep1, ep2;
     inline static sockaddr_scion sa1, sa2;
 };
+
+TEST_F(CInterfaceFixture, PathMTU)
+{
+    using namespace scion;
+    auto path = makePath(
+        IsdAsn(Isd(1), Asn(0xff00'0000'0001)),
+        IsdAsn(Isd(2), Asn(0xff00'0000'0002)),
+        hdr::PathType::SCION,
+        Path::Expiry::clock::now(),
+        800,
+        generic::IPEndpoint::UnspecifiedIPv4(),
+        std::span<const std::byte>()
+    );
+    RawPath rp;
+    EXPECT_EQ(scion_discovered_pmtu(
+        ctx.get(), reinterpret_cast<scion_path*>(path.get()), &sa1.sscion_addr),
+        800
+    );
+    EXPECT_EQ(scion_discovered_pmtu_raw(
+        ctx.get(), reinterpret_cast<scion_raw_path*>(&rp), &sa1.sscion_addr),
+        1280
+    );
+}
 
 TEST_F(CInterfaceFixture, NameResolution)
 {
@@ -246,6 +270,20 @@ TEST_F(CInterfaceFixture, NameResolutionAsync)
     scion_resolve_name_async(ctx.get(), "netsys.ovgu.de", data.ep.data(), &data.len,
         scion_async_resolve_handler{callback, &data});
     scion_run(ctx.get());
+}
+
+TEST_F(CInterfaceFixture, Measure)
+{
+    using namespace scion;
+
+    RawPath path;
+    scion_packet pkt = {};
+    pkt.addr = nullptr;
+    SCION_SET_PATH(pkt, reinterpret_cast<scion_raw_path*>(&path));
+
+    size_t size = 0;
+    ASSERT_FALSE(scion_measure(socket.get(), &pkt, &size));
+    EXPECT_EQ(size, 68);
 }
 
 TEST_F(CInterfaceFixture, Send)
@@ -544,6 +582,7 @@ TEST_F(CInterfacePathFixture, Getters)
     EXPECT_EQ(scion_path_type(path), SCION_PATH_SCION);
     EXPECT_EQ(scion_path_expiry(path), 1712950886ull * 1000 * 1000 * 1000);
     EXPECT_EQ(scion_path_mtu(path), 1472);
+    EXPECT_EQ(scion_path_hop_count(path), 2);
     EXPECT_FALSE(scion_path_broken(path));
     scion_path_set_broken(path, true);
     EXPECT_TRUE(scion_path_broken(path));

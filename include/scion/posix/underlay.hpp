@@ -75,6 +75,12 @@ private:
 
 public:
     PosixSocket() noexcept = default;
+
+    /// \brief Adopt a socket handle.
+    explicit PosixSocket(NativeHandle socket)
+        : handle(socket)
+    {}
+
     PosixSocket(const PosixSocket&) noexcept = delete;
     PosixSocket(PosixSocket&& other) noexcept
         : handle(other.handle)
@@ -85,7 +91,7 @@ public:
     PosixSocket& operator=(const PosixSocket&) noexcept = delete;
     PosixSocket& operator=(PosixSocket&& other) noexcept
     {
-        swap(this, other);
+        swap(*this, other);
         return *this;
     }
 
@@ -399,7 +405,8 @@ Maybe<generic::IPEndpoint> findLocalAddress(const posix::PosixSocket<Sockaddr>& 
     generic::IPAddress localAddr;
     if (AddressTraits<IPAddress>::isUnspecified(ip)) {
         std::optional<generic::IPAddress> defAddr;
-        if (AddressTraits<IPAddress>::type(ip) == HostAddrType::IPv4)
+        if (AddressTraits<IPAddress>::type(ip) == HostAddrType::IPv4
+            || AddressTraits<IPAddress>::is4in6(ip))
             defAddr = getDefaultInterfaceAddr4();
         else
             defAddr = getDefaultInterfaceAddr6();

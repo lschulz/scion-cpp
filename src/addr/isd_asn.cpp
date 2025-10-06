@@ -71,6 +71,7 @@ Maybe<Asn> Asn::Parse(std::string_view text)
         return Asn(asn);
 
     // SCION-style ASN
+    asn = 0;
     int i = 0;
     auto finder = boost::algorithm::first_finder(":");
     boost::algorithm::split_iterator<std::string_view::iterator> groupEnd;

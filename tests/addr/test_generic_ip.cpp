@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include "scion/addr/generic_ip.hpp"
+#include "scion/addr/mapping.hpp"
 
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
@@ -41,6 +42,7 @@ TEST(GenericIP, IPv4)
     EXPECT_FALSE(ipv4.is4in6());
     EXPECT_FALSE(ipv4.is6());
     EXPECT_EQ(ipv4.zone(), "");
+    EXPECT_FALSE(ipv4.isUnspecified());
 
     EXPECT_EQ(ipv4, IPAddress::MakeIPv4(0x0aff0001ul));
     EXPECT_EQ(ipv4.getIPv4(), 0x0aff0001);
@@ -65,6 +67,7 @@ TEST(GenericIP, IPv6)
     EXPECT_FALSE(ipv6.is4in6());
     EXPECT_TRUE(ipv6.is6());
     EXPECT_EQ(ipv6.zone(), "");
+    EXPECT_FALSE(ipv6.isUnspecified());
 
     EXPECT_EQ(ipv6, IPAddress::MakeIPv6(0xfc00010203040506ul, 0x0708090a0b0c0d0eul));
     EXPECT_EQ(ipv6.getIPv6(), std::make_pair(0xfc00010203040506ul, 0x0708090a0b0c0d0eul));
@@ -90,10 +93,15 @@ TEST(GenericIP, IPv4in6)
     using namespace scion::generic;
 
     auto ip4 = IPAddress::MakeIPv4(0xaffffff);
-    auto ip4in6 = IPAddress::MakeIPv6(0x0, 0xffff'0aff'fffful);
+    auto ip4in6 = IPAddress::MakeIPv6(0x0, 0xffff'0aff'ffffull);
+    auto ip4in6Unspec = IPAddress::MakeIPv6(0x0, 0xffff'0000'0000ull);
 
     EXPECT_FALSE(ip4.is4in6());
     EXPECT_TRUE(ip4in6.is4in6());
+    EXPECT_TRUE(ip4in6Unspec.is4in6());
+
+    EXPECT_FALSE(ip4in6.isUnspecified());
+    EXPECT_TRUE(ip4in6Unspec.isUnspecified());
 
     EXPECT_EQ(ip4in6.unmap4in6(), ip4);
     EXPECT_EQ(ip4.map4in6(), ip4in6);
@@ -246,7 +254,7 @@ TEST(GenericIP, Parse)
     EXPECT_TRUE(hasFailed(IPAddress::Parse("10.255.255.255%eth0")));
 }
 
-TEST(GenericIP, ScionMapped)
+TEST(GenericIP, ScionMappedIPv6)
 {
     using namespace scion::generic;
 
@@ -265,6 +273,75 @@ TEST(GenericIP, ScionMapped)
 
     EXPECT_EQ(std::format("{}", scion4), "fc01:0:100::ffff:10.255.255.255");
     EXPECT_EQ(std::format("{}", scion6), "fc01:0:100:1234::aff:ffff");
+}
+
+TEST(GenericIP, MapScionToIPv6)
+{
+    using namespace scion;
+    using namespace scion::generic;
+
+    // BGP-style ASN with IPv4 host
+    auto opt = mapToIPv6(unwrap(ScIPAddress::Parse("1-64512,10.0.0.1")));
+    ASSERT_TRUE(opt.has_value());
+    ASSERT_EQ(*opt, unwrap(IPAddress::Parse("fc00:10fc::ffff:10.0.0.1")));
+
+    // SCION-style ASN with IPv6 host
+    opt = mapToIPv6(unwrap(ScIPAddress::Parse("1-2:0:0,10.0.0.1")));
+    ASSERT_TRUE(opt.has_value());
+    ASSERT_EQ(*opt, unwrap(IPAddress::Parse("fc00:1800::ffff:10.0.0.1")));
+
+    // untranslatable ASN
+    opt = mapToIPv6(unwrap(ScIPAddress::Parse("1-ff:0:0,10.0.0.1")));
+    ASSERT_FALSE(opt.has_value());
+
+    // IPv6 host that can't be reversibly translated
+    opt = mapToIPv6(unwrap(ScIPAddress::Parse("1-2:0:0,::1")));
+    ASSERT_FALSE(opt.has_value());
+
+    // IPv6 host that is already SCION-mapped
+    opt = mapToIPv6(unwrap(ScIPAddress::Parse("1-2:0:0,fc00:1800:0:cc02::1")));
+    ASSERT_TRUE(opt.has_value());
+    ASSERT_EQ(*opt, unwrap(IPAddress::Parse("fc00:1800:0:cc02::1")));
+
+    // v4-mapped IPv6
+    opt = mapToIPv6(unwrap(ScIPAddress::Parse("1-64496,::ffff:7f00:1")));
+    ASSERT_TRUE(opt.has_value());
+    ASSERT_EQ(*opt, unwrap(IPAddress::Parse("fc00:10fb:f000::ffff:7f00:1")));
+}
+
+TEST(GenericIP, UnmapIPv6ToScion)
+{
+    using namespace scion;
+    using namespace scion::generic;
+
+    // BGP-style ASN with IPv4 host
+    auto opt = unmapFromIPv6(unwrap(IPAddress::Parse("fc00:10fc::ffff:10.128.0.1")));
+    ASSERT_TRUE(opt.has_value());
+    ASSERT_EQ(*opt, unwrap(ScIPAddress::Parse("1-64512,10.128.0.1")));
+
+    // BGP-style ASN with IPv6 host
+    opt = unmapFromIPv6(unwrap(IPAddress::Parse("fc00:10fc:200::1")));
+    ASSERT_TRUE(opt.has_value());
+    ASSERT_EQ(*opt, unwrap(ScIPAddress::Parse("1-64514,fc00:10fc:200::1")));
+
+    // v4-mapped IPv6
+    opt = unmapFromIPv6(unwrap(IPAddress::Parse("fc00:10fb:f000::ffff:7f00:1")));
+    ASSERT_TRUE(opt.has_value());
+    ASSERT_EQ(*opt, unwrap(ScIPAddress::Parse("1-64496,127.0.0.1")));
+
+    // wrong prefix
+    opt = unmapFromIPv6(unwrap(IPAddress::Parse("fd00::1")));
+    ASSERT_FALSE(opt.has_value());
+}
+
+TEST(GenericEP, Unspecified)
+{
+    using namespace scion::generic;
+
+    EXPECT_TRUE(unwrap(IPEndpoint::Parse("127.0.0.1:1024")).isFullySpecified());
+    EXPECT_FALSE(unwrap(IPEndpoint::Parse("127.0.0.1")).isFullySpecified());
+    EXPECT_FALSE(unwrap(IPEndpoint::Parse("0.0.0.0:1024")).isFullySpecified());
+    EXPECT_FALSE(unwrap(IPEndpoint::Parse("[::ffff:0.0.0.0]:1024")).isFullySpecified());
 }
 
 TEST(GenericEP, Format)

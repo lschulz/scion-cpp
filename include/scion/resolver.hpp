@@ -44,6 +44,14 @@ const std::error_category& cares_error_category();
 Maybe<std::vector<ScIPAddress>> queryHostsFile(
     std::string_view name, const std::filesystem::path& hostsFilePath = HOSTS_FILE);
 
+class Resolver;
+
+namespace details {
+// Returns a pointer to the resolver's c-ares channel or NULL if not
+// initialized.
+void* resolverGetChannel(const Resolver& resolver);
+} // namespace details
+
 /// \brief Resolves host names to SCION host addresses.
 ///
 /// Resolves names by attempting the following steps in order. Returns after the
@@ -78,10 +86,11 @@ public:
 
 private:
     class Ares;
-
     std::unique_ptr<Ares> ares;
     AddressSet localhost;
     std::string hostsFile;
+
+    friend void* details::resolverGetChannel(const Resolver&);
 
 public:
     Resolver();

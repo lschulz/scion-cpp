@@ -57,6 +57,7 @@ static std::optional<scion::generic::IPAddress> getDefaultAddr(int family)
         if (connect(sockfd, cur->ai_addr, static_cast<socklen_t>(cur->ai_addrlen)) != -1)
             break;
         close(sockfd);
+        sockfd = -1;
     }
 
     freeaddrinfo(result);

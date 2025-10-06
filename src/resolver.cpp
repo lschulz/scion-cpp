@@ -108,12 +108,11 @@ namespace scion {
 
 class Resolver::Ares
 {
-private:
+public:
     ares_channel_t* channel = nullptr;
-    friend class Resolver;
 
 public:
-    Ares() = default;
+    constexpr Ares() = default;
     ~Ares() { destroy(); }
     Ares(const Ares&) = delete;
     Ares(Ares&&) = delete;
@@ -153,14 +152,14 @@ public:
 };
 
 Resolver::Resolver()
-    : ares(new Ares)
-    , hostsFile(HOSTS_FILE)
+    : hostsFile(HOSTS_FILE)
 {}
 
 Resolver::~Resolver() = default;
 
 std::error_code Resolver::initialize()
 {
+    if (!ares) ares = std::make_unique<Ares>();
     return ares->initialize();
 }
 
@@ -250,6 +249,14 @@ Maybe<std::vector<ScIPAddress>> queryHostsFile(
         }
     };
     return result;
+}
+
+void* details::resolverGetChannel(const Resolver& resolver)
+{
+    if (resolver.ares)
+        return resolver.ares->channel;
+    else
+        return nullptr;
 }
 
 } // namespace scion

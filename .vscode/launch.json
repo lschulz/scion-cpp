@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/build/Debug/unit-tests",
             "args": [
-                "--gtest_filter='CInterface*'"
+                // "--gtest_filter='.*'"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
@@ -41,7 +41,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/build/Debug/unit-tests.exe",
             "args": [
-                // "--gtest_filter='*'"
+                // "--gtest_filter='.*'"
             ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
@@ -54,11 +54,46 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "Interposer Tests",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/interposer/Debug/interposer-tests",
+            "args": [
+                // "--gtest_filter='.*'"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "TEST_BASE_PATH",
+                    "value": "${workspaceFolder}/tests"
+                },
+                {
+                    "name": "SCION_CONFIG",
+                    "value": "${workspaceFolder}/interposer/integration/config/scion_interposer.toml"
+                },
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
             "name": "Echo Server",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/examples/Debug/echo-udp",
-            "args": ["--sciond", "127.0.0.27:30255", "--local", "127.0.0.1:31000"],
+            "args": ["--sciond", "127.0.0.27:30255", "--local", "127.0.0.1:32000"],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
             "environment": [
@@ -90,7 +125,7 @@
             "args": [
                 "--sciond", "127.0.0.19:30255",
                 "--local", "127.0.0.1",
-                "--remote", "1-ff00:0:112,127.0.0.1:31000"
+                "--remote", "1-ff00:0:112,127.0.0.1:32000"
             ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
@@ -120,7 +155,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/examples/Debug/echo-udp-async",
-            "args": ["--sciond", "127.0.0.27:30255", "--local", "127.0.0.1:31000"],
+            "args": ["--sciond", "127.0.0.27:30255", "--local", "127.0.0.1:32000"],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
             "environment": [
@@ -152,7 +187,7 @@
             "args": [
                 "--sciond", "127.0.0.19:30255",
                 "--local", "127.0.0.1",
-                "--remote", "1-ff00:0:112,127.0.0.1:31000"
+                "--remote", "1-ff00:0:112,127.0.0.1:32000"
             ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
@@ -195,6 +230,34 @@
                     "value": "127.0.0.19:30255"
                 }
             ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "Path MTU",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/examples/Debug/pmtu",
+            "args": [
+                "--sciond", "127.0.0.19:30255",
+                "--local", "127.0.0.1",
+                // "--mtu", "9000",
+                "1-ff00:0:112,127.0.0.1:32000"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
             "externalConsole": false,
             "MIMode": "gdb",
             "setupCommands": [
@@ -372,6 +435,88 @@
                     "ignoreFailures": true
                 }
             ]
-        }
+        },
+        {
+            "name": "Interposed Server",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "/usr/bin/iperf3",
+            "args": [
+                "-s", "-B", "fc00::111", "-p32000"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "LD_PRELOAD",
+                    "value": "${workspaceFolder}/build/interposer/Debug/libinterposer.so"
+                },
+                {
+                    "name": "SCION_DAEMON_ADDRESS",
+                    "value": "127.0.0.19:30255"
+                },
+                {
+                    "name": "SCION_CONFIG",
+                    "value": "${workspaceFolder}/interposer/integration/config/scion_interposer.toml"
+                },
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "Interposed Client",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "/usr/bin/iperf3",
+            "args": [
+                "-c", "fc00::111", "-p32000", "--udp", "-l1200", "-t1", "-b10M"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "LD_PRELOAD",
+                    "value": "${workspaceFolder}/build/interposer/Debug/libinterposer.so"
+                },
+                {
+                    "name": "SCION_DAEMON_ADDRESS",
+                    "value": "127.0.0.27:30255"
+                },
+                {
+                    "name": "SCION_CONFIG",
+                    "value": "${workspaceFolder}/interposer/integration/config/scion_interposer.toml"
+                },
+                {
+                    "name": "SCION_SELECTOR",
+                    "value": "${workspaceFolder}/build/interposer/Debug/default-selector"
+                }
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        },
     ]
 }

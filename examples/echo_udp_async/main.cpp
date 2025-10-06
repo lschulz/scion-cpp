@@ -161,7 +161,7 @@ int runServer(
         Socket::Endpoint from;
         Socket::UnderlayEp ulSource;
         HeaderCache headers;
-        std::vector<std::byte> buffer(2048);
+        std::vector<std::byte> buffer(9000);
         auto path = std::make_unique<RawPath>();
         constexpr auto token = boost::asio::use_awaitable;
 

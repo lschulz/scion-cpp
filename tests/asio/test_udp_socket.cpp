@@ -106,6 +106,34 @@ protected:
     inline static std::unique_ptr<Socket> sock1, sock2;
 };
 
+TEST_F(AsioUdpSocketFixture, Measure)
+{
+    using namespace scion;
+    ASSERT_EQ(unwrap(sock1->measure(RawPath())), 68);
+}
+
+TEST_F(AsioUdpSocketFixture, MeasureExt)
+{
+    using namespace scion;
+    ext::IdInt idint;
+    std::array<ext::Extension*, 1> hbhExt = {&idint};
+    ASSERT_EQ(unwrap(sock1->measureExt(RawPath(), hbhExt)), 92);
+}
+
+TEST_F(AsioUdpSocketFixture, MeasureTo)
+{
+    using namespace scion;
+    ASSERT_EQ(unwrap(sock1->measureTo(ep2, RawPath())), 68);
+}
+
+TEST_F(AsioUdpSocketFixture, MeasureToExt)
+{
+    using namespace scion;
+    ext::IdInt idint;
+    std::array<ext::Extension*, 1> hbhExt = {&idint};
+    ASSERT_EQ(unwrap(sock1->measureToExt(ep2, RawPath(), hbhExt)), 92);
+}
+
 TEST_F(AsioUdpSocketFixture, SendRecv)
 {
     using namespace scion;

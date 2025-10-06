@@ -105,6 +105,22 @@ protected:
     inline static Socket sock1, sock2;
 };
 
+TEST_F(ScmpSocketFixture, MeasureTo)
+{
+    using namespace scion;
+    auto msg = hdr::ScmpEchoRequest{0, 1};
+    ASSERT_EQ(unwrap(sock1.measureScmpTo(ep2, RawPath(), msg)), 68);
+}
+
+TEST_F(ScmpSocketFixture, MeasureToExt)
+{
+    using namespace scion;
+    ext::IdInt idint;
+    std::array<ext::Extension*, 1> hbhExt = {&idint};
+    auto msg = hdr::ScmpEchoRequest{0, 1};
+    ASSERT_EQ(unwrap(sock1.measureScmpToExt(ep2, RawPath(), hbhExt, msg)), 92);
+}
+
 TEST_F(ScmpSocketFixture, SendToRecvFrom)
 {
     using namespace scion;

@@ -1,0 +1,12 @@
+[default]
+log_level = "ERROR"
+address_mode = "ADDRESS_MAPPING"
+default_ipv4 = "127.0.0.1"
+default_ipv6 = "::1"
+addresses = [
+    { address = "0-0,127.0.0.1", surrogate = "fc00::" }
+]
+
+[default.scion]
+connect_to_daemon = true
+daemon_address = "127.0.0.1:30255"

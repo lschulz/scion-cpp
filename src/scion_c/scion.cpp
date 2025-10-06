@@ -33,6 +33,7 @@
 #include "scion/path/shared_cache.hpp"
 #include "scion/posix/sockaddr.hpp"
 #include "scion/resolver.hpp"
+#include "scion/scmp/path_mtu.hpp"
 
 #include <ares.h>
 #include <boost/asio.hpp>
@@ -365,6 +366,7 @@ struct scion_context_t
     scion::daemon::PortRange scionPorts;
     scion::Resolver resolver;
     scion::SharedPathCache pathCache;
+    std::unique_ptr<scion::PathMtuDiscoverer<>> pmtu;
     CScmpHandler scmpHandler;
 };
 
@@ -396,7 +398,7 @@ scion_error scion_create_host_context(scion_context** pctx, const scion_context_
         }
     } else {
         ctx->localAS = {
-            IsdAsn(opts->default_isd_asn), false, 0
+            IsdAsn(opts->default_isd_asn), false, 1280
         };
         ctx->scionPorts = std::make_pair(opts->ports_begin, opts->ports_end);
     }
@@ -408,8 +410,13 @@ scion_error scion_create_host_context(scion_context** pctx, const scion_context_
         ScIPAddress(ctx->localAS.isdAsn, generic::IPAddress::MakeIPv4(0x7f000001)),
         ScIPAddress(ctx->localAS.isdAsn, generic::IPAddress::MakeIPv6(0, 1))
     });
-
     ctx->scmpHandler.setNextScmpHandler(&ctx->pathCache);
+
+    if (opts->flags & SCION_HOST_CTX_MTU_DISCOVER) {
+        ctx->pmtu = std::make_unique<scion::PathMtuDiscoverer<>>(ctx->localAS.mtu);
+        ctx->pathCache.setNextScmpHandler(ctx->pmtu.get());
+    }
+
     *pctx = ctx.release();
     return SCION_OK;
 }
@@ -458,6 +465,46 @@ extern "C"
 void scion_restart(scion_context* ctx)
 {
     ctx->ioCtx.restart();
+}
+
+extern "C"
+uint16_t scion_discovered_pmtu(scion_context* ctx, scion_path* path, const struct scion_addr* dest)
+{
+    using namespace scion::generic;
+    if (ctx->pmtu) {
+        if (dest->sscion_host_type == SCION_IPv4) {
+            auto ip = IPAddress::MakeIPv4(std::span<const std::byte, 4>(
+                reinterpret_cast<const std::byte*>(&dest->u.sscion_addr), 4));
+            return ctx->pmtu->getMtu(ip, *reinterpret_cast<scion::Path*>(path));
+        } else if (dest->sscion_host_type == SCION_IPv6) {
+            auto ip = IPAddress::MakeIPv6(std::span<const std::byte, 16>(
+                reinterpret_cast<const std::byte*>(&dest->u.sscion_addr), 16));
+            return ctx->pmtu->getMtu(ip, *reinterpret_cast<scion::Path*>(path));
+        } else {
+            return 0;
+        }
+    } else {
+        return reinterpret_cast<scion::Path*>(path)->mtu();
+    }
+}
+
+extern "C"
+uint16_t scion_discovered_pmtu_raw(
+    scion_context* ctx, scion_raw_path* path, const struct scion_addr* dest)
+{
+    using namespace scion::generic;
+    if (ctx->pmtu) {
+        if (dest->sscion_host_type == SCION_IPv4) {
+            auto ip = IPAddress::MakeIPv4(std::span<const std::byte, 4>(
+                reinterpret_cast<const std::byte*>(&dest->u.sscion_addr), 4));
+            return ctx->pmtu->getMtu(ip, *reinterpret_cast<scion::RawPath*>(path));
+        } else if (dest->sscion_host_type == SCION_IPv6) {
+            auto ip = IPAddress::MakeIPv6(std::span<const std::byte, 16>(
+                reinterpret_cast<const std::byte*>(&dest->u.sscion_addr), 16));
+            return ctx->pmtu->getMtu(ip, *reinterpret_cast<scion::RawPath*>(path));
+        }
+    }
+    return 0;
 }
 
 ///////////////
@@ -748,6 +795,12 @@ scion_error scion_path_meta_hops(scion_path* path, scion_hop* hops, size_t* hops
     *hops_len = ifaces->data.size();
     if (i < *hops_len) return SCION_BUFFER_TOO_SMALL;
     return SCION_OK;
+}
+
+extern "C"
+uint32_t scion_path_hop_count(scion_path* path)
+{
+    return reinterpret_cast<scion::Path*>(path)->hopCount();
 }
 
 extern "C"
@@ -1068,6 +1121,44 @@ void scion_getpeername(scion_socket* socket, struct sockaddr_scion* addr)
         return s.remoteEp();
     }, socket->v);
     *addr = details::endpoint_cast(local);
+}
+
+extern "C"
+scion_error scion_measure(scion_socket* socket, const scion_packet* args, size_t* hdr_size)
+{
+    using namespace scion;
+
+    if (!args->_path || (args->_path_type != 1 && args->_path_type != 2)) {
+        return SCION_INVALID_ARGUMENT;
+    }
+
+    auto size = std::visit([&](auto&& s) -> Maybe<std::size_t> {
+        if (args->addr) {
+            if (args->_path_type == 1) {
+                return s.measureTo(
+                    details::endpoint_cast(args->addr),
+                    *reinterpret_cast<Path*>(args->_path)
+                );
+            } else {
+                return s.measureTo(
+                    details::endpoint_cast(args->addr),
+                    *reinterpret_cast<RawPath*>(args->_path)
+                );
+            }
+        } else {
+            if (args->_path_type == 1) {
+                return s.measure(*reinterpret_cast<Path*>(args->_path));
+            } else {
+                return s.measure(*reinterpret_cast<RawPath*>(args->_path));
+            }
+        }
+    }, socket->v);
+    if (isError(size)) {
+        return translate_error(getError(size));
+    } else {
+        *hdr_size = *size;
+        return SCION_OK;
+    }
 }
 
 extern "C"

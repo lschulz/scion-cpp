@@ -1,0 +1,39 @@
+# Global SCION Interposer Configuration
+
+[default]
+log_level = "INFO"
+address_mode = "ADDRESS_MAPPING"
+default_ipv4 = "127.0.0.1"
+default_ipv6 = "::1"
+addresses = [
+    { address = "0-0,127.0.0.1", surrogate = "fc00::" }
+]
+selector = ""
+selector_args = ""
+
+[default.scion]
+connect_to_daemon = true
+daemon_address = "127.0.0.1:30255"
+
+[unit-tests]
+match = ".*/build/interposer/(Debug|Release)/interposer-tests"
+log_level = "TRACE"
+allowPromoteOnSendTo = true
+addresses = [
+    { address = "1-64496,::1", surrogate = "fc00::1000" }
+]
+
+[nc]
+match = "/usr/bin/nc\\..*"
+log_level = "TRACE"
+selector = ""
+selector_args = ""
+
+[iperf3]
+match = "/usr/bin/iperf3"
+log_level = "WARN"
+addresses = [
+    { address = "1-ff00:0:110,127.0.0.1", surrogate = "fc00::110" },
+    { address = "1-ff00:0:111,127.0.0.1", surrogate = "fc00::111" },
+    { address = "1-ff00:0:112,127.0.0.1", surrogate = "fc00::112" }
+]

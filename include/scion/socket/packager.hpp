@@ -97,7 +97,7 @@ public:
     /// address for sent packets and to filter received packets.
     ///
     /// The SCION ISD-ASN part of the address may be unspecified to facilitate
-    /// SCION multi-homing. If the ISD-ASn is unspecified, calls to send use the
+    /// SCION multi-homing. If the ISD-ASN is unspecified, calls to send use the
     /// first hop ISD-ASn contained in the given path as source address. The IP
     /// address and port of the endpoint must not be unspecified. Passing and
     /// unspecified IP or port results in an `InvalidArgument` error.
@@ -125,6 +125,34 @@ public:
     void setTrafficClass(std::uint8_t tc) { m_trafficClass = tc; }
 
     std::uint8_t trafficClass() const { return m_trafficClass; }
+
+    /// \brief Calculate the total size of the SCION and L4 headers on the wire
+    /// if a packet would be sent with the given parameters.
+    template <
+        typename Path,
+        ext::extension_range ExtRange,
+        typename L4>
+    Maybe<std::size_t> measure(
+        const Endpoint* to,
+        const Path& path,
+        ExtRange&& extensions,
+        L4&& l4)
+    {
+        // Determine source address
+        Endpoint from;
+        if (auto ec = getSourceAddress(path, from); ec) {
+            return Error(ec);
+        }
+
+        // Determine destination address
+        if (!to) to = &m_remote;
+        if (!to->address().isFullySpecified()) {
+            return Error(ErrorCode::InvalidArgument);
+        }
+
+        return measureHeader(*to, from, path,
+            std::forward<ExtRange>(extensions), std::forward<L4>(l4));
+    }
 
     /// \brief Prepare the packet headers for sending the given payload with the
     /// given parameters. If this method returned successfully, the
@@ -163,23 +191,13 @@ public:
 
         // Determine source address
         Endpoint from;
-        if (m_local.isdAsn().isUnspecified()) {
-            // Take the source ISD-ASN from path
-            from = Endpoint(path.firstAS(), m_local.localEp());
-        } else {
-            if (!path.empty() && path.firstAS() != m_local.isdAsn()) {
-                return ErrorCode::InvalidArgument;
-            }
-            from = m_local;
+        if (auto ec = getSourceAddress(path, from); ec) {
+            return ec;
         }
 
         // Determine destination address
-        if (!to) {
-            if (!m_remote.address().isFullySpecified()) return ErrorCode::InvalidArgument;
-            to = &m_remote;
-        } else {
-            if (!to->address().isFullySpecified()) return ErrorCode::InvalidArgument;
-        }
+        if (!to) to = &m_remote;
+        if (!to->address().isFullySpecified()) return ErrorCode::InvalidArgument;
 
         return headers.build(m_trafficClass, *to, from, path,
             std::forward<ExtRange>(extensions), std::forward<L4>(l4), payload);
@@ -190,8 +208,7 @@ public:
     ///
     /// Care should be taken when updating the type or ports in the L4 header,
     /// as the new values are not going to be incorporated in the flow ID.
-    /// If the flow ID should not stay the same, use the full prepareSend()
-    /// instead.
+    /// If the flow ID should not stay the same, use the full pack() instead.
     template <typename L4, typename Alloc>
     std::error_code pack(
         HeaderCache<Alloc>& headers,
@@ -296,17 +313,33 @@ public:
     }
 
 private:
+    template <typename Path>
+    std::error_code getSourceAddress(const Path& path, Endpoint& from) const
+    {
+        if (m_local.isdAsn().isUnspecified()) {
+            // Take the source ISD-ASN from path
+            from = Endpoint(path.firstAS(), m_local.localEp());
+        } else {
+            if (!path.empty() && path.firstAS() != m_local.isdAsn()) {
+                return ErrorCode::InvalidArgument;
+            }
+            from = m_local;
+        }
+        return ErrorCode::Ok;
+    }
+
     template <typename L4>
     std::error_code verifyReceived(
         const ParsedPacket<L4>& pkt, const generic::IPAddress& ulSource)
     {
+        using namespace hdr;
         if (!m_local.address().matches(pkt.sci.dst)) {
             return ErrorCode::DstAddrMismatch;
         }
-        if (!m_remote.address().matches(pkt.sci.src)) {
+        if (!std::holds_alternative<SCMP>(pkt.l4) && !m_remote.address().matches(pkt.sci.src)) {
             return ErrorCode::SrcAddrMismatch;
         }
-        if (pkt.sci.ptype == hdr::PathType::Empty && ulSource != pkt.sci.src.host()) {
+        if (pkt.sci.ptype == PathType::Empty && ulSource.unmap4in6() != pkt.sci.src.host()) {
             // For AS-internal communication with empty paths underlay address
             // of the sender must match the source host addressin the SCION
             // header.

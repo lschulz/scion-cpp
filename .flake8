@@ -1,0 +1,7 @@
+[flake8]
+max-line-length = 100
+ignore = E124,E128,E251,E261
+# E124 = Closing bracket does not match visual indentation
+# E128 = Continuation line under-indented for visual indent
+# E251 = Unexpected spaces around keyword / parameter equals
+# E261 = At least two spaces before inline comment

@@ -130,7 +130,8 @@ public:
     }
 
     /// \brief Returns the path digest. The value is cached making this method
-    /// cheap to call repeatedly.
+    /// cheap to call repeatedly. Calling this method concurrently requires
+    /// external synchronization.
     PathDigest digest() const;
 
     /// \brief Returns the path encoded for use in the data plane.

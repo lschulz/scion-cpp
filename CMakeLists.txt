@@ -9,12 +9,18 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 add_compile_options(/W3)
+add_compile_options(/arch:AVX2)
 else()
 add_compile_options(-Wall -Wextra -Wpedantic -Wno-unused-parameter)
+add_compile_options(-fPIC)
+add_compile_options(-march=native)
 endif()
 
 if (WIN32)
-add_compile_definitions(NOMINMAX)
+add_compile_definitions(
+    _WIN32_WINNT=0x0A00
+    NOMINMAX
+)
 endif()
 
 # =====
@@ -111,6 +117,7 @@ set(SRC
     "src/daemon/client.cpp"
     "src/default_address.cpp"
     "src/error_codes.cpp"
+    "src/hdr/details.cpp"
     "src/murmur_hash3.cpp"
     "src/path/path_meta.cpp"
     "src/path/path.cpp"
@@ -169,6 +176,7 @@ set(SRC_TEST
     "tests/path/test_path_meta.cpp"
     "tests/path/test_path.cpp"
     "tests/path/test_cache.cpp"
+    "tests/scmp/test_path_mtu.cpp"
     "tests/socket/test_header_cache.cpp"
     "tests/socket/test_parsed_packet.cpp"
     "tests/socket/test_packager.cpp"
@@ -193,6 +201,14 @@ gtest_discover_tests(unit-tests
     EXTRA_ARGS "${CMAKE_CURRENT_SOURCE_DIR}/tests"
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
 )
+
+# ----------
+# Interposer
+# ----------
+
+if (NOT WIN32)
+add_subdirectory(interposer)
+endif()
 
 # ========
 # Examples

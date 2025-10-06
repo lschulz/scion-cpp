@@ -26,6 +26,9 @@
 #include <array>
 #include <vector>
 
+using std::uint32_t;
+using std::size_t;
+
 
 TEST(Checksum, InternetChecksum)
 {
@@ -45,3 +48,22 @@ TEST(Checksum, InternetChecksum)
     EXPECT_EQ(internetChecksum(d, 0), 0xe1e6);
     EXPECT_EQ(internetChecksum(d, 1), 0xe1e5);
 }
+
+#if __AVX2__
+TEST(Checksum, OnesComplementAVX)
+{
+    using namespace scion::hdr::details;
+    alignas(16) std::array<std::byte, 64> d;
+    for (size_t i = 0; i < d.size(); ++i) d[i] = std::byte(i % 256);
+
+    for (size_t offset = 0; offset < 16; offset += 2) {
+        for (size_t size = 0; size < (64 - offset); ++size) {
+            std::span<const std::byte> span(d.data() + offset, size);
+            ASSERT_EQ(
+                onesComplementChecksumScalar(span, (uint32_t)offset),
+                onesComplementChecksumAVX(span, (uint32_t)offset)
+            ) << "offset=" << offset << " size=" << size;
+        }
+    }
+}
+#endif // __AVX2__

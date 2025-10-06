@@ -67,6 +67,7 @@ TEST(IsdAsAddr, Asn)
     EXPECT_EQ(Asn(0), unwrap(Asn::Parse("0")));
     EXPECT_EQ(Asn(0), unwrap(Asn::Parse("0:0:0")));
     EXPECT_EQ(Asn(1), unwrap(Asn::Parse("0:0:1")));
+    EXPECT_EQ(Asn(0x200000000ull), unwrap(Asn::Parse("2:0:0")));
     EXPECT_EQ(Asn(Asn::MAX_VALUE), unwrap(Asn::Parse("ffff:ffff:ffff")));
     EXPECT_EQ(Asn(Asn::MAX_VALUE), unwrap(Asn::Parse("FFFF:FFFF:FFFF")));
     EXPECT_EQ(Asn(Asn::MAX_VALUE), unwrap(Asn::Parse("281474976710655")));

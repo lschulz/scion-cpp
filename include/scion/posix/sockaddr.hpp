@@ -61,6 +61,11 @@ struct scion::AddressTraits<in_addr>
         return 4;
     }
 
+    static bool is4in6(const HostAddr& addr) noexcept
+    {
+        return false;
+    }
+
     static bool isUnspecified(const HostAddr& addr) noexcept
     {
         return addr.s_addr == 0;
@@ -249,9 +254,28 @@ struct scion::AddressTraits<in6_addr>
         return 16;
     }
 
+    static bool is4in6(const HostAddr& addr) noexcept
+    {
+        return IN6_IS_ADDR_V4MAPPED(&addr);
+    }
+
     static bool isUnspecified(const HostAddr& addr) noexcept
     {
-        return IN6_IS_ADDR_UNSPECIFIED(&addr);
+    #if _WIN32
+        return addr.u.Word[0] == 0
+            && addr.u.Word[1] == 0
+            && addr.u.Word[2] == 0
+            && addr.u.Word[3] == 0
+            && addr.u.Word[4] == 0
+            && (addr.u.Word[5] == 0 || addr.u.Word[5] == 0xffff)
+            && addr.u.Word[6] == 0
+            && addr.u.Word[7] == 0;
+    #else
+        return addr.s6_addr[0] == 0
+            && addr.s6_addr32[1] == 0
+            && (addr.s6_addr32[2] == 0 || addr.s6_addr32[2] == htonl(0xffff))
+            && addr.s6_addr32[3] == 0;
+    #endif
     }
 
     static std::error_code toBytes(const HostAddr& addr, std::span<std::byte> bytes) noexcept
@@ -494,6 +518,14 @@ struct scion::AddressTraits<scion::posix::IPAddress>
             return 4;
         else
             return 16;
+    }
+
+    static bool is4in6(const HostAddr& addr) noexcept
+    {
+        if (std::holds_alternative<in_addr>(addr))
+            return false;
+        else
+            return IN6_IS_ADDR_V4MAPPED(&std::get<in6_addr>(addr));
     }
 
     static bool isUnspecified(const HostAddr& addr) noexcept

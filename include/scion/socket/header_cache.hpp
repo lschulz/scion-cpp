@@ -38,6 +38,24 @@
 
 namespace scion {
 
+/// \brief Returns the size of the SCION and L4 headers in a packet with the
+/// given parameters.
+template <
+    typename Path,
+    ext::extension_range ExtRange,
+    typename L4>
+std::size_t measureHeader(
+    const ScIPEndpoint& to,
+    const ScIPEndpoint& from,
+    const Path& path,
+    ExtRange&& extensions,
+    L4&& l4)
+{
+    auto [hbhExtSize, e2eExtSize] = ext::computeExtSize(extensions);
+    return 12 + to.address().size() + from.address().size() + path.size()
+        + hbhExtSize + e2eExtSize + l4.size();
+}
+
 template <typename Alloc = std::allocator<std::byte>>
 class HeaderCache
 {

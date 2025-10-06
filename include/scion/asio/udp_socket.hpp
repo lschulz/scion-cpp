@@ -43,6 +43,41 @@ public:
     void setNextScmpHandler(ScmpHandler* handler) { scmpHandler = handler; }
     ScmpHandler* nextScmpHandler() const { return scmpHandler; }
 
+    /// \name Header Size Measurement
+    ///@{
+
+    template <typename Path>
+    Maybe<std::size_t> measure(const Path& path)
+    {
+        return packager.measure(nullptr, path, ext::NoExtensions, hdr::UDP{});
+    }
+
+    template <typename Path, ext::extension_range ExtRange>
+    Maybe<std::size_t> measureExt(
+        const Path& path,
+        ExtRange&& extensions)
+    {
+        return packager.measure(nullptr, path, std::forward<ExtRange>(extensions), hdr::UDP{});
+    }
+
+    template <typename Path>
+    Maybe<std::size_t> measureTo(
+        const Endpoint& to,
+        const Path& path)
+    {
+        return packager.measure(&to, path, ext::NoExtensions, hdr::UDP{});
+    }
+
+    template <typename Path, ext::extension_range ExtRange>
+    Maybe<std::size_t> measureToExt(
+        const Endpoint& to,
+        const Path& path,
+        ExtRange&& extensions)
+    {
+        return packager.measure(&to, path, std::forward<ExtRange>(extensions), hdr::UDP{});
+    }
+
+    ///@}
     /// \name Synchronous Send
     ///@{
 

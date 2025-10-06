@@ -64,29 +64,22 @@ private:
     IsdAsn m_source, m_destination;
     hdr::PathType m_type = hdr::PathType::Empty;
     Expiry m_expires_by;
-    std::uint16_t m_mtu;
+    std::uint16_t m_mtu = 0;
+    std::uint32_t m_hopCount = 0;
     generic::IPEndpoint m_nextHop;
     std::vector<std::byte> m_path;
     std::list<Attribute> m_attrib;
-    std::atomic_bool m_broken;
-    mutable std::optional<PathDigest> m_digest;
+    std::atomic_bool m_broken = false;
+    PathDigest m_digest;
 
 public:
     Path() = default;
-
     Path(IsdAsn source, IsdAsn destination,
         hdr::PathType type,
         Expiry expiry,
         std::uint16_t mtu,
         const generic::IPEndpoint& nh,
-        std::span<const std::byte> dpPath)
-        : m_source(source), m_destination(destination)
-        , m_type(type)
-        , m_expires_by(expiry)
-        , m_mtu(mtu)
-        , m_nextHop(nh)
-        , m_path(dpPath.begin(), dpPath.end())
-    {}
+        std::span<const std::byte> dpPath);
 
     bool operator==(const Path& other) const
     {
@@ -125,27 +118,19 @@ public:
     /// This method can be called from multiple threads without synchronization.
     void setBroken(bool isBroken) { m_broken.store(isBroken); }
 
+    /// \brief Returns the length of the path in inter-AS hops (i.e., the number
+    /// of visited ASes - 1). This value is derived from the raw data plane path
+    /// and does not necessarily match the hop count given by metadata.
+    std::uint32_t hopCount() const { return m_hopCount; }
+
     /// \copydoc RawPath::hops()
     auto hops() const
     {
         return RawHopRange<Path>(*this);
     }
 
-    /// \brief Returns the path digest. The value is cached making this method
-    /// cheap to call repeatedly.
-    PathDigest digest() const
-    {
-        if (!m_digest) {
-            std::array<std::pair<std::uint16_t, std::uint16_t>, 64> buffer;
-            std::size_t i = 0;
-            for (auto hop : hops()) {
-                if (i >= buffer.size()) break;
-                buffer[i++] = hop;
-            }
-            m_digest = details::computeDigest(m_source, buffer);
-        }
-        return *m_digest;
-    }
+    /// \brief Returns the path digest.
+    PathDigest digest() const { return m_digest; }
 
     /// \brief Returns the underlay address of the next router.
     const generic::IPEndpoint& nextHop() const { return m_nextHop; }
@@ -239,6 +224,32 @@ public:
 
     friend std::ostream& operator<<(std::ostream& stream, const Path& path);
 };
+
+inline Path::Path(IsdAsn source, IsdAsn destination,
+    hdr::PathType type,
+    Expiry expiry,
+    std::uint16_t mtu,
+    const generic::IPEndpoint& nh,
+    std::span<const std::byte> dpPath)
+    : m_source(source), m_destination(destination)
+    , m_type(type)
+    , m_expires_by(expiry)
+    , m_mtu(mtu)
+    , m_nextHop(nh)
+    , m_path(dpPath.begin(), dpPath.end())
+{
+    // Determine hop count by decoding the raw path
+    m_hopCount = (std::uint32_t)std::ranges::distance(hops());
+
+    // Compute the path digest
+    std::array<std::pair<std::uint16_t, std::uint16_t>, 64> buffer;
+    std::size_t i = 0;
+    for (auto hop : hops()) {
+        if (i >= buffer.size()) break;
+        buffer[i++] = hop;
+    }
+    m_digest = details::computeDigest(m_source, buffer);
+}
 
 using PathPtr = boost::intrusive_ptr<Path>;
 

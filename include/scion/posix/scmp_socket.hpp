@@ -52,40 +52,90 @@ protected:
     ScionPackager packager;
 
 public:
+    /// \brief Initializes the socket, but does not yet create or open the
+    /// underlay socket. The socket is only opened on calling bind().
+    ScmpSocket() = default;
+
+    /// \brief Initializes the socket and takes ownership of `underlaySocket`.
+    explicit ScmpSocket(Underlay&& underlaySocket)
+        : socket(std::move(underlaySocket))
+    {}
+
     /// \brief Bind to a local endpoint.
-    /// \warning Wildcard IP addresses are not well supported and should be
-    /// avoided. Unspecified ISD-ASN and port are supported.
-    std::error_code bind(const Endpoint& ep)
+    /// \details See bind(const Endpoint&, std::uint16_t, std::uint16_t, const
+    /// UnderlayAddr*) for more details.
+    std::error_code bind(const Endpoint& ep, const UnderlayAddr* underlay = nullptr)
     {
-        return bind(ep, 0, 65535);
+        return bind(ep, 0, 65535, underlay);
     }
 
     /// \brief Bind to a local endpoint. If no port is specified, try to pick
     /// one from the range [`firstPort`, `lastPort`].
-    /// \warning Wildcard IP addresses are not well supported and should be
-    /// avoided. Unspecified ISD-ASN and port are supported.
+    /// \param ep SCION endpoint to bind to. This address is used as the source
+    /// address in the SCION address header. Wildcard IP addresses (0.0.0.0,
+    /// ::0) should be avoided as the implementation will have to guess an
+    /// appropriate IP address to put in the SCION header. Unspecified ISD-ASN
+    /// (0-0) and port (0) are supported. If the underlay socket should be bound
+    /// to a different interface (including *all* interfaces) than determined by
+    /// the IP specified here, use the `underlay` paramater.
+    /// \param underlay Optional bind address for the underlay UDP socket. By
+    /// default this is `ep.host()`. The port is determined from `ep` or if
+    /// unspecified selected automatically from the range [`firstPort`,
+    /// `lastPort`]. Wildcard addresses are accepted.
     std::error_code bind(
-        const Endpoint& ep, std::uint16_t firstPort, std::uint16_t lastPort)
+        const Endpoint& ep, std::uint16_t firstPort, std::uint16_t lastPort,
+        const UnderlayAddr* underlay = nullptr)
     {
         // Bind underlay socket
-        auto underlayEp = generic::toUnderlay<UnderlayEp>(ep.localEp());
-        if (isError(underlayEp)) return getError(underlayEp);
-        if constexpr (std::is_same_v<UnderlayAddr, sockaddr_in6>) {
-            underlayEp->sin6_scope_id = scion::details::byteswapBE(
-                ep.address().host().zoneId());
-        } else if constexpr (std::is_same_v<UnderlayAddr, IPEndpoint>) {
-            underlayEp->data.v6.sin6_scope_id = scion::details::byteswapBE(
-                ep.address().host().zoneId());
+        if (underlay) {
+            auto underlayEp = EndpointTraits<UnderlayEp>::fromHostPort(*underlay, ep.port());
+            auto err = socket.bind_range(underlayEp, firstPort, lastPort);
+            if (err) return err;
+        } else {
+            auto underlayEp = generic::toUnderlay<UnderlayEp>(ep.localEp());
+            if (isError(underlayEp)) return getError(underlayEp);
+            if constexpr (std::is_same_v<UnderlayAddr, sockaddr_in6>) {
+                underlayEp->sin6_scope_id = scion::details::byteswapBE(
+                    ep.address().host().zoneId());
+            } else if constexpr (std::is_same_v<UnderlayAddr, IPEndpoint>) {
+                underlayEp->data.v6.sin6_scope_id = scion::details::byteswapBE(
+                    ep.address().host().zoneId());
+            }
+            auto err = socket.bind_range(*underlayEp, firstPort, lastPort);
+            if (err) return err;
         }
-        auto err = socket.bind_range(*underlayEp, firstPort, lastPort);
-        if (err) return err;
 
         // Find local address for SCION layer
-        auto local = details::findLocalAddress(socket);
-        if (isError(local)) return getError(local);
+        generic::IPAddress addr = ep.host();
+        std::uint16_t port = ep.port();
+        if (addr.isUnspecified() || port == 0) {
+            auto local = details::findLocalAddress(socket);
+            if (isError(local)) return getError(local);
+            if (addr.isUnspecified())
+                addr = local->host();
+            if (port == 0)
+                port = local->port();
+        }
 
         // Propagate bound address and port to packet socket
-        return packager.setLocalEp(Endpoint(ep.isdAsn(), local->host(), local->port()));
+        return packager.setLocalEp(Endpoint(ep.isdAsn(), addr.unmap4in6(), port));
+    }
+
+    /// \brief Set or change the local address without actually binding the
+    /// underlay socket. The local address is used as source address for sent
+    /// packets and to filter received packets.
+    ///
+    /// \copydetails ScionPackager::setLocalEp()
+    ///
+    /// \warning This is a low-level operation, most clients should simply call
+    /// bind.
+    std::error_code setLocalEp(const Endpoint& ep)
+    {
+        if (ep.host().is4in6()) {
+            return packager.setLocalEp(Endpoint(ep.isdAsn(), ep.host().unmap4in6(), ep.port()));
+        } else {
+            return packager.setLocalEp(ep);
+        }
     }
 
     /// \brief Locally store a default remote address. Receive methods will only
@@ -143,6 +193,25 @@ public:
         return socket.setsockopt(SOL_SOCKET, SO_RCVTIMEO,
             reinterpret_cast<const char*>(&t), sizeof(t));
     #endif
+    }
+
+    template <typename Path>
+    Maybe<std::size_t> measureScmpTo(
+        const Endpoint& to,
+        const Path& path,
+        const hdr::ScmpMessage& message)
+    {
+        return packager.measure(&to, path, ext::NoExtensions, hdr::SCMP(message));
+    }
+
+    template <typename Path, ext::extension_range ExtRange>
+    Maybe<std::size_t> measureScmpToExt(
+        const Endpoint& to,
+        const Path& path,
+        ExtRange&& extensions,
+        const hdr::ScmpMessage& message)
+    {
+        return packager.measure(&to, path, std::forward<ExtRange>(extensions), hdr::SCMP(message));
     }
 
     template <typename Path, typename Alloc>
@@ -239,9 +308,10 @@ protected:
     Maybe<std::span<const std::byte>> sendUnderlay(
         std::span<const std::byte> headers,
         std::span<const std::byte> payload,
-        const UnderlayEp& nextHop)
+        const UnderlayEp& nextHop,
+        int flags = 0)
     {
-        auto sent = socket.sendmsg(nextHop, 0, headers, payload);
+        auto sent = socket.sendmsg(nextHop, flags, headers, payload);
         if (isError(sent)) return propagateError(sent);
         auto n = get(sent) - (std::uint64_t)headers.size();
         if (n < 0) return Error(ErrorCode::PacketTooBig);

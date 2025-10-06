@@ -51,6 +51,11 @@ auto formatBytes(auto out, std::span<const std::byte> bytes)
     return out;
 }
 
+std::uint16_t onesComplementChecksumScalar(std::span<const std::byte> buffer, std::uint32_t inital);
+#if __AVX2__
+std::uint16_t onesComplementChecksumAVX(std::span<const std::byte> buffer, std::uint32_t inital);
+#endif
+
 /// \brief Calculate the one's complement sum of 16-bit words.
 /// \param buffer Input data the sum is computed over.
 /// \param inital Extra value added into the sum in host byte order.
@@ -58,21 +63,11 @@ auto formatBytes(auto out, std::span<const std::byte> bytes)
 inline std::uint16_t onesComplementChecksum(
     std::span<const std::byte> buffer, std::uint32_t inital = 0)
 {
-    using std::uint16_t;
-    using std::uint32_t;
-    uint32_t sum = inital;
-    auto sizeWords = buffer.size() / 2;
-    std::span<const uint16_t> words(reinterpret_cast<const uint16_t*>(buffer.data()), sizeWords);
-    for (auto word : words) {
-        sum += std::uint32_t(scion::details::byteswapBE(word));
-    }
-    if (buffer.size() > 2*sizeWords) {
-        sum += std::uint32_t(buffer[buffer.size()-1]) << 8;
-    }
-    while ((sum & ~0xffffu) != 0) {
-        sum = (sum >> 16) + (sum & 0xffffu);
-    }
-    return std::uint16_t(sum);
+#if __AVX2__
+    return onesComplementChecksumAVX(buffer, inital);
+#else
+    return onesComplementChecksumScalar(buffer, inital);
+#endif
 }
 
 /// \brief Calculate the 16-bit one's complement of the one's complement sum of

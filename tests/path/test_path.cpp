@@ -59,6 +59,7 @@ TEST(Path, LoadProtobuf)
     EXPECT_THAT(path->encoded(), testing::ElementsAreArray(
         reinterpret_cast<const std::byte*>(pb.raw().data()),  pb.raw().size()
     ));
+    EXPECT_EQ(path->hopCount(), 2);
     EXPECT_FALSE(path->broken());
 
     static const std::array<pm::Hop, 3> expectedIfaces = {
@@ -174,6 +175,7 @@ TEST(Path, Empty)
     EXPECT_EQ(path.type(), hdr::PathType::Empty);
     generic::IPEndpoint dst(generic::IPAddress::MakeIPv4(0x0a000001), 443);
     EXPECT_EQ(path.nextHop(dst), dst);
+    EXPECT_EQ(path.hopCount(), 0);
 }
 
 class PathFixture : public testing::Test

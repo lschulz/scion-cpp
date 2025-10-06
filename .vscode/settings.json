@@ -131,12 +131,30 @@
         "types.h": "c",
         "optparse.h": "c",
         "console.h": "c",
-        "format.h": "c"
+        "format.h": "c",
+        "socket.h": "c",
+        "scion.h": "c",
+        "ip.h": "c",
+        "errno.h": "c",
+        "stdlib.h": "c",
+        "dlfcn.h": "c",
+        "tcp.h": "c",
+        "scisock.h": "c",
+        "stdarg.h": "c",
+        "interposer.h": "c",
+        "text_encoding": "cpp",
+        "__availability": "cpp",
+        "fcntl.h": "c",
+        "unistd.h": "c",
+        "pthread.h": "c"
     },
     "C_Cpp.default.cppStandard": "c++23",
     "C_Cpp.default.cStandard": "c17",
     "cSpell.words": [
-        "drkey"
+        "drkey",
+        "pmtu",
+        "recvmmsg",
+        "sendmmsg"
     ],
     "python.analysis.extraPaths": [
         "./python/scapy-scion-int",

@@ -11,7 +11,9 @@
                 "${workspaceFolder}/tests",
                 "${workspaceFolder}/deps/googletest/googlemock/include",
                 "${workspaceFolder}/examples/include",
-                "${workspaceFolder}/examples/c/include"
+                "${workspaceFolder}/examples/c/include",
+                "${workspaceFolder}/interposer/src",
+                "${workspaceFolder}/interposer/include"
             ],
             "defines": [
                 "AGRPC_BOOST_ASIO"

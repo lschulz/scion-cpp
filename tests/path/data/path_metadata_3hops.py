@@ -15,9 +15,9 @@ raw_path = SCIONPath(
         InfoField(flags="C", segid=0xa9b8, timestamp=datetime.fromtimestamp(1704063600))
     ],
     hop_fields=[
-        HopField(exp_time=0xc1, cons_ingress=0,  cons_egress=2,  mac=0x7bd910c68949),
-        HopField(exp_time=0xd0, cons_ingress=5, cons_egress=4,   mac=0xbd20087f1ebb),
-        HopField(exp_time=0x27, cons_ingress=3,  cons_egress=0,   mac=0x5fc3be952300)
+        HopField(exp_time=0xc1, cons_ingress=0, cons_egress=2, mac=0x7bd910c68949),
+        HopField(exp_time=0xd0, cons_ingress=5, cons_egress=4, mac=0xbd20087f1ebb),
+        HopField(exp_time=0x27, cons_ingress=3, cons_egress=0, mac=0x5fc3be952300)
     ]
 )
 
