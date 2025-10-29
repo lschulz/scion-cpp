@@ -505,14 +505,8 @@ public:
 
     void setPayload(std::span<const std::byte> payload) {}
 
-    /// \brief Compute this headers contribution to the flow label.
-    std::uint32_t flowLabel() const
-    {
-        auto key = (std::uint32_t)(PROTO);
-        std::uint32_t hash;
-        scion::details::MurmurHash3_x86_32(&key, sizeof(key), 0, &hash);
-        return hash;
-    }
+    /// \brief Compute this header's contribution to the flow label.
+    std::uint32_t flowLabel() const { return 0; }
 
     template <typename Stream, typename Error>
     bool serialize(Stream& stream, Error& err)

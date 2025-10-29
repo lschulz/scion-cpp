@@ -11,6 +11,10 @@
       "version>=": "1.83.0"
     },
     {
+      "name": "boost-json",
+      "version>=": "1.83.0"
+    },
+    {
       "name": "boost-smart-ptr",
       "version>=": "1.83.0"
     },

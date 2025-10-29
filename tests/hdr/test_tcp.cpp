@@ -29,6 +29,8 @@
 #include <cstdint>
 #include <cstring>
 
+using std::uint16_t;
+
 
 TEST(TCP, Parse)
 {
@@ -207,7 +209,7 @@ TEST(TCP, Emit)
         std::span<std::byte> payload = {};
 
         tcp.chksum = details::internetChecksum(payload,
-            ip.checksum(tcp.size()) + tcp.checksum());
+            ip.checksum((uint16_t)tcp.size()) + tcp.checksum());
 
         ASSERT_TRUE(ip.serialize(stream, err)) << err;
         ASSERT_TRUE(tcp.serialize(stream, err)) << err;
@@ -243,7 +245,7 @@ TEST(TCP, Emit)
         std::span<std::byte> payload = {};
 
         tcp.chksum = details::internetChecksum(payload,
-            ip.checksum(tcp.size()) + tcp.checksum());
+            ip.checksum((uint16_t)tcp.size()) + tcp.checksum());
 
         ASSERT_TRUE(ip.serialize(stream, err)) << err;
         ASSERT_TRUE(tcp.serialize(stream, err)) << err;
@@ -272,7 +274,7 @@ TEST(TCP, Emit)
         };
 
         tcp.chksum = details::internetChecksum(payload,
-            ip.checksum(tcp.size() + payload.size()) + tcp.checksum());
+            ip.checksum((uint16_t)(tcp.size() + payload.size())) + tcp.checksum());
 
         ASSERT_TRUE(ip.serialize(stream, err)) << err;
         ASSERT_TRUE(tcp.serialize(stream, err)) << err;
@@ -308,7 +310,7 @@ TEST(TCP, Emit)
         std::span<std::byte> payload = {};
 
         tcp.chksum = details::internetChecksum(payload,
-            ip.checksum(tcp.size() + payload.size()) + tcp.checksum());
+            ip.checksum((uint16_t)(tcp.size() + payload.size())) + tcp.checksum());
 
         ASSERT_TRUE(ip.serialize(stream, err)) << err;
         ASSERT_TRUE(tcp.serialize(stream, err)) << err;

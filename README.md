@@ -13,7 +13,11 @@ Still a work in progress.
 - [googletest](https://github.com/google/googletest) (included as submodule)
 - [CLI11](https://github.com/CLIUtils/CLI11) (included as submodule)
 
-For interposer:
+For scitra-tun (Linux only):
+- liburing >= 2.5
+- libmnl >= 1.0.5
+
+For interposer (Linux only):
 - [re2](https://github.com/google/re2)
 - [toml++](https://marzer.github.io/tomlplusplus/)
 
@@ -50,10 +54,13 @@ Running the unit tests:
 # Set TEST_BASE_PATH to the absolute path of the tests/ directory.
 export TEST_BASE_PATH=$(realpath tests)
 build/Debug/unit-tests
+export TEST_BASE_PATH=$(realpath scitra/tests)
+build/scitra/Debug/scitra-tests
 export SCION_CONFIG="$PWD/interposer/integration/config/scion_interposer.toml"
 build/interposer/Debug/interposer-tests
 # Or run
 make test
+make test-scitra
 make test-interposer
 ```
 

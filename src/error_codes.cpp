@@ -67,6 +67,8 @@ struct ScionErrorCategory : public std::error_category
                 return "name not found";
             case ErrorCode::RemoteError:
                 return "remote machine returned an error";
+            case ErrorCode::FileNotFound:
+                return "file not found";
             case ErrorCode::InvalidPacket:
                 return "received an invalid packet";
             case ErrorCode::ChecksumError:
@@ -135,6 +137,8 @@ struct ScionErrorCondition : std::error_category
                 return "name not found";
             case ErrorCondition::RemoteError:
                 return "remote machine returned an error";
+            case ErrorCondition::FileNotFound:
+                return "file not found";
             case ErrorCondition::InvalidPacket:
                 return "received an invalid packet";
             case ErrorCondition::ChecksumError:

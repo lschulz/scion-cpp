@@ -87,6 +87,31 @@ TYPED_TEST(PathCacheTest, Lookup)
     EXPECT_TRUE(cache.lookupCached(src, dst).empty());
 }
 
+TYPED_TEST(PathCacheTest, Prefetch)
+{
+    using namespace scion;
+    using namespace std::chrono_literals;
+
+    TypeParam cache;
+    auto queryPaths = [] (TypeParam& cache, IsdAsn src, IsdAsn dst) -> std::error_code {
+        auto now = std::chrono::utc_clock::now();
+        auto nh = unwrap(generic::IPEndpoint::Parse("10.0.0.1:31000"));
+        static std::array<std::byte, 16> path = {};
+        std::vector<PathPtr> paths = {
+            makePath(src, dst, hdr::PathType::SCION, now + 1h, 1420, nh, path),
+        };
+        cache.store(src, dst, std::move(paths)); // vector&& overload
+        return ErrorCode::Ok;
+    };
+
+    auto src = unwrap(IsdAsn::Parse("1-ff00:0:1"));
+    auto dst = unwrap(IsdAsn::Parse("2-ff00:0:2"));
+    ASSERT_TRUE(cache.lookupCached(src, dst).empty());
+    ASSERT_FALSE(cache.prefetch(src, dst, queryPaths));
+    auto paths = cache.lookupCached(src, dst);
+    ASSERT_EQ(paths.size(), 1);
+}
+
 // Test path refresh interval.
 TYPED_TEST(PathCacheTest, Refresh)
 {

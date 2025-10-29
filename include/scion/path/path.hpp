@@ -29,6 +29,7 @@
 #include "scion/path/digest.hpp"
 #include "scion/path/path_meta.hpp"
 #include "scion/path/raw_hop_range.hpp"
+#include "scion/path/raw.hpp"
 
 #include <boost/smart_ptr/intrusive_ptr.hpp>
 #include <boost/smart_ptr/intrusive_ref_counter.hpp>
@@ -69,7 +70,7 @@ private:
     generic::IPEndpoint m_nextHop;
     std::vector<std::byte> m_path;
     std::list<Attribute> m_attrib;
-    std::atomic_bool m_broken = false;
+    std::atomic<std::uint64_t> m_broken = 0;
     PathDigest m_digest;
 
 public:
@@ -111,12 +112,19 @@ public:
     /// \brief Returns the encoded path length in bytes.
     std::size_t size() const { return m_path.size(); }
 
-    /// \brief Returns whether the path has been marked as broken.
-    bool broken() const { return m_broken.load(); }
+    /// \brief Returns the timestamp of the last time this path was marked as
+    /// broken. Returns zero if the path is considered working. A non-zero
+    /// timestamp is the number of nanoseconds since the epoch of
+    /// `std::chrono::steady_clock`.
+    std::uint64_t broken() const { return m_broken.load(); }
 
-    /// \brief Change the broken path flag.
-    /// This method can be called from multiple threads without synchronization.
-    void setBroken(bool isBroken) { m_broken.store(isBroken); }
+    /// \brief Mark the path as working or as broken. This method can be called
+    /// from multiple threads without synchronization.
+    /// \param ts Pass zero to mark the path as working. Pass the time when the
+    /// path was last discovered to be broken to mark the path as broken. The
+    /// timestamp is interpreted as nanoseconds since the epoch of
+    /// `std::chrono::steady_clock`.
+    void setBroken(std::uint64_t ts) { m_broken.store(ts); }
 
     /// \brief Returns the length of the path in inter-AS hops (i.e., the number
     /// of visited ASes - 1). This value is derived from the raw data plane path
@@ -264,11 +272,17 @@ inline PathPtr makePath(IsdAsn source, IsdAsn destination,
     return PathPtr(new Path(source, destination, type, expiry, mtu, nh, dpPath));
 }
 
+/// \brief Make path from a raw path.
+inline PathPtr makePath(const RawPath& rp, const generic::IPEndpoint& nh)
+{
+    return makePath(rp.firstAS(), rp.lastAS(), rp.type(), rp.expiry(), 0, nh, rp.encoded());
+}
+
 /// \brief Helper for creating an empty path on the heap.
 inline PathPtr makeEmptyPath(IsdAsn isdAsn)
 {
-    return PathPtr(new Path(isdAsn, isdAsn, hdr::PathType::Empty, Path::Expiry::max(), 0,
-        generic::IPEndpoint(), std::span<std::byte>()));
+    return PathPtr(new Path(isdAsn, isdAsn, hdr::PathType::Empty,
+        Path::Expiry::max(), 0, generic::IPEndpoint(), std::span<std::byte>()));
 }
 
 } // namespace scion

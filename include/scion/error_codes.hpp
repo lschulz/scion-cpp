@@ -51,6 +51,7 @@ enum class ErrorCode : int
     NoLocalHostAddr,  ///< no suitable underlay host address found
     NameNotFound,     ///< name was not found
     RemoteError,      ///< remote machine returned an error
+    FileNotFound,     ///< file not found
 
     // packet validation errors
     InvalidPacket = 256, ///< received an invalid packet
@@ -83,6 +84,7 @@ enum class ErrorCondition : int
     NoLocalHostAddr,  ///< no suitable underlay host address found
     NameNotFound,     ///< name was not found
     RemoteError,      ///< remote machine returned an error
+    FileNotFound,     ///< file not found
     InvalidPacket = 256, ///< received an invalid packet
     ChecksumError,       ///< packet checksum incorrect
     DstAddrMismatch,     ///< packet rejected because of unexpected destination address

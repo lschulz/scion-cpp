@@ -75,13 +75,34 @@ inline std::uint16_t onesComplementChecksum(
 /// is replaced by 0xffff.
 /// \param buffer Input data the sum is computed over.
 /// \param inital Extra value added into the sum in host byte order.
-/// \return Checksum in network byte order.
+/// \return Checksum in host byte order.
 inline std::uint16_t internetChecksum(std::span<const std::byte> buffer, std::uint32_t inital = 0)
 {
     std::uint16_t sum = ~onesComplementChecksum(buffer, inital);
     if (sum == 0) sum = 0xffff;
     return sum;
 }
+
+/// \brief Update an internet checksum.
+/// \param chksum Header checksum in host byte order.
+/// \param add Sum of 16-bit header words that are added to the checksum.
+/// \param sub Sum of 16-bit header words that are subtracted from the checksum.
+/// \return Updated header checksum in host byte order.
+inline std::uint16_t updateInternetChecksum(std::uint16_t chksum, std::uint32_t add, std::uint32_t sub)
+{
+    auto sum = (std::uint32_t)(~chksum & 0xffffu);
+    if (sum == 0xffffu) sum = 0;
+    sum += add;
+    while ((sum & ~0xffffu) != 0) {
+        sum = (sum >> 16) + (sum & 0xffffu);
+    }
+    sum += ~sub;
+    while ((sum & ~0xffffu) != 0) {
+        sum = (sum >> 16) + (sum & 0xffffu);
+    }
+    if (sum != 0xffff) sum = (~sum & 0xffffu);
+    return sum;
+};
 
 } // namespace details
 } // namespace hdr

@@ -124,6 +124,14 @@ TEST_F(RawPathFixture, Equality)
     EXPECT_NE(rp1, rp2);
 }
 
+TEST_F(RawPathFixture, Expiry)
+{
+    using namespace scion;
+
+    RawPath rp(src, tgt, hdr::PathType::SCION, paths.at(0));
+    EXPECT_EQ(rp.expiry(), RawPath::Expiry(std::chrono::seconds(1742911312)));
+}
+
 TEST_F(RawPathFixture, Digest)
 {
     using namespace scion;

@@ -111,29 +111,12 @@ public:
     /// path query is still pending.
     template <typename PathProvider>
     requires std::invocable<PathProvider, PathCache&, IsdAsn, IsdAsn>
-    Maybe<std::vector<PathPtr>> lookup(
-        IsdAsn src, IsdAsn dst, PathProvider queryPaths)
+    Maybe<std::vector<PathPtr>> lookup(IsdAsn src, IsdAsn dst, PathProvider queryPaths)
     {
-        bool refresh = false;
         Maybe<std::vector<PathPtr>> paths; // for NRVO
 
         Route r{src, dst};
-        if (auto i = cache.find(r); i != cache.end()) {
-            refresh = !(i->second.refreshPending)
-                && (i->second.nextRefresh < std::chrono::utc_clock::now());
-            i->second.refreshPending = refresh;
-        } else {
-            refresh = true;
-            cache[r].refreshPending = true;
-        }
-
-        std::error_code ec = ErrorCode::Ok;
-        if (refresh) {
-            if (src != dst)
-                ec = queryPaths(*this, src, dst);
-            else
-                store(src, dst, std::array<PathPtr, 1>{makeEmptyPath(src)});
-        }
+        auto ec = update(r, std::forward<PathProvider>(queryPaths));
 
         if (auto i = cache.find(r); i != cache.end() && !i->second.paths.empty()) {
             paths = returnValidPaths(i);
@@ -141,7 +124,6 @@ public:
             if (ec == ErrorCondition::Pending)
                 paths = Error(ErrorCode::Pending);
         }
-
         return paths;
     }
 
@@ -164,25 +146,8 @@ public:
     requires std::invocable<PathProvider, PathCache&, IsdAsn, IsdAsn>
     std::error_code lookup(IsdAsn src, IsdAsn dst, PathReceiver receive, PathProvider queryPaths)
     {
-        bool refresh = false;
-
         Route r{src, dst};
-        if (auto i = cache.find(r); i != cache.end()) {
-            refresh = !(i->second.refreshPending)
-                && (i->second.nextRefresh < std::chrono::utc_clock::now());
-            i->second.refreshPending = refresh;
-        } else {
-            refresh = true;
-            cache[r].refreshPending = true;
-        }
-
-        std::error_code ec = ErrorCode::Ok;
-        if (refresh) {
-            if (src != dst)
-                ec = queryPaths(*this, src, dst);
-            else
-                store(src, dst, std::array<PathPtr, 1>{makeEmptyPath(src)});
-        }
+        auto ec = update(r, std::forward<PathProvider>(queryPaths));
 
         if (auto i = cache.find(r); i != cache.end() && !i->second.paths.empty()) {
             auto now = std::chrono::utc_clock::now();
@@ -194,6 +159,25 @@ public:
                 return ErrorCode::Pending;
         }
         return ErrorCode::Ok;
+    }
+
+    /// \brief Ensure the cache contains fresh paths from `src` to `dst`. May
+    /// request new paths from the path provider if the cache is empty or if the
+    /// cached paths expire soon.
+    ///
+    /// \param src Source AS
+    /// \param dst Destination AS
+    /// \param queryPaths Callback that is invoked to query paths. May return
+    /// ErrorCode::Pending if paths are fetched asynchronously. Paths must be
+    /// written to the cache using the store() method. Signature:
+    /// `std::error_code queryPaths(PathCache&, IsdAsn src, IsdAsn dst)`
+    ///
+    /// \returns Errors raised by the path provider.
+    template <typename PathProvider>
+    requires std::invocable<PathProvider, PathCache&, IsdAsn, IsdAsn>
+    std::error_code prefetch(IsdAsn src, IsdAsn dst, PathProvider queryPaths)
+    {
+        return update(Route{src, dst}, std::forward<PathProvider>(queryPaths));
     }
 
     /// \brief Look up paths in the cache. Never queries new paths.
@@ -275,11 +259,14 @@ public:
         const hdr::ScmpMessage& msg,
         std::span<const std::byte> payload) override
     {
+        using namespace std::chrono;
         if (auto v = std::get_if<hdr::ScmpExtIfDown>(&msg)) {
             for (auto& entry : cache) {
                 for (auto& path : entry.second.paths) {
                     if (path->containsInterface(v->sender, v->iface)) {
-                        path->setBroken(true);
+                        auto ts = (std::uint64_t)duration_cast<nanoseconds>(
+                            steady_clock::now().time_since_epoch()).count();
+                        path->setBroken(ts);
                     }
                 }
             }
@@ -287,7 +274,9 @@ public:
             for (auto& entry : cache) {
                 for (auto& path : entry.second.paths) {
                     if (path->containsHop(v->sender, v->ingress, v->egress)) {
-                        path->setBroken(true);
+                        auto ts = (std::uint64_t)duration_cast<nanoseconds>(
+                            steady_clock::now().time_since_epoch()).count();
+                        path->setBroken(ts);
                     }
                 }
             }
@@ -296,6 +285,29 @@ public:
     }
 
 private:
+    template <typename PathProvider>
+    std::error_code update(const Route& r, PathProvider queryPaths)
+    {
+        bool refresh = false;
+        if (auto i = cache.find(r); i != cache.end()) {
+            refresh = !(i->second.refreshPending)
+                && (i->second.nextRefresh < std::chrono::utc_clock::now());
+            i->second.refreshPending = refresh;
+        } else {
+            refresh = true;
+            cache[r].refreshPending = true;
+        }
+
+        if (refresh) {
+            if (r.src != r.dst) {
+                return queryPaths(*this, r.src, r.dst);
+            } else {
+                store(r.src, r.dst, std::array<PathPtr, 1>{makeEmptyPath(r.src)});
+            }
+        }
+        return ErrorCode::Ok;
+    }
+
     void updateNextRefresh(std::chrono::utc_clock::time_point now, PathSet& set)
     {
         auto nextExpiry = std::chrono::utc_clock::time_point::max();

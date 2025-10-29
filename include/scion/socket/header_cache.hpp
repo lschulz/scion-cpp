@@ -123,7 +123,7 @@ public:
         WriteStream ws(m_buffer);
         SCION_STREAM_ERROR err;
         if (!writeHeaders(ws, scHdr, path, extensions, l4, err)) {
-            SCION_DEBUG_PRINT(err << std::endl);
+            SCION_DEBUG_PRINT(err);
             return ErrorCode::LogicError;
         }
 
@@ -164,7 +164,7 @@ public:
         WriteStream ws(m_buffer);
         SCION_STREAM_ERROR err;
         if (!updateHeaders(ws, newLen, l4, err)) {
-            SCION_DEBUG_PRINT(err << std::endl);
+            SCION_DEBUG_PRINT(err);
             return ErrorCode::LogicError;
         }
         return ErrorCode::Ok;
@@ -237,7 +237,7 @@ private:
     static std::uint32_t computeFlowLabel(const hdr::SCION& scHdr, const L4& l4)
     {
         std::hash<ScIPAddress> h1;
-        return (std::uint32_t)(h1(scHdr.dst) ^ h1(scHdr.src) ^ l4.flowLabel());
+        return (std::uint32_t)(h1(scHdr.dst) ^ h1(scHdr.src)) ^ l4.flowLabel();
     }
 
     /// \brief Compute the L4 checksum.

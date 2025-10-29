@@ -27,6 +27,7 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstddef>
 #include <format>
 #include <iterator>
@@ -37,7 +38,6 @@
 
 namespace scion {
 namespace details {
-PathDigest computeDigest(IsdAsn src, std::span<std::pair<std::uint16_t, std::uint16_t>> path);
 std::error_code reversePathInPlace(hdr::PathType type, std::span<std::byte> path);
 } // namespace details
 
@@ -45,6 +45,9 @@ std::error_code reversePathInPlace(hdr::PathType type, std::span<std::byte> path
 /// stored in an internal array, no memory is allocated on the heap.
 class RawPath
 {
+public:
+    using Expiry = std::chrono::utc_clock::time_point;
+
 public:
     /// \brief Maximum path size in bytes. Calculated from the the maximum
     /// SCION header size (4 * 255 = 1020 byte) minus the mandatory common
@@ -104,6 +107,10 @@ public:
 
     /// \brief Returns the path type.
     hdr::PathType type() const { return m_type; }
+
+    /// \brief Determines the path's expiry time by parsing the raw info and hop
+    /// fields.
+    Expiry expiry() const;
 
     /// \brief Returns true is the path is an empty path for AS-internal
     /// communication.

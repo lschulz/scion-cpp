@@ -41,7 +41,7 @@ TEST(PathMtuDiscoverer, UpdateMtu)
     EXPECT_FALSE(pmtu.updateMtu(dest, path, 1400));
     EXPECT_EQ(pmtu.getMtu(dest, path), 1280);
     pmtu.forgetMtu(dest, path);
-    EXPECT_TRUE(pmtu.updateMtu(dest, path, 1300));
+    EXPECT_FALSE(pmtu.updateMtu(dest, path, 1300));
     EXPECT_EQ(pmtu.getMtu(dest, path), 1300);
 }
 
@@ -68,6 +68,59 @@ TEST(PathMtuDiscoverer, GetMtuRawPath)
     PathMtuDiscoverer pmtu(1400);
     auto dest = unwrap(generic::IPAddress::Parse("::1"));
     EXPECT_EQ(pmtu.getMtu(dest, RawPath()), 1400);
+}
+
+TEST(PathMtuDiscoverer, LruReplacement)
+{
+    using namespace scion;
+    RawPath path;
+    PathMtuDiscoverer<int> pmtu(1400, 2);
+    EXPECT_EQ(pmtu.capacity(), 2);
+
+    auto dest1 = unwrap(generic::IPAddress::Parse("::1"));
+    EXPECT_EQ(pmtu.getMtu(dest1, path, 10), 1400);
+    EXPECT_EQ(pmtu.size(), 1);
+
+    auto dest2 = unwrap(generic::IPAddress::Parse("::2"));
+    EXPECT_EQ(pmtu.getMtu(dest2, path, 20), 1400);
+    EXPECT_EQ(pmtu.size(), 2);
+
+    auto dest3 = unwrap(generic::IPAddress::Parse("::3"));
+    EXPECT_EQ(pmtu.getMtu(dest3, path, 30), 1400);
+    EXPECT_EQ(pmtu.size(), 2);
+
+    EXPECT_FALSE(pmtu.updateMtu(dest1, path, 1000)); // not in the cache anymore
+    EXPECT_TRUE(pmtu.updateMtu(dest2, path, 1000));
+
+    EXPECT_EQ(pmtu.clear(20), 0);
+    EXPECT_EQ(pmtu.clear(30), 1);
+    EXPECT_EQ(pmtu.size(), 1);
+    EXPECT_TRUE(pmtu.updateMtu(dest3, path, 1000));
+
+    pmtu.clear();
+    EXPECT_EQ(pmtu.size(), 0);
+}
+
+TEST(PathMtuDiscoverer, SetCapacity)
+{
+    using namespace scion;
+    RawPath path;
+    PathMtuDiscoverer<int> pmtu(1400, 0);
+
+    EXPECT_EQ(pmtu.capacity(), 1);
+    EXPECT_EQ(pmtu.setCapacity(10), 0);
+    EXPECT_EQ(pmtu.capacity(), 10);
+
+    auto dest1 = unwrap(generic::IPAddress::Parse("::1"));
+    EXPECT_EQ(pmtu.getMtu(dest1, path, 10), 1400);
+    auto dest2 = unwrap(generic::IPAddress::Parse("::2"));
+    EXPECT_EQ(pmtu.getMtu(dest2, path, 20), 1400);
+    auto dest3 = unwrap(generic::IPAddress::Parse("::3"));
+    EXPECT_EQ(pmtu.getMtu(dest3, path, 30), 1400);
+
+    EXPECT_EQ(pmtu.setCapacity(0), 2);
+    EXPECT_EQ(pmtu.capacity(), 1);
+    EXPECT_TRUE(pmtu.updateMtu(dest3, path, 1000));
 }
 
 TEST(PathMtuDiscoverer, HandleScmp)

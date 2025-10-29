@@ -192,6 +192,28 @@ typedef struct scion_socket_t scion_socket;
 struct scion_timer_t;
 typedef struct scion_timer_t scion_timer;
 
+///////////
+// Clock //
+///////////
+
+/// \name Clock
+///@{
+
+/// \brief Returns the current UTC time in nanoseconds since the UNIX epoch.
+/// This clock follows time adjustments of the host clock, if a steady clock is
+/// needed use `scion_time_steady()`.
+uint64_t scion_time_utc();
+
+/// \brief Retruns the number of nanoseconds elapsed since sum undefined epoch.
+/// This clock is monotonically increasing.
+uint64_t scion_time_steady();
+
+///@}
+
+///////////////
+// Addresses //
+///////////////
+
 /// \name Addresses
 ///@{
 
@@ -590,13 +612,18 @@ uint64_t scion_path_expiry(scion_path* path);
 /// \brief Returns the path's MTU as reported by the control plane.
 uint16_t scion_path_mtu(scion_path* path);
 
-/// \brief Reports the status of the path's broken flag. A path is flagged as
-/// broken if an interface down or internal connectivity down SCMP message
-/// affecting the path has been received.
-bool scion_path_broken(scion_path* path);
+/// \brief Reports the status of the path's broken flag. A value of zero means
+/// that the path is considered working. A non-zero return value indicates the
+/// last time the path was flagged as broken, for example by an interface down
+/// or internal connectivity down SCMP message. Non-zero timestamps can be
+/// compared to the current time as returned by `scion_time_steady()` to
+/// determine how long ago the path was last tried.
+uint64_t scion_path_broken(scion_path* path);
 
-/// \brief Change the value of the path's broken flag.
-void scion_path_set_broken(scion_path* path, bool broken);
+/// \brief Change the value of the path's broken flag. A value of zero indicates
+/// the path is working. A non-zero value should be the timestamp as returned by
+/// `scion_time_steady()` when the path was discovered to be broken.
+void scion_path_set_broken(scion_path* path, uint64_t broken);
 
 /// \brief Returns ISD-ASN and interface metadata for each hop on the path.
 /// If the path does not contain metadata, SCION_NO_METADATA is returned and

@@ -73,7 +73,6 @@ set(SRC_INTERPOSER_TEST
     "tests/test_get_addr_info.cpp"
     "tests/test_get_name_info.cpp"
     "tests/test_udp_socket.cpp"
-    "${CMAKE_SOURCE_DIR}/tests/utilities.hpp"
 )
 
 add_executable(interposer-tests ${SRC_INTERPOSER_TEST})

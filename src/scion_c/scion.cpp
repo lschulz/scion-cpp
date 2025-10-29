@@ -44,6 +44,7 @@
 #include <net/if.h>
 #endif
 
+#include <chrono>
 #include <cstring>
 #include <format>
 #include <memory>
@@ -250,6 +251,26 @@ const char* scion_error_string(scion_error err)
         default:
             return "unexpected error code";
     }
+}
+
+///////////
+// Clock //
+///////////
+
+extern "C"
+uint64_t scion_time_utc()
+{
+    using namespace std::chrono;
+    return std::uint64_t(duration_cast<nanoseconds>(
+        utc_clock::now().time_since_epoch()).count());
+}
+
+extern "C"
+uint64_t scion_time_steady()
+{
+    using namespace std::chrono;
+    return std::uint64_t(duration_cast<nanoseconds>(
+        steady_clock::now().time_since_epoch()).count());
 }
 
 //////////
@@ -765,13 +786,13 @@ uint16_t scion_path_mtu(scion_path* path)
 }
 
 extern "C"
-bool scion_path_broken(scion_path* path)
+uint64_t scion_path_broken(scion_path* path)
 {
     return reinterpret_cast<scion::Path*>(path)->broken();
 }
 
 extern "C"
-void scion_path_set_broken(scion_path* path, bool broken)
+void scion_path_set_broken(scion_path* path, uint64_t broken)
 {
     reinterpret_cast<scion::Path*>(path)->setBroken(broken);
 }

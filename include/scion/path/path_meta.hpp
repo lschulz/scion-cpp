@@ -108,6 +108,8 @@ class Interfaces : public PathAttributeBase
 {
 public:
     std::vector<Hop> data;
+    Interfaces() = default;
+    explicit Interfaces(std::vector<Hop>&& data) : data(std::move(data)) {};
     void initialize(const proto::daemon::v1::Path& pb);
 };
 
@@ -117,6 +119,8 @@ class HopMetadata : public PathAttributeBase
 {
 public:
     std::vector<HopMeta> data;
+    HopMetadata() = default;
+    explicit HopMetadata(std::vector<HopMeta>&& data) : data(std::move(data)) {};
     void initialize(const proto::daemon::v1::Path& pb);
 };
 
@@ -125,6 +129,8 @@ class LinkMetadata : public PathAttributeBase
 {
 public:
     std::vector<LinkMeta> data;
+    LinkMetadata() = default;
+    explicit LinkMetadata(std::vector<LinkMeta>&& data) : data(std::move(data)) {};
     void initialize(const proto::daemon::v1::Path& pb);
 };
 

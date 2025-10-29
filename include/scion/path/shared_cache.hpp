@@ -44,32 +44,12 @@ public:
     /// \copydoc PathCache::lookup(IsdAsn, IsdAsn, PathProvider)
     template <typename PathProvider>
     requires std::invocable<PathProvider, SharedPathCache&, IsdAsn, IsdAsn>
-    Maybe<std::vector<PathPtr>> lookup(
-        IsdAsn src, IsdAsn dst, PathProvider queryPaths)
+    Maybe<std::vector<PathPtr>> lookup(IsdAsn src, IsdAsn dst, PathProvider queryPaths)
     {
-        bool refresh = false;
-        PathCache::Route r{src, dst};
         Maybe<std::vector<PathPtr>> paths; // for NRVO
 
-        {
-            std::unique_lock<std::shared_mutex> lock(mutex);
-            if (auto i = inner.cache.find(r); i != inner.cache.end()) {
-                refresh = !(i->second.refreshPending)
-                    && (i->second.nextRefresh < std::chrono::utc_clock::now());
-                i->second.refreshPending = refresh;
-            } else {
-                refresh = true;
-                inner.cache[r].refreshPending = true;
-            }
-        }
-
-        std::error_code ec = ErrorCode::Ok;
-        if (refresh) {
-            if (src != dst)
-                ec = queryPaths(*this, src, dst);
-            else
-                store(src, dst, std::array<PathPtr, 1>{makeEmptyPath(src)});
-        }
+        PathCache::Route r{src, dst};
+        auto ec = update(r, std::forward<PathProvider>(queryPaths));
 
         if (auto i = inner.cache.find(r); i != inner.cache.end() && !i->second.paths.empty()) {
             std::shared_lock<std::shared_mutex> lock(mutex);
@@ -86,28 +66,8 @@ public:
     requires std::invocable<PathProvider, SharedPathCache&, IsdAsn, IsdAsn>
     std::error_code lookup(IsdAsn src, IsdAsn dst, PathReceiver receive, PathProvider queryPaths)
     {
-        bool refresh = false;
         PathCache::Route r{src, dst};
-
-        {
-            std::unique_lock<std::shared_mutex> lock(mutex);
-            if (auto i = inner.cache.find(r); i != inner.cache.end()) {
-                refresh = !(i->second.refreshPending)
-                    && (i->second.nextRefresh < std::chrono::utc_clock::now());
-                i->second.refreshPending = refresh;
-            } else {
-                refresh = true;
-                inner.cache[r].refreshPending = true;
-            }
-        }
-
-        std::error_code ec = ErrorCode::Ok;
-        if (refresh) {
-            if (src != dst)
-                ec = queryPaths(*this, src, dst);
-            else
-                store(src, dst, std::array<PathPtr, 1>{makeEmptyPath(src)});
-        }
+        auto ec = update(r, std::forward<PathProvider>(queryPaths));
 
         if (auto i = inner.cache.find(r); i != inner.cache.end() && !i->second.paths.empty()) {
             auto now = std::chrono::utc_clock::now();
@@ -120,6 +80,14 @@ public:
                 return ErrorCode::Pending;
         }
         return ErrorCode::Ok;
+    }
+
+    /// \copydoc PathCache::prefetch(IsdAsn, IsdAsn, PathProvider)
+    template <typename PathProvider>
+    requires std::invocable<PathProvider, SharedPathCache&, IsdAsn, IsdAsn>
+    std::error_code prefetch(IsdAsn src, IsdAsn dst, PathProvider queryPaths)
+    {
+        return update(PathCache::Route{src, dst}, std::forward<PathProvider>(queryPaths));
     }
 
     /// \brief Look up paths in the cache. Never queries new paths.
@@ -192,6 +160,31 @@ public:
     void setNextScmpHandler(ScmpHandler* handler) override
     {
         inner.setNextScmpHandler(handler);
+    }
+
+private:
+    template <typename PathProvider>
+    std::error_code update(const PathCache::Route& r, PathProvider queryPaths)
+    {
+        bool refresh = false;
+        {
+            std::unique_lock<std::shared_mutex> lock(mutex);
+            if (auto i = inner.cache.find(r); i != inner.cache.end()) {
+                refresh = !(i->second.refreshPending)
+                    && (i->second.nextRefresh < std::chrono::utc_clock::now());
+                i->second.refreshPending = refresh;
+            } else {
+                refresh = true;
+                inner.cache[r].refreshPending = true;
+            }
+        }
+        if (refresh) {
+            if (r.src != r.dst)
+                return queryPaths(*this, r.src, r.dst);
+            else
+                store(r.src, r.dst, std::array<PathPtr, 1>{makeEmptyPath(r.src)});
+        }
+        return ErrorCode::Ok;
     }
 };
 

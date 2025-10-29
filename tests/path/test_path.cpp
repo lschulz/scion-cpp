@@ -149,7 +149,7 @@ TEST(Path, LoadInvalidProtobuf)
 }
 
 namespace {
-class MockAttribute : public scion::PathAttributeBase
+class FakeAttribute : public scion::PathAttributeBase
 {
 public:
     int data;
@@ -161,11 +161,11 @@ TEST(Path, UserAttributes)
     using namespace scion;
 
     Path path;
-    const int MOCK_ATTRIBUTE = PATH_ATTRIBUTE_USER_BEGIN + 1;
-    EXPECT_NE(path.addAttribute<MockAttribute>(MOCK_ATTRIBUTE), nullptr);
-    EXPECT_NE(path.getAttribute<MockAttribute>(MOCK_ATTRIBUTE), nullptr);
-    path.removeAttribute(MOCK_ATTRIBUTE);
-    EXPECT_EQ(path.getAttribute<MockAttribute>(MOCK_ATTRIBUTE), nullptr);
+    const int FAKE_ATTRIBUTE = PATH_ATTRIBUTE_USER_BEGIN + 1;
+    EXPECT_NE(path.addAttribute<FakeAttribute>(FAKE_ATTRIBUTE), nullptr);
+    EXPECT_NE(path.getAttribute<FakeAttribute>(FAKE_ATTRIBUTE), nullptr);
+    path.removeAttribute(FAKE_ATTRIBUTE);
+    EXPECT_EQ(path.getAttribute<FakeAttribute>(FAKE_ATTRIBUTE), nullptr);
 }
 
 TEST(Path, Empty)

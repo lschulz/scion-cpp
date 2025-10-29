@@ -146,7 +146,8 @@
         "__availability": "cpp",
         "fcntl.h": "c",
         "unistd.h": "c",
-        "pthread.h": "c"
+        "pthread.h": "c",
+        "generator": "cpp"
     },
     "C_Cpp.default.cppStandard": "c++23",
     "C_Cpp.default.cStandard": "c17",

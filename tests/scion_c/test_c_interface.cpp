@@ -584,8 +584,9 @@ TEST_F(CInterfacePathFixture, Getters)
     EXPECT_EQ(scion_path_mtu(path), 1472);
     EXPECT_EQ(scion_path_hop_count(path), 2);
     EXPECT_FALSE(scion_path_broken(path));
-    scion_path_set_broken(path, true);
-    EXPECT_TRUE(scion_path_broken(path));
+    auto now = scion_time_steady();
+    scion_path_set_broken(path, now);
+    EXPECT_EQ(scion_path_broken(path), now);
 }
 
 TEST_F(CInterfacePathFixture, MetadataHops)

@@ -13,7 +13,8 @@
                 "${workspaceFolder}/examples/include",
                 "${workspaceFolder}/examples/c/include",
                 "${workspaceFolder}/interposer/src",
-                "${workspaceFolder}/interposer/include"
+                "${workspaceFolder}/interposer/include",
+                "${workspaceFolder}/scitra/include"
             ],
             "defines": [
                 "AGRPC_BOOST_ASIO"

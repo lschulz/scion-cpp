@@ -61,7 +61,7 @@ public:
         len = (std::uint16_t)(size() + payload.size());
     }
 
-    /// \brief Compute this headers contribution to the flow label.
+    /// \brief Compute this header's contribution to the flow label.
     std::uint32_t flowLabel() const
     {
         auto key = (std::uint32_t(PROTO) << 16)

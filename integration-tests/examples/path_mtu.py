@@ -68,5 +68,5 @@ class PathMTU(unittest.TestCase):
         ], stdout=PIPE, check=True)
         self.assertEqual(res.stdout.decode(),
             "Try PMTU = 9000\n"
-            "Try PMTU = 8000\n"
-            "Found PMTU = 8000\n")
+            "Try PMTU = 1280\n"
+            "Found PMTU = 1280\n")

@@ -212,11 +212,11 @@ public:
     auto print(auto out, int indent) const
     {
         using namespace details;
-        meta.print(out, indent + 2);
-        for (const auto& hf : hfs)
-            hf.print(out, indent + 2);
+        meta.print(out, indent);
         for (const auto& info: ifs)
-            info.print(out, indent + 2);
+            info.print(out, indent);
+        for (const auto& hf : hfs)
+            hf.print(out, indent);
         return out;
     }
 

@@ -35,39 +35,6 @@ using std::size_t;
 
 
 namespace scion {
-
-std::ostream& operator<<(std::ostream& stream, const PathDigest& pd)
-{
-    stream << std::format("{}", pd);
-    return stream;
-}
-
-std::ostream& operator<<(std::ostream& stream, const RawPath& rp)
-{
-    stream << std::format("{}", rp);
-    return stream;
-}
-
-std::ostream& operator<<(std::ostream& stream, const Path& path)
-{
-    stream << std::format("{}", path);
-    return stream;
-}
-
-PathDigest RawPath::digest() const
-{
-    if (!m_digest) {
-        std::array<std::pair<std::uint16_t, std::uint16_t>, 64> buffer;
-        std::size_t i = 0;
-        for (auto hop : hops()) {
-            if (i >= buffer.size()) break;
-            buffer[i++] = hop;
-        }
-        m_digest = details::computeDigest(m_source, buffer);
-    }
-    return *m_digest;
-}
-
 namespace details {
 
 PathDigest computeDigest(IsdAsn src, std::span<std::pair<std::uint16_t, std::uint16_t>> path)
@@ -150,4 +117,69 @@ std::error_code reversePathInPlace(hdr::PathType type, std::span<std::byte> path
 }
 
 } // namespace details
+
+std::ostream& operator<<(std::ostream& stream, const PathDigest& pd)
+{
+    stream << std::format("{}", pd);
+    return stream;
+}
+
+std::ostream& operator<<(std::ostream& stream, const RawPath& rp)
+{
+    stream << std::format("{}", rp);
+    return stream;
+}
+
+std::ostream& operator<<(std::ostream& stream, const Path& path)
+{
+    stream << std::format("{}", path);
+    return stream;
+}
+
+auto RawPath::expiry() const -> Expiry
+{
+    using namespace std::chrono;
+    using namespace scion::hdr;
+    PathMeta meta;
+    std::array<InfoField, 3> ifs;
+    HopField hop;
+    auto expiry = Expiry::max();
+
+    if (m_type != PathType::SCION)
+        return expiry;
+
+    ReadStream rs(m_path);
+    if (!meta.serialize(rs, NullStreamError)) return expiry;
+    auto segments = meta.segmentCount();
+    for (size_t i = 0; i < segments; ++i) {
+        if (!ifs[i].serialize(rs, NullStreamError)) return expiry;
+    }
+    auto hops = meta.hopFieldCount();
+    for (size_t i = 0; i < hops; ++i) {
+        if (!hop.serialize(rs, NullStreamError)) return expiry;
+        if (i < meta.segLen[0]) {
+            expiry = std::min(expiry, Expiry(seconds(ifs[0].timestamp + hop.relativeExpiry())));
+        } else if (i < meta.segLen[0] + meta.segLen[1]) {
+            expiry = std::min(expiry, Expiry(seconds(ifs[1].timestamp + hop.relativeExpiry())));
+        } else {
+            expiry = std::min(expiry, Expiry(seconds(ifs[2].timestamp + hop.relativeExpiry())));
+        }
+    }
+    return expiry;
+}
+
+PathDigest RawPath::digest() const
+{
+    if (!m_digest) {
+        std::array<std::pair<uint16_t, uint16_t>, 64> buffer;
+        size_t i = 0;
+        for (auto hop : hops()) {
+            if (i >= buffer.size()) break;
+            buffer[i++] = hop;
+        }
+        m_digest = details::computeDigest(m_source, buffer);
+    }
+    return *m_digest;
+}
+
 } // namespace scion

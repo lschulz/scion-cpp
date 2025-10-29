@@ -5,7 +5,7 @@ SRC_ROOT := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
 BUILD_DIR := $(SRC_ROOT)/build
 PYTHONPATH := $(PYTHONPATH):$(SRC_ROOT)/python
 
-TEST_DATA=$(addsuffix .bin,$(basename $(shell find tests -name '*.py')))
+TEST_DATA=$(addsuffix .bin,$(basename $(shell find tests scitra/tests -name '*.py')))
 
 # Build library and examples
 
@@ -22,6 +22,10 @@ debug:
 .PHONY: test
 test:
 	TEST_BASE_PATH=$(realpath tests) "$(BUILD_DIR)/Debug/unit-tests"
+
+.PHONY: test-scitra
+test-scitra:
+	TEST_BASE_PATH=$(realpath scitra/tests) "$(BUILD_DIR)/scitra/Debug/scitra-tests"
 
 .PHONY: test-interposer
 test-interposer:

@@ -27,12 +27,22 @@
 #include <string>
 
 
-// set by main()
-extern std::filesystem::path TEST_BASE_PATH;
+std::filesystem::path TEST_BASE_PATH;
 
-// Load packets from a file formatted as `(<length><packet data>)+` where
-// length is a 32 bit field (big endian) giving the size of the following
-// packet data in bytes.
+void setTestBasePath(int argc, char* argv[])
+{
+    namespace fs = std::filesystem;
+
+    char* env = std::getenv("TEST_BASE_PATH");
+    if (argc > 1) {
+        TEST_BASE_PATH = fs::path(argv[1]);
+    } else if (env) {
+        TEST_BASE_PATH = fs::path(env);
+    } else {
+        TEST_BASE_PATH = fs::current_path();
+    }
+}
+
 std::vector<std::vector<std::byte>> loadPackets(const char* path)
 {
     using namespace std::literals;

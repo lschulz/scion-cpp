@@ -86,7 +86,7 @@ scion.fl = 0x054b20
 pkts.append(bytes(scion / udp / payload2))
 
 # SCMP
-scion.fl = 0x0ef601
+scion.fl = 0x017124
 pkts.append(bytes(scion / scmp / payload))
 
 # SCMP no payload

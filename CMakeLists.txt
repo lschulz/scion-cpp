@@ -27,7 +27,7 @@ endif()
 # Boost
 # =====
 
-find_package(Boost CONFIG REQUIRED)
+find_package(Boost CONFIG REQUIRED COMPONENTS json)
 
 # =========================
 # Protobuf, gRPC, asio-grpc
@@ -121,12 +121,14 @@ set(SRC
     "src/murmur_hash3.cpp"
     "src/path/path_meta.cpp"
     "src/path/path.cpp"
+    "src/path/policy.cpp"
     "src/resolver.cpp"
 )
 
 add_library(scion-cpp ${SRC})
 target_link_libraries(scion-cpp PUBLIC
     Boost::headers
+    Boost::json
     asio-grpc::asio-grpc
     scion-proto
 )
@@ -176,6 +178,7 @@ set(SRC_TEST
     "tests/path/test_decoded_scion.cpp"
     "tests/path/test_path_meta.cpp"
     "tests/path/test_path.cpp"
+    "tests/path/test_policy.cpp"
     "tests/path/test_protobuf_time.cpp"
     "tests/path/test_raw_path.cpp"
     "tests/posix/test_addr.cpp"
@@ -210,6 +213,12 @@ gtest_discover_tests(unit-tests
 if (NOT WIN32)
 add_subdirectory(interposer)
 endif()
+
+# ------
+# SCITRA
+# ------
+
+add_subdirectory(scitra)
 
 # ========
 # Examples

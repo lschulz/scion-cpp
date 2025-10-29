@@ -109,7 +109,7 @@ TEST_F(ParsedPacketFixture, ParseSCMP)
     EXPECT_EQ(pkt.sci.nh, ScionProto::SCMP);
     EXPECT_EQ(pkt.sci.ptype, PathType::SCION);
     EXPECT_EQ(pkt.sci.plen, 16);
-    EXPECT_EQ(pkt.sci.fl, 0x0e'f601u);
+    EXPECT_EQ(pkt.sci.fl, 0x01'7124u);
     EXPECT_EQ(pkt.sci.dst, dst);
     EXPECT_EQ(pkt.sci.src, src);
 

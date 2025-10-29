@@ -284,6 +284,13 @@ public:
 
     bool operator==(const HopField&) const = default;
 
+    /// \brief Calculate the expiration time in seconds relative to the
+    /// timestamp of the corresponding info field.
+    std::uint32_t relativeExpiry()
+    {
+        return ((1 + expTime) * 24 * 60 * 60) / 256;
+    }
+
     std::size_t size() const { return staticSize; }
 
     template <typename Stream, typename Error>

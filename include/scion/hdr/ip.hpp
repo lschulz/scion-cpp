@@ -229,6 +229,9 @@ public:
 
     std::size_t size() const { return 8; }
 
+    /// \brief Compute this header's contribution to the flow label.
+    std::uint32_t flowLabel() const { return 0; }
+
     template <typename Stream, typename Error>
     bool serialize(Stream& stream, Error& err)
     {
@@ -280,6 +283,9 @@ public:
     }
 
     std::size_t size() const { return 8; }
+
+    /// \brief Compute this header's contribution to the flow label.
+    std::uint32_t flowLabel() const { return 0; }
 
     template <typename Stream, typename Error>
     bool serialize(Stream& stream, Error& err)

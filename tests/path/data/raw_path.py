@@ -20,17 +20,17 @@ full = SCIONPath(
     ],
     hop_fields = [
         # Segment 1
-        HopField(cons_ingress=4, cons_egress=0),
-        HopField(cons_ingress=2, cons_egress=3),
-        HopField(cons_ingress=0, cons_egress=1),
+        HopField(cons_ingress=4, cons_egress=0, exp_time=100),
+        HopField(cons_ingress=2, cons_egress=3, exp_time=100),
+        HopField(cons_ingress=0, cons_egress=1, exp_time=100),
         # Segment 2
-        HopField(cons_ingress=0, cons_egress=5),
-        HopField(cons_ingress=6, cons_egress=0),
+        HopField(cons_ingress=0, cons_egress=5, exp_time=20),
+        HopField(cons_ingress=6, cons_egress=0, exp_time=10),
         # Segment 3
         HopField(cons_ingress=0, cons_egress=7),
         HopField(cons_ingress=8, cons_egress=9),
         HopField(cons_ingress=10, cons_egress=11),
-        HopField(cons_ingress=12, cons_egress=0),
+        HopField(cons_ingress=12, cons_egress=0, exp_time=255),
     ],
 )
 
@@ -50,17 +50,17 @@ full_rev = SCIONPath(
     ],
     hop_fields = [
         # Segment 3
-        HopField(cons_ingress=12, cons_egress=0),
+        HopField(cons_ingress=12, cons_egress=0, exp_time=255),
         HopField(cons_ingress=10, cons_egress=11),
         HopField(cons_ingress=8, cons_egress=9),
         HopField(cons_ingress=0, cons_egress=7),
         # Segment 2
-        HopField(cons_ingress=6, cons_egress=0),
-        HopField(cons_ingress=0, cons_egress=5),
+        HopField(cons_ingress=6, cons_egress=0, exp_time=10),
+        HopField(cons_ingress=0, cons_egress=5, exp_time=20),
         # Segment 1
-        HopField(cons_ingress=0, cons_egress=1),
-        HopField(cons_ingress=2, cons_egress=3),
-        HopField(cons_ingress=4, cons_egress=0),
+        HopField(cons_ingress=0, cons_egress=1, exp_time=100),
+        HopField(cons_ingress=2, cons_egress=3, exp_time=100),
+        HopField(cons_ingress=4, cons_egress=0, exp_time=100),
     ],
 )
 

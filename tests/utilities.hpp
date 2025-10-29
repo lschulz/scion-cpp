@@ -83,9 +83,16 @@ constexpr std::byte operator ""_b(unsigned long long i)
     return std::byte{static_cast<unsigned char>(i)};
 }
 
+// Set the base path for loadPackets() from the command line or an environment
+// variable.
+void setTestBasePath(int argc, char* argv[]);
+
+// Load packets from a file formatted as `(<length><packet data>)+` where
+// length is a 32 bit field (big endian) giving the size of the following
+// packet data in bytes.
 std::vector<std::vector<std::byte>> loadPackets(const char* path);
 
-/// \brief Format a buffer side-by-side as hexadecimal values and decoded string.
+// Format a buffer side-by-side as hexadecimal values and decoded string.
 template <std::output_iterator<char> OutIter>
 OutIter formatBuffer(OutIter out, std::span<const std::byte> buffer)
 {
@@ -120,8 +127,8 @@ OutIter formatBuffer(OutIter out, std::span<const std::byte> buffer)
     return std::format_to(out, "\n");
 }
 
-/// \brief Format buffer like formatBuffer(). Bytes in `buffer` that differ from
-/// `ref` are printed in red.
+// Format buffer like formatBuffer(). Bytes in `buffer` that differ from `ref`
+// are printed in red.
 template <std::output_iterator<char> OutIter>
 OutIter formatBufferDiff(
     OutIter out, std::span<const std::byte> buffer, std::span<const std::byte> ref)
@@ -169,7 +176,7 @@ OutIter formatBufferDiff(
     return std::format_to(out, "\n");
 }
 
-/// \brief Returns the result of printBuffer() as string.
+// Returns the result of printBuffer() as string.
 inline std::string printBuffer(std::span<const std::byte> buffer)
 {
     std::string str;
@@ -178,7 +185,7 @@ inline std::string printBuffer(std::span<const std::byte> buffer)
     return str;
 }
 
-/// \brief Returns the result of formatBufferDiff() as string.
+// Returns the result of formatBufferDiff() as string.
 inline std::string printBufferDiff(std::span<const std::byte> buffer, std::span<const std::byte> ref)
 {
     std::string str;
@@ -191,7 +198,7 @@ inline std::string printBufferDiff(std::span<const std::byte> buffer, std::span<
     return str;
 }
 
-/// \brief Returns the string representation of a header.
+// Returns the string representation of a header.
 template <typename T>
 std::string printHeader(const T& hdr, int indent = 0)
 {

@@ -20,9 +20,10 @@
 
 #pragma once
 
+#include "scion/details/flags.hpp"
 #include "scion/hdr/details.hpp"
 #include "scion/hdr/proto.hpp"
-#include "scion/details/flags.hpp"
+#include "scion/murmur_hash3.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -339,11 +340,11 @@ public:
 
     struct OptionMask
     {
-        std::uint_fast8_t MSS     : 1;
-        std::uint_fast8_t WS      : 1;
-        std::uint_fast8_t SAckPerm: 1;
-        std::uint_fast8_t SAck    : 1;
-        std::uint_fast8_t TS      : 1;
+        std::uint_fast8_t MSS      : 1;
+        std::uint_fast8_t WS       : 1;
+        std::uint_fast8_t SAckPerm : 1;
+        std::uint_fast8_t SAck     : 1;
+        std::uint_fast8_t TS       : 1;
     };
 
     static constexpr ScionProto PROTO = ScionProto::TCP;
@@ -380,6 +381,17 @@ public:
         return 20 + measureOpts();
     }
 
+    /// \brief Compute this header's contribution to the flow label.
+    std::uint32_t flowLabel() const
+    {
+        auto key = (std::uint32_t(PROTO) << 16)
+        | (std::uint32_t(sport) << 8)
+        | (std::uint32_t)(dport);
+        std::uint32_t hash;
+        scion::details::MurmurHash3_x86_32(&key, sizeof(key), 0, &hash);
+        return hash;
+    }
+
     template <typename Stream, typename Error>
     bool serialize(Stream& stream, Error& err)
     {
@@ -388,7 +400,7 @@ public:
         if (!stream.serializeUint32(seq, err)) return err.propagate();
         if (!stream.serializeUint32(ack, err)) return err.propagate();
         std::uint32_t dataOffset = 0;
-        if constexpr (Stream::IsWriting) dataOffset = size() / 4;
+        if constexpr (Stream::IsWriting) dataOffset = (std::uint32_t)(size() / 4);
         if (!stream.serializeBits(dataOffset, 4, err)) return err.propagate();
         if constexpr (Stream::IsReading) {
             if (dataOffset < 5) return err.error("invalid TCP header");
@@ -399,6 +411,7 @@ public:
         if (!stream.serializeUint16(chksum, err)) return err.propagate();
         if (!stream.serializeUint16(urgptr, err)) return err.propagate();
         if constexpr (Stream::IsReading) {
+            optMask = {};
             if (dataOffset == 5)
                 return true; // no options
             std::span<const std::byte> opts;
@@ -499,24 +512,32 @@ private:
     bool emitOpts(WriteStream& ws, Error& err)
     {
         std::size_t len = 0;
-        if (optMask.MSS) {    // 4 bytes
+        if (optMask.MSS) {            // 4 bytes
             len += TcpMssOpt::length;
             if (!options.mss.serialize(ws, err)) return err.propagate();
         }
-        if (optMask.SAckPerm) { // 2 bytes
+        if (optMask.SAckPerm) {       // 2 bytes
             len += TcpSAckPermOpt::length;
             if (!TcpSAckPermOpt().serialize(ws, err)) return err.propagate();
         }
-        if (optMask.SAck) {   // 8 * n + 2 bytes + 2 bytes padding
+        if (optMask.SAck) {           // 8 * n + 2 bytes + 2 bytes padding
             len += options.sack.size() + 2;
             if (!ws.serializeUint16(0x0101u, err)) return err.propagate();
             if (!options.sack.serialize(ws, err)) return err.propagate();
         }
-        if (optMask.TS) {     // 10 bytes
-            len += TcpTsOpt::length;
-            if (!options.ts.serialize(ws, err)) return err.propagate();
+        if (optMask.TS) {
+            // Packets with a timestamp option followed by two bytes of padding
+            // don't seem to work on Linux.
+            if (flags & Flags::SYN) { // 10 bytes
+                len += TcpTsOpt::length;
+                if (!options.ts.serialize(ws, err)) return err.propagate();
+            } else {                  // 10 bytes + 2 bytes padding
+                len += TcpTsOpt::length + 2;
+                if (!ws.serializeUint16(0x0101u, err)) return err.propagate();
+                if (!options.ts.serialize(ws, err)) return err.propagate();
+            }
         }
-        if (optMask.WS) {     // 3 bytes + 1 byte padding
+        if (optMask.WS) {             // 3 bytes + 1 byte padding
             len += TcpWsOpt::length + 1;
             if (!ws.serializeByte(0x01u, err)) return err.propagate();
             if (!options.ws.serialize(ws, err)) return err.propagate();
@@ -537,7 +558,12 @@ private:
         if (optMask.MSS) len += TcpMssOpt::length;
         if (optMask.SAckPerm) len += TcpSAckPermOpt::length;
         if (optMask.SAck) len += options.sack.size() + 2; // 2 bytes padding
-        if (optMask.TS) len += TcpTsOpt::length;
+        if (optMask.TS) {
+            if (flags[Flags::SYN])
+                len += TcpTsOpt::length; // no padding
+            else
+                len += TcpTsOpt::length + 2; // 2 bytes padding
+        }
         if (optMask.WS) len += TcpWsOpt::length + 1; // 1 byte padding
         return (len + 3) & ~((std::size_t)3); // round up to a multiple of 4
     }

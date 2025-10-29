@@ -96,6 +96,7 @@ TEST(ScionHdr, Parse)
         auto& hf = hfs[i];
         ASSERT_TRUE(hf.serialize(stream, err)) << err;
         EXPECT_EQ(hf.expTime, time.at(i));
+        EXPECT_EQ(hf.relativeExpiry(), ((1 + time.at(i)) *24*60*60) / 256);
         EXPECT_EQ(hf.consIngress, igr.at(i));
         EXPECT_EQ(hf.consEgress, egr.at(i));
         EXPECT_EQ(hf.mac, macs.at(i));

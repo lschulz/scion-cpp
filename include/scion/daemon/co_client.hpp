@@ -61,7 +61,7 @@ public:
 
         rpc::Response response;
         auto status = co_await rpc::request(grpcCtx, stub, ctx, request, response, use_awaitable);
-        if (!status.ok()) co_return Error(status.error_code());
+        if (!status.ok()) co_return status.error_code();
 
         for (const auto& path : response.paths()) {
             auto cooked = details::pathFromProtobuf(src, dst, path, flags);

@@ -48,7 +48,7 @@ public:
 	FlagSet(EnumType flags) : flags((UnderlyingType)flags) { }
 	explicit FlagSet(UnderlyingType flags) : flags(flags) { }
 
-	explicit operator UnderlyingType() const { return flags; }
+	operator UnderlyingType() const { return flags; }
 
 	/// \brief Obtain a mutable reference to the underlying integer.
 	UnderlyingType& ref() { return flags; }

@@ -36,6 +36,35 @@
             ]
         },
         {
+            "name": "Scitra Tests",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/scitra/Debug/scitra-tests",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "TEST_BASE_PATH",
+                    "value": "${workspaceFolder}/scitra/tests"
+                }
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
             "name": "(Windows) Debug Tests",
             "type": "cppvsdbg",
             "request": "launch",
@@ -518,5 +547,59 @@
                 }
             ]
         },
+        {
+            "name": "ScitraTUN",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/scitra/Debug/scitra-tun",
+            "args": [
+                "eth1",
+                "192.168.244.4",
+                "--sciond", "127.0.0.19:30255",
+                "--ports=32008",
+                "--no-tui"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Disable startup with shell",
+                    "text": "-gdb-set startup-with-shell off",
+                    "ignoreFailures": false
+                }
+            ]
+        },
+        {
+            "name": "Attach ScitraTUN",
+            "type": "cppdbg",
+            "request": "attach",
+            "program": "${workspaceFolder}/build/scitra/Debug/scitra-tun",
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        }
     ]
 }
