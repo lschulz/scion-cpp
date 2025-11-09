@@ -962,11 +962,13 @@ scion_error scion_raw_path_print(scion_raw_path* path, char* buffer, size_t* buf
 // Header Cache //
 //////////////////
 
+extern "C"
 scion_hdr_cache* scion_hdr_cache_allocate()
 {
     return reinterpret_cast<scion_hdr_cache*>(new scion::HeaderCache<>);
 }
 
+extern "C"
 void scion_hdr_cache_free(scion_hdr_cache* headers)
 {
     if (headers) delete reinterpret_cast<scion::HeaderCache<>*>(headers);

@@ -44,7 +44,7 @@ PathDigest computeDigest(IsdAsn src, std::span<std::pair<std::uint16_t, std::uin
     auto seed = randomSeed();
     auto ia = (uint64_t)src;
     MurmurHash3_x64_128(&ia, sizeof(ia), seed, &haddr);
-    MurmurHash3_x64_128(path.data(), (int)(path.size()), seed, &path);
+    MurmurHash3_x64_128(path.data(), (int)(path.size()), seed, &hpath);
     return PathDigest(haddr[0] ^ hpath[0], haddr[1] ^ hpath[1]);
 }
 
@@ -170,14 +170,15 @@ auto RawPath::expiry() const -> Expiry
 
 PathDigest RawPath::digest() const
 {
+    using Hop = std::pair<std::uint16_t, std::uint16_t>;
     if (!m_digest) {
-        std::array<std::pair<uint16_t, uint16_t>, 64> buffer;
+        std::array<Hop, 64> buffer = {};
         size_t i = 0;
         for (auto hop : hops()) {
             if (i >= buffer.size()) break;
             buffer[i++] = hop;
         }
-        m_digest = details::computeDigest(m_source, buffer);
+        m_digest = details::computeDigest(m_source, std::span<Hop>(buffer.data(), i));
     }
     return *m_digest;
 }

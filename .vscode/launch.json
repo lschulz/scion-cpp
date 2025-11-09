@@ -556,8 +556,10 @@
                 "eth1",
                 "192.168.244.4",
                 "--sciond", "127.0.0.19:30255",
+                "--tun-addr", "fd00::1",
                 "--ports=32008",
-                "--no-tui"
+                "--tui",
+                "--log-file", "scitra-tun.log"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

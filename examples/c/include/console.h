@@ -34,10 +34,10 @@ bool isKeyPressed(HANDLE hConsoleInput, WORD vKey);
 
 #else
 
-void curses_init_server();
-void curses_refresh_screen();
-int curses_get_char();
-void curses_end_server();
+void curses_init_server(void);
+void curses_refresh_screen(void);
+int curses_get_char(void);
+void curses_end_server(void);
 
 #define CON_CURSES(x) x
 #define CON_WIN32(x)

@@ -6,13 +6,14 @@ cmake_minimum_required(VERSION 3.28)
 
 if (LINUX)
 set(SRC_SCITRA_TUN
-    "src/linux/error_codes.cpp"
-    "src/linux/main_tun.cpp"
-    "src/linux/netlink.cpp"
-    "src/linux/scitra_tun.cpp"
-    "src/linux/sys_net.cpp"
     "src/packet.cpp"
     "src/translator.cpp"
+    "src/scitra-tun/error_codes.cpp"
+    "src/scitra-tun/main_tun.cpp"
+    "src/scitra-tun/netlink.cpp"
+    "src/scitra-tun/scitra_tun.cpp"
+    "src/scitra-tun/sys_net.cpp"
+    "src/scitra-tun/tui.cpp"
 )
 
 add_executable(scitra-tun ${SRC_SCITRA_TUN})
@@ -20,9 +21,18 @@ target_include_directories(scitra-tun PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
 )
-target_link_libraries(scitra-tun PRIVATE scion-cpp CLI11::CLI11 uring mnl)
+target_link_libraries(scitra-tun PRIVATE
+    scion-cpp
+    CLI11::CLI11
+    spdlog::spdlog
+    uring
+    mnl
+    imtui
+    imtui-ncurses
+)
 target_compile_definitions(scitra-tun PRIVATE
     BOOST_ASIO_HAS_IO_URING=1
+    SCION_NO_DEBUG=1
 )
 endif(LINUX)
 

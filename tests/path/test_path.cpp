@@ -238,7 +238,9 @@ TEST_F(PathFixture, Digest)
 {
     using namespace scion;
 
-    EXPECT_EQ(path->digest(), PathDigest(0xe7cc783a3f31d342ull, 0x32437bfd0d34741aull));
+    EXPECT_EQ(makeEmptyPath(path->firstAS())->digest(),
+        PathDigest(0xe7cc783a3f31d342ll, 0x32437bfd0d34741aull));
+    EXPECT_EQ(path->digest(), PathDigest(0x69ad8c98dbf078baull, 0x77aaf16649153a5full));
 }
 
 TEST_F(PathFixture, ContainsInterface)

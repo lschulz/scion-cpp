@@ -82,12 +82,12 @@ public:
         return ErrorCode::Ok;
     }
 
-    /// \copydoc PathCache::prefetch(IsdAsn, IsdAsn, PathProvider)
+    /// \copydoc PathCache::prefetch(IsdAsn, IsdAsn, PathProvider, bool)
     template <typename PathProvider>
     requires std::invocable<PathProvider, SharedPathCache&, IsdAsn, IsdAsn>
-    std::error_code prefetch(IsdAsn src, IsdAsn dst, PathProvider queryPaths)
+    std::error_code prefetch(IsdAsn src, IsdAsn dst, PathProvider queryPaths, bool refresh = false)
     {
-        return update(PathCache::Route{src, dst}, std::forward<PathProvider>(queryPaths));
+        return update(PathCache::Route{src, dst}, std::forward<PathProvider>(queryPaths), refresh);
     }
 
     /// \brief Look up paths in the cache. Never queries new paths.
@@ -164,14 +164,15 @@ public:
 
 private:
     template <typename PathProvider>
-    std::error_code update(const PathCache::Route& r, PathProvider queryPaths)
+    std::error_code update(const PathCache::Route& r, PathProvider queryPaths, bool refresh = false)
     {
-        bool refresh = false;
         {
             std::unique_lock<std::shared_mutex> lock(mutex);
             if (auto i = inner.cache.find(r); i != inner.cache.end()) {
-                refresh = !(i->second.refreshPending)
-                    && (i->second.nextRefresh < std::chrono::utc_clock::now());
+                if (!refresh) {
+                    refresh = !(i->second.refreshPending)
+                        && (i->second.nextRefresh < std::chrono::utc_clock::now());
+                }
                 i->second.refreshPending = refresh;
             } else {
                 refresh = true;

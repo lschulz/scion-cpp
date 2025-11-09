@@ -20,8 +20,9 @@
 
 #pragma once
 
-#include "scitra/linux/error_codes.hpp"
 #include "scitra/packet.hpp"
+#include "scitra/scitra-tun/debug.hpp"
+#include "scitra/scitra-tun/error_codes.hpp"
 
 #if __INTELLISENSE__
 #define BOOST_ASIO_HAS_IO_URING 1
@@ -85,6 +86,10 @@ public:
 
     void close() { m_queue.close(); }
 
+#ifndef NNPERF_DEBUG
+    DebugTimestamp lastRx;
+#endif
+
     asio::awaitable<std::error_code>
     recvPacket(scion::scitra::PacketBuffer& pkt)
     {
@@ -93,6 +98,7 @@ public:
         constexpr auto token = asio::as_tuple(asio::use_awaitable);
         auto [ec, n] = co_await m_queue.async_read_some(asio::buffer(buffer), token);
         if (ec) co_return ec;
+        DBG_TIME_BEGIN(lastRx);
 
         if (auto ec = pkt.parsePacket(n, false); ec) {
             co_return ec;

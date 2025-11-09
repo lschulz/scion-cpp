@@ -154,10 +154,10 @@ struct std::formatter<scion::path_meta::Interfaces>
             hops.data.front().isdAsn, hops.data.front().egress);
         std::size_t n = hops.data.size() - 1;
         for (std::size_t i = 1; i < n; ++i) {
-            out = std::format_to(ctx.out(), ">{} {} {}>",
+            out = std::format_to(ctx.out(), ">{} {} {}",
                 hops.data[i].ingress, hops.data[i].isdAsn, hops.data[i].egress);
         }
-        return std::format_to(ctx.out(), "{} {}",
+        return std::format_to(ctx.out(), ">{} {}",
             hops.data.back().ingress, hops.data.back().isdAsn);
     }
 };

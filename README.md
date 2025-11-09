@@ -26,9 +26,9 @@ Dependencies can be installed locally with vcpkg:
 vcpkg install
 ```
 
-Make sure to initialize the submodules in `deps/`
+Make sure to initialize the submodules in `deps/` and `examples/deps/`.
 ```bash
-git submodule update --init
+git submodule update --init --recursive
 ```
 
 ### Building

@@ -20,21 +20,25 @@
 
 #pragma once
 
-#ifdef NDEBUG
-#ifndef SCION_NO_DEBUG_PRINT
-#define SCION_NO_DEBUG_PRINT 1
-#endif
-#endif
+#include <CLI/CLI.hpp>
 
-#if SCION_NO_DEBUG
-#define SCION_DEBUG_PRINT(x)
-#else
-#include <iostream>
-#define SCION_DEBUG_PRINT(x) std::cerr << x
-#endif
+#include <cstdint>
+#include <filesystem>
+#include <string>
 
-#if SCION_NO_DEBUG
-#define SCION_STREAM_ERROR NullStreamErrorT
-#else
-#define SCION_STREAM_ERROR StreamError
-#endif
+
+struct Arguments
+{
+    std::string publicAddress;
+    std::string publicInterface;
+    std::string sciond = "127.0.0.1:30255";
+    std::string tunDevice = "scion";
+    std::string tunAddress;
+    std::vector<std::uint16_t> ports;
+    int queues = 1;
+    int threads = 1;
+    std::filesystem::path policy;
+    std::filesystem::path logFile;
+    bool enabledDispatch = false;
+    bool tui = false;
+};

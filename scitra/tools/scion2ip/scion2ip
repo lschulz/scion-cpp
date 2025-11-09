@@ -1,0 +1,291 @@
+#!/bin/env python3
+# Copyright (c) 2024 Lars-Christian Schulz
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+import argparse
+import sys
+from ipaddress import IPv4Address, IPv6Address, IPv6Network
+from typing import Union
+
+
+class InvalidArgument(Exception):
+    pass
+
+
+class ASN:
+    """Represents an AS number (without the ISD part)."""
+    BITS = 48
+    MAX_VALUE = (1 << BITS) - 1
+    BGP_ASN_BITS = 32
+    MAX_BGP_ASN = (1 << BGP_ASN_BITS) - 1
+    GROUP_BITS = 16
+    GROUP_MAX_VALUE = (1 << GROUP_BITS) - 1
+
+    def __init__(self, initializer: Union[int, str]):
+        """Initialize from an ASN string or a numerical representation.
+
+        Raises:
+        ValueError: Initializer not recognized as a valid ASN.
+        """
+        if isinstance(initializer, int):
+            if initializer < 0 or initializer > self.MAX_VALUE:
+                raise ValueError("Invalid ASN. (Out of range)")
+            self.asn_int = initializer
+        elif isinstance(initializer, str):
+            parts = initializer.split(":")
+            if len(parts) == 1:
+                # Expect decimal AS number (BGP style)
+                self.asn_int = int(parts[0])
+                if self.asn_int < 0 or self.asn_int > self.MAX_BGP_ASN:
+                    raise ValueError("Invalid decimal ASN.")
+            elif len(parts) == 3:
+                # Hexadecimal AS number in three 16 bit groups
+                self.asn_int = 0
+                for group in parts:
+                    self.asn_int <<= self.GROUP_BITS
+                    group_value = int(group, base=16)
+                    if group_value < 0 or group_value > self.GROUP_MAX_VALUE:
+                        raise ValueError("Invalid hexadecimal ASN. (Invalid group value)")
+                    self.asn_int |= group_value
+            else:
+                raise ValueError("Invalid ASN. (Wrong number of colon-separated groups)")
+        else:
+            raise ValueError("Invalid initializer type for ASN.")
+
+    def __int__(self):
+        return self.asn_int
+
+    def __str__(self):
+        if self.asn_int <= self.MAX_BGP_ASN:
+            # BGP style ASN
+            return str(self.asn_int)
+        else:
+            # SCION style hexadecimal ASN in three groups
+            return "%x:%x:%x" % (
+                (self.asn_int >> 2 * self.GROUP_BITS) & self.GROUP_MAX_VALUE,
+                (self.asn_int >> self.GROUP_BITS) & self.GROUP_MAX_VALUE,
+                (self.asn_int) & self.GROUP_MAX_VALUE
+            )
+
+    def __repr__(self):
+        return 'ASN("%s")' % self.__str__()
+
+    @classmethod
+    def from_bytes(cls, bytes) -> 'ASN':
+        return ASN(int.from_bytes(bytes[:cls.BITS // 8], byteorder='big'))
+
+    def to_bytes(self) -> bytes:
+        return self.asn_int.to_bytes(self.BITS // 8, byteorder='big')
+
+    def __eq__(self, other):
+        if type(self) != type(other):
+            return False
+        else:
+            return self.asn_int == other.asn_int
+
+    def __hash__(self):
+        return hash(self.asn_int)
+
+
+def parse_hex(raw: str, length: int) -> int:
+    def parse(raw: str):
+        if raw == "":
+            return 0, 0
+        n = 0
+        groups = [int(group, base=16) for group in raw.split(":")]
+        for group in groups:
+            if 0 <= group <= 0xffff:
+                n <<= 16
+                n |= group
+            else:
+                raise ValueError("invalid hex string")
+        return n, len(groups)
+
+    n = 0
+    parts = raw.split("::")
+    if len(parts) > 2:
+        raise ValueError(":: may appear only once")
+
+    length_groups = (length + 15) // 16
+    n_lo, _ = parse(parts[-1])
+    n_hi, groups_hi = parse(parts[-2]) if len(parts) > 1 else (0, 0)
+
+    if length_groups - groups_hi < 0:
+        raise ValueError("invalid number of groups")
+    n_hi <<= (16 * (length_groups - groups_hi))
+    n = n_hi | n_lo
+    if n.bit_length() > length:
+        raise ValueError("number too large")
+    return n
+
+
+def format_hex(n: int) -> str:
+    assert n >= 0
+    groups = max(1, (n.bit_length() + 15) // 16)
+    return ":".join(["{:x}".format((n >> (16*(i-1))) & 0xffff) for i in range(groups, 0, -1)])
+
+
+SCION_PREFIX_LEN = 8
+SCION_PREFIX = 0xfc << (128 - SCION_PREFIX_LEN)
+
+
+def s2ip(isd_asn, local_prefix, subnet, interface, subnet_bits):
+    parts = isd_asn.split("-")
+    if len(parts) != 2:
+        raise InvalidArgument("error: invalid isd-asn")
+    try:
+        isd, asn = int(parts[0]), ASN(parts[1])
+    except ValueError as e:
+        raise InvalidArgument("isd-asn", e)
+    try:
+        local_prefix = parse_hex(local_prefix, 24 - subnet_bits)
+    except ValueError as e:
+        raise InvalidArgument("local prefix", e)
+    try:
+        subnet = parse_hex(subnet, subnet_bits)
+    except ValueError as e:
+        raise InvalidArgument("subnet", e)
+    try:
+        interface = IPv4Address(interface)
+        if local_prefix != 0 or subnet != 0:
+            raise InvalidArgument(
+                "local prefix and subnet must be zero in SCION-IPv4-mapped addresses")
+    except ValueError:
+        try:
+            interface = parse_hex(interface, 64)
+        except ValueError as e:
+            raise InvalidArgument("interface", e)
+
+    if not 0 <= isd < 2**12:
+        InvalidArgument("ISD cannot be encoded")
+    if int(asn) < 2**19:
+        encoded_asn = int(asn)
+    elif 0x2_0000_0000 <= int(asn) <= 0x2_0007_ffff:
+        encoded_asn = (1 << 19) | (int(asn) & 0x7ffff)
+    else:
+        raise InvalidArgument("ASN cannot be encoded")
+
+    ip = SCION_PREFIX | (isd << 108) | (encoded_asn << 88)
+    ip |= local_prefix << (64 + subnet_bits)
+    ip |= subnet << 64
+    if isinstance(interface, IPv4Address):
+        ip |= 0xffff << 32
+        ip |= int.from_bytes(interface.packed, "big")
+    else:
+        ip |= interface
+
+    return str(IPv6Address(ip))
+
+
+def ip2s(ip, subnet_bits):
+    if not ip in IPv6Network((SCION_PREFIX, SCION_PREFIX_LEN)):
+        print("error: not an IPv6-mapped SCION address")
+
+    ip = int(ip)
+    interface = ip & 0xffff_ffff_ffff_ffff
+    subnet = (ip >> 64) & ~(~0 << subnet_bits)
+    local_prefix = (ip >> (64 + subnet_bits)) & ~(~0 << (24 - subnet_bits))
+    encoded_asn = (ip >> 88) & 0xfffff
+    isd = (ip >> 108) & 0xfff
+
+    if encoded_asn & (1 << 19):
+        # SCION ASN
+        asn = ASN(0x2_0000_0000 | (encoded_asn & 0x7ffff))
+    else:
+        # BGP ASN
+        asn = ASN(encoded_asn)
+
+    if interface & (0xffffffff << 32) == (0x0000ffff << 32):
+        interface_str = str(IPv4Address(interface & 0xffffffff))
+    else:
+        interface_str = format_hex(interface)
+
+    return "{}-{} {} {} {}".format(
+        isd, asn,
+        format_hex(local_prefix),
+        format_hex(subnet),
+        interface_str)
+
+
+def scion2ip():
+    parser = argparse.ArgumentParser(description="Map SCION to IPv6 addresses.")
+    parser.add_argument("address", type=str, nargs='*',
+        help="ISD-ASN Local-Prefix Subnet Interface")
+    parser.add_argument("-p", "--pipe", action="store_true", help="Read input from stdint")
+    parser.add_argument("-s", "--subnet-bits", type=int, default=8, help="Length of the subnet ID")
+    args = parser.parse_args()
+
+    if not 0 <= args.subnet_bits <= 24:
+        print("error: subnet bits must be in [0, 24]")
+        return -1
+
+    try:
+        if args.pipe:
+            for line in sys.stdin.readlines():
+                address = line.split()
+                if len(address) != 4:
+                    print("error: invalid input", file=sys.stderr)
+                    return -1
+                print(s2ip(*address, args.subnet_bits))
+        else:
+            if len(args.address) != 4:
+                print("error: invalid input", file=sys.stderr)
+                return -1
+            print(s2ip(*args.address, args.subnet_bits))
+    except InvalidArgument as e:
+        print("error:", e, file=sys.stderr)
+        return -1
+
+    return 0
+
+
+def ip2scion():
+    parser = argparse.ArgumentParser(description="Map IPv6 to SCION addresses.")
+    parser.add_argument("ip", type=IPv6Address, action="store", nargs="?", default=None,
+        help="IPv6-mapped SCION address")
+    parser.add_argument("-p", "--pipe", action="store_true", help="Read input from stdint")
+    parser.add_argument("-s", "--subnet-bits", type=int, default=8, help="Length of the subnet ID")
+    args = parser.parse_args()
+
+    if not 0 <= args.subnet_bits <= 24:
+        print("error: subnet bits must be in [0, 24]", file=sys.stderr)
+        return -1
+
+    try:
+        if args.pipe:
+            for line in sys.stdin.readlines():
+                print(ip2s(IPv6Address(line.strip()), args.subnet_bits))
+        else:
+            if not args.ip:
+                print("error: must specify exactly one address", file=sys.stderr)
+                return -1
+            print(ip2s(args.ip, args.subnet_bits))
+    except InvalidArgument as e:
+        print("error:", e, file=sys.stderr)
+        return -1
+
+    return 0
+
+
+if __name__ == "__main__":
+    if sys.argv[0].endswith("ip2scion"):
+        exit(ip2scion())
+    else:
+        exit(scion2ip())

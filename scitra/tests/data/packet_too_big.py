@@ -1,5 +1,5 @@
 from pathlib import Path
-from scapy.layers.inet6 import IPv6, ICMPv6PacketTooBig, IPerror6, UDP
+from scapy.layers.inet6 import IPv6, ICMPv6PacketTooBig, UDP
 from tests import write_packets
 
 
@@ -23,7 +23,7 @@ response = IPv6(
     src = "fc00::1",
     dst = "fc00:10fb:f000::ffff:a00:1"
 ) / ICMPv6PacketTooBig(
-    mtu = 1472
+    mtu = 1340
 ) / bytes(ip)[:1232]
 
 write_packets([ip, response], Path(__file__).with_suffix(".bin"))

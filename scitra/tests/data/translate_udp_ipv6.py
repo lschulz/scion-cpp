@@ -1,6 +1,5 @@
 from pathlib import Path
 from datetime import datetime
-from scapy.layers.inet import IP
 from scapy.layers.inet6 import IPv6
 from scapy_scion.layers.scion import UDP, SCION, SCIONPath, InfoField, HopField
 from tests import write_packets

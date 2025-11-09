@@ -106,17 +106,21 @@ public:
     /// ErrorCode::Pending if paths are fetched asynchronously. Paths must be
     /// written to the cache using the store() method. Signature:
     /// `std::error_code queryPaths(PathCache&, IsdAsn src, IsdAsn dst)`
+    /// \param refresh If true paths are refreshed unconditionally. May still
+    /// not call queryPaths if another asynchronous path query for the same
+    /// source and destination AS pair is still pending.
     ///
     /// \returns Paths or ErrorCode::Pending if no paths are in the cache, but a
     /// path query is still pending.
     template <typename PathProvider>
     requires std::invocable<PathProvider, PathCache&, IsdAsn, IsdAsn>
-    Maybe<std::vector<PathPtr>> lookup(IsdAsn src, IsdAsn dst, PathProvider queryPaths)
+    Maybe<std::vector<PathPtr>> lookup(
+        IsdAsn src, IsdAsn dst, PathProvider queryPaths, bool refresh = false)
     {
         Maybe<std::vector<PathPtr>> paths; // for NRVO
 
         Route r{src, dst};
-        auto ec = update(r, std::forward<PathProvider>(queryPaths));
+        auto ec = update(r, std::forward<PathProvider>(queryPaths), refresh);
 
         if (auto i = cache.find(r); i != cache.end() && !i->second.paths.empty()) {
             paths = returnValidPaths(i);
@@ -286,12 +290,13 @@ public:
 
 private:
     template <typename PathProvider>
-    std::error_code update(const Route& r, PathProvider queryPaths)
+    std::error_code update(const Route& r, PathProvider queryPaths, bool refresh = false)
     {
-        bool refresh = false;
         if (auto i = cache.find(r); i != cache.end()) {
-            refresh = !(i->second.refreshPending)
-                && (i->second.nextRefresh < std::chrono::utc_clock::now());
+            if (!refresh) {
+                refresh = !(i->second.refreshPending)
+                    && (i->second.nextRefresh < std::chrono::utc_clock::now());
+            }
             i->second.refreshPending = refresh;
         } else {
             refresh = true;

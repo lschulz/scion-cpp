@@ -620,8 +620,8 @@ TEST_F(CInterfacePathFixture, Digest)
 {
     scion_digest digest = {};
     scion_path_digest(path, &digest);
-    EXPECT_EQ(digest.value[0], 0xe7cc783a3f31d342ull);
-    EXPECT_EQ(digest.value[1], 0x32437bfd0d34741aull);
+    EXPECT_EQ(digest.value[0], 0x69ad8c98dbf078baull);
+    EXPECT_EQ(digest.value[1], 0x77aaf16649153a5full);
 }
 
 TEST_F(CInterfacePathFixture, Print)

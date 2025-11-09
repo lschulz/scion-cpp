@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "scitra/linux/sys_net.hpp"
+#include "scitra/scitra-tun/sys_net.hpp"
 
 #include "scion/details/bit.hpp"
 

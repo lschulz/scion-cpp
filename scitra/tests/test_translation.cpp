@@ -81,6 +81,26 @@ public:
     }
 } isScion;
 
+TEST(ScitraCore, TranslatePrefix)
+{
+    using namespace scion::generic;
+    using namespace scion::scitra;
+
+    auto addr = IPAddress::MakeIPv6(0xfd01'0203'0405'0607u, 0x0809'0a0b'cb0d'0e0fu);
+    auto prefix = IPAddress::MakeIPv6(0xfcff'ffff'ffff'ffffu, 0xffff'ffff'ffff'ffffu);
+    auto ipv4 = IPAddress::MakeIPv4(0x7f000001u);
+
+    EXPECT_EQ(translateIPv6Prefix(addr, prefix, 0), addr);
+    EXPECT_EQ(translateIPv6Prefix(addr, prefix, 8),
+        IPAddress::MakeIPv6(0xfc01'0203'0405'0607u, 0x0809'0a0b'cb0d'0e0fu));
+    EXPECT_EQ(translateIPv6Prefix(addr, prefix, 64),
+        IPAddress::MakeIPv6(0xfcff'ffff'ffff'ffffu, 0x0809'0a0b'cb0d'0e0fu));
+    EXPECT_EQ(translateIPv6Prefix(addr, prefix, 72),
+        IPAddress::MakeIPv6(0xfcff'ffff'ffff'ffffu, 0xff09'0a0b'cb0d'0e0fu));
+    EXPECT_EQ(translateIPv6Prefix(addr, prefix, REPLACE_ADDRESS), prefix);
+    EXPECT_EQ(translateIPv6Prefix(addr, ipv4, REPLACE_ADDRESS), ipv4);
+}
+
 // Translate UDP/IPv6 to UDP/SCION with a UDP/IPv4 underlay.
 TEST(ScitraCore, TranslateIpUdpToScion4)
 {
@@ -109,7 +129,7 @@ TEST(ScitraCore, TranslateIpUdpToScion4)
     };
 
     auto hostIP = unwrap(generic::IPAddress::Parse("10.0.0.1"));
-    auto [verdict, egPort, nextHop] = translateEgress(pkt, hostIP, getPath);
+    auto [verdict, egPort, nextHop] = translateEgress(pkt, hostIP, REPLACE_ADDRESS, getPath);
     ASSERT_EQ(verdict, Verdict::Pass);
     EXPECT_EQ(egPort, 32766);
     EXPECT_EQ(nextHop, unwrap(generic::IPEndpoint::Parse("127.0.0.9:31002")));
@@ -143,11 +163,81 @@ TEST(ScitraCore, TranslateScion4ToIpUdp)
     auto getMTU = [&] (const hdr::SCION& sci, const RawPath& rp) {
         return 1280;
     };
-    auto src = unwrap(ScIPAddress::Parse("1-64496,10.0.0.1"));
-    auto dst = unwrap(ScIPAddress::Parse("2-64497,10.0.0.2"));
 
-    auto publicIP = unwrap(generic::IPAddress::Parse("fc00:20fb:f100::ffff:a00:2"));
-    auto verdict = translateIngress(pkt, publicIP, getMTU);
+    auto mappedIP = unwrap(generic::IPAddress::Parse("fc00:20fb:f100::ffff:a00:2"));
+    auto verdict = translateIngress(pkt, mappedIP, mappedIP, 128, getMTU);
+    ASSERT_EQ(verdict, Verdict::Pass);
+
+    auto translated = pkt.emitPacket(false);
+    ASSERT_FALSE(isError(translated)) << fmtError(translated.error());
+    EXPECT_TRUE(std::ranges::equal(*translated, expected)) << printBufferDiff(*translated, expected);
+}
+
+// Translate UDP/IPv6 to UDP/SCION with a UDP/IPv4 underlay and an empty path.
+TEST(ScitraCore, TranslateIpUdpToScion4Local)
+{
+    using namespace scion;
+    using namespace scion::scitra;
+
+    auto data = loadPackets("data/translate_udp_ipv4_local.bin");
+    auto& input = data.at(0);
+    auto& expected = data.at(1);
+
+    PacketBuffer pkt(std::pmr::vector<std::byte>(2048));
+    {
+        auto dst = pkt.clearAndGetBuffer(512);
+        ASSERT_LE(input.size(), dst.size());
+        std::ranges::copy(input, dst.begin());
+    }
+
+    auto ec = pkt.parsePacket(input.size(), false, &neverScion);
+    ASSERT_FALSE(ec) << fmtError(ec);
+
+    auto getPath = [] (
+        const ScIPAddress& src, const ScIPAddress& dst,
+        std::uint16_t sport, std::uint16_t dport, hdr::ScionProto proto, std::uint8_t tc
+    ) -> std::tuple<Maybe<PathPtr>, std::uint16_t> {
+        return std::make_tuple(makeEmptyPath(dst.isdAsn()), 1280);
+    };
+
+    auto hostIP = unwrap(generic::IPAddress::Parse("10.0.0.1"));
+    auto [verdict, egPort, nextHop] = translateEgress(pkt, hostIP, REPLACE_ADDRESS, getPath);
+    ASSERT_EQ(verdict, Verdict::Pass);
+    EXPECT_EQ(egPort, 32766);
+    EXPECT_EQ(nextHop, unwrap(generic::IPEndpoint::Parse("10.0.0.2:32767")));
+
+    auto translated = pkt.emitPacket(false);
+    ASSERT_FALSE(isError(translated)) << fmtError(translated.error());
+    EXPECT_TRUE(std::ranges::equal(*translated, expected)) << printBufferDiff(*translated, expected);
+}
+
+// Translate UDP/SCION with a UDP/IPv4 underlay and an empty path to UDP/IPv6.
+TEST(ScitraCore, TranslateScion4ToIpUdpLocal)
+{
+    using namespace scion;
+    using namespace scion::scitra;
+
+    auto data = loadPackets("data/translate_udp_ipv4_local.bin");
+    auto& input = data.at(1);
+    auto& expected = data.at(0);
+
+    PacketBuffer pkt(std::pmr::vector<std::byte>(2048));
+    {
+        auto dst = pkt.clearAndGetBuffer(512);
+        ASSERT_LE(input.size(), dst.size());
+        std::ranges::copy(input, dst.begin());
+    }
+
+    auto ec = pkt.parsePacket(input.size(), false, &isScion);
+    ASSERT_FALSE(ec) << fmtError(ec);
+
+    auto path = loadTestPath(0);
+    auto getMTU = [&] (const hdr::SCION& sci, const RawPath& rp) {
+        return 1280;
+    };
+
+    auto mappedIP = unwrap(generic::IPAddress::Parse("fc00:10fb:f000::ffff:a00:2"));
+    auto verdict = translateIngress(pkt, mappedIP, mappedIP, 128, getMTU);
     ASSERT_EQ(verdict, Verdict::Pass);
 
     auto translated = pkt.emitPacket(false);
@@ -183,7 +273,7 @@ TEST(ScitraCore, TranslateIpUdpToScion6)
     };
 
     auto hostIP = unwrap(generic::IPAddress::Parse("fc00:10fb:f000::1"));
-    auto [verdict, egPort, nextHop] = translateEgress(pkt, hostIP, getPath);
+    auto [verdict, egPort, nextHop] = translateEgress(pkt, hostIP, REPLACE_ADDRESS, getPath);
     ASSERT_EQ(verdict, Verdict::Pass);
     EXPECT_EQ(egPort, 32766);
     EXPECT_EQ(nextHop, unwrap(generic::IPEndpoint::Parse("[::1]:31002")));
@@ -217,11 +307,81 @@ TEST(ScitraCore, TranslateScion6ToIpUdp)
     auto getMTU = [&] (const hdr::SCION& sci, const RawPath& rp) {
         return 1280;
     };
-    auto src = unwrap(ScIPAddress::Parse("1-64496,fc00:10fb:f000::1"));
-    auto dst = unwrap(ScIPAddress::Parse("2-64497,fc00:20fb:f100::2"));
 
-    auto publicIP = unwrap(generic::IPAddress::Parse("fc00:20fb:f100::2"));
-    auto verdict = translateIngress(pkt, publicIP, getMTU);
+    auto mappedIP = unwrap(generic::IPAddress::Parse("fc00:20fb:f100::2"));
+    auto verdict = translateIngress(pkt, mappedIP, mappedIP, 128, getMTU);
+    ASSERT_EQ(verdict, Verdict::Pass);
+
+    auto translated = pkt.emitPacket(false);
+    ASSERT_FALSE(isError(translated)) << fmtError(translated.error());
+    EXPECT_TRUE(std::ranges::equal(*translated, expected)) << printBufferDiff(*translated, expected);
+}
+
+// Translate UDP/IPv6 to UDP/SCION with a UDP/IPv6 underlay and an empty path.
+TEST(ScitraCore, TranslateIpUdpToScion6Local)
+{
+    using namespace scion;
+    using namespace scion::scitra;
+
+    auto data = loadPackets("data/translate_udp_ipv6_local.bin");
+    auto& input = data.at(0);
+    auto& expected = data.at(1);
+
+    PacketBuffer pkt(std::pmr::vector<std::byte>(2048));
+    {
+        auto dst = pkt.clearAndGetBuffer(512);
+        ASSERT_LE(input.size(), dst.size());
+        std::ranges::copy(input, dst.begin());
+    }
+
+    auto ec = pkt.parsePacket(input.size(), false, &neverScion);
+    ASSERT_FALSE(ec) << fmtError(ec);
+
+    auto getPath = [] (
+        const ScIPAddress& src, const ScIPAddress& dst,
+        std::uint16_t sport, std::uint16_t dport, hdr::ScionProto proto, std::uint8_t tc
+    ) -> std::tuple<Maybe<PathPtr>, std::uint16_t> {
+        return std::make_tuple(makeEmptyPath(dst.isdAsn()), 1280);
+    };
+
+    auto hostIP = unwrap(generic::IPAddress::Parse("fc00:10fb:f000::1"));
+    auto [verdict, egPort, nextHop] = translateEgress(pkt, hostIP, REPLACE_ADDRESS, getPath);
+    ASSERT_EQ(verdict, Verdict::Pass);
+    EXPECT_EQ(egPort, 32766);
+    EXPECT_EQ(nextHop, unwrap(generic::IPEndpoint::Parse("[fc00:10fb:f000::2]:32767")));
+
+    auto translated = pkt.emitPacket(false);
+    ASSERT_FALSE(isError(translated)) << fmtError(translated.error());
+    EXPECT_TRUE(std::ranges::equal(*translated, expected)) << printBufferDiff(*translated, expected);
+}
+
+// Translate UDP/SCION with a UDP/IPv6 underlay and an empty path to UDP/IPv6.
+TEST(ScitraCore, TranslateScion6ToIpUdpLocal)
+{
+    using namespace scion;
+    using namespace scion::scitra;
+
+    auto data = loadPackets("data/translate_udp_ipv6_local.bin");
+    auto& input = data.at(1);
+    auto& expected = data.at(0);
+
+    PacketBuffer pkt(std::pmr::vector<std::byte>(2048));
+    {
+        auto dst = pkt.clearAndGetBuffer(512);
+        ASSERT_LE(input.size(), dst.size());
+        std::ranges::copy(input, dst.begin());
+    }
+
+    auto ec = pkt.parsePacket(input.size(), false, &isScion);
+    ASSERT_FALSE(ec) << fmtError(ec);
+
+    auto path = loadTestPath(1);
+    auto getMTU = [&] (const hdr::SCION& sci, const RawPath& rp) {
+        return 1280;
+    };
+
+    auto mappedIP = unwrap(generic::IPAddress::Parse("fc00:10fb:f000::2"));
+    auto verdict = translateIngress(pkt, mappedIP, mappedIP, 128, getMTU);
     ASSERT_EQ(verdict, Verdict::Pass);
 
     auto translated = pkt.emitPacket(false);
@@ -257,7 +417,7 @@ TEST(ScitraCore, TranslateIpUdpToScionNoUnderlay)
     };
 
     auto hostIP = unwrap(generic::IPAddress::Parse("10.0.0.1"));
-    auto [verdict, egPort, nextHop] = translateEgress(pkt, hostIP, getPath);
+    auto [verdict, egPort, nextHop] = translateEgress(pkt, hostIP, REPLACE_ADDRESS, getPath);
     ASSERT_EQ(verdict, Verdict::Pass);
     EXPECT_EQ(egPort, 32766);
     EXPECT_EQ(nextHop, unwrap(generic::IPEndpoint::Parse("127.0.0.9:31002")));
@@ -291,11 +451,9 @@ TEST(ScitraCore, TranslateScionNoUnderlayToIpUdp)
     auto getMTU = [&] (const hdr::SCION& sci, const RawPath& rp) {
         return 1280;
     };
-    auto src = unwrap(ScIPAddress::Parse("1-64496,10.0.0.1"));
-    auto dst = unwrap(ScIPAddress::Parse("2-64497,10.0.0.2"));
 
-    auto publicIP = unwrap(generic::IPAddress::Parse("fc00:20fb:f100::ffff:a00:2"));
-    auto verdict = translateIngress(pkt, publicIP, getMTU);
+    auto mappedIP = unwrap(generic::IPAddress::Parse("fc00:20fb:f100::ffff:a00:2"));
+    auto verdict = translateIngress(pkt, mappedIP, mappedIP, 128, getMTU);
     ASSERT_EQ(verdict, Verdict::Pass);
 
     auto translated = pkt.emitPacket(false);
@@ -331,7 +489,7 @@ TEST(ScitraCore, TranslateIpTcpToScion4)
     };
 
     auto hostIP = unwrap(generic::IPAddress::Parse("10.0.0.1"));
-    auto [verdict, egPort, nextHop] = translateEgress(pkt, hostIP, getPath);
+    auto [verdict, egPort, nextHop] = translateEgress(pkt, hostIP, REPLACE_ADDRESS, getPath);
     ASSERT_EQ(verdict, Verdict::Pass);
     EXPECT_EQ(egPort, 32766);
     EXPECT_EQ(nextHop, unwrap(generic::IPEndpoint::Parse("127.0.0.9:31002")));
@@ -365,11 +523,9 @@ TEST(ScitraCore, TranslateScion4ToIpTcp)
     auto getMTU = [&] (const hdr::SCION& sci, const RawPath& rp) {
         return 1280;
     };
-    auto src = unwrap(ScIPAddress::Parse("1-64496,10.0.0.1"));
-    auto dst = unwrap(ScIPAddress::Parse("2-64497,10.0.0.2"));
 
-    auto publicIP = unwrap(generic::IPAddress::Parse("fc00:20fb:f100::ffff:a00:2"));
-    auto verdict = translateIngress(pkt, publicIP, getMTU);
+    auto mappedIP = unwrap(generic::IPAddress::Parse("fc00:20fb:f100::ffff:a00:2"));
+    auto verdict = translateIngress(pkt, mappedIP, mappedIP, 128, getMTU);
     ASSERT_EQ(verdict, Verdict::Pass);
 
     auto translated = pkt.emitPacket(false);
@@ -405,7 +561,7 @@ TEST(ScitraCore, TranslateIcmpToScmp)
     };
 
     auto hostIP = unwrap(generic::IPAddress::Parse("10.0.0.1"));
-    auto [verdict, egPort, nextHop] = translateEgress(pkt, hostIP, getPath);
+    auto [verdict, egPort, nextHop] = translateEgress(pkt, hostIP, REPLACE_ADDRESS, getPath);
     ASSERT_EQ(verdict, Verdict::Pass);
     EXPECT_EQ(egPort, 30041);
     EXPECT_EQ(nextHop, unwrap(generic::IPEndpoint::Parse("127.0.0.9:31002")));
@@ -439,11 +595,9 @@ TEST(ScitraCore, TranslateScmpToIcmp)
     auto getMTU = [&] (const hdr::SCION& sci, const RawPath& rp) {
         return 1280;
     };
-    auto src = unwrap(ScIPAddress::Parse("1-64496,10.0.0.1"));
-    auto dst = unwrap(ScIPAddress::Parse("2-64497,10.0.0.2"));
 
-    auto publicIP = unwrap(generic::IPAddress::Parse("fc00:20fb:f100::ffff:a00:2"));
-    auto verdict = translateIngress(pkt, publicIP, getMTU);
+    auto mappedIP = unwrap(generic::IPAddress::Parse("fc00:20fb:f100::ffff:a00:2"));
+    auto verdict = translateIngress(pkt, mappedIP, mappedIP, 128, getMTU);
     ASSERT_EQ(verdict, Verdict::Pass);
 
     auto translated = pkt.emitPacket(false);
@@ -479,7 +633,7 @@ TEST(ScitraCore, RespondPacketTooBig)
     };
 
     auto hostIP = unwrap(generic::IPAddress::Parse("10.0.0.1"));
-    auto [verdict, egPort, nextHop] = translateEgress(pkt, hostIP, getPath);
+    auto [verdict, egPort, nextHop] = translateEgress(pkt, hostIP, REPLACE_ADDRESS, getPath);
     ASSERT_EQ(verdict, Verdict::Return);
 
     auto response = pkt.emitPacket(false);
@@ -515,7 +669,7 @@ TEST(ScitraCore, RespondAddressUnreachable)
     };
 
     auto hostIP = unwrap(generic::IPAddress::Parse("10.0.0.1"));
-    auto [verdict, egPort, nextHop] = translateEgress(pkt, hostIP, getPath);
+    auto [verdict, egPort, nextHop] = translateEgress(pkt, hostIP, REPLACE_ADDRESS, getPath);
     ASSERT_EQ(verdict, Verdict::Return);
 
     auto response = pkt.emitPacket(false);
@@ -551,7 +705,7 @@ TEST(ScitraCore, RespondNoRouteToDestination)
     };
 
     auto hostIP = unwrap(generic::IPAddress::Parse("10.0.0.1"));
-    auto [verdict, egPort, nextHop] = translateEgress(pkt, hostIP, getPath);
+    auto [verdict, egPort, nextHop] = translateEgress(pkt, hostIP, REPLACE_ADDRESS, getPath);
     ASSERT_EQ(verdict, Verdict::Return);
 
     auto response = pkt.emitPacket(false);

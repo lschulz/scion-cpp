@@ -18,8 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "scitra/linux/error_codes.hpp"
-#include "scitra/linux/netlink.hpp"
+#include "scitra/scitra-tun/error_codes.hpp"
+#include "scitra/scitra-tun/netlink.hpp"
 
 #include "scion/posix/sockaddr.hpp"
 
@@ -30,6 +30,8 @@ using namespace scion::generic;
 using std::uint32_t;
 using std::size_t;
 
+
+const std::uint8_t NetlinkRoute::TABLE_MAIN = RT_TABLE_MAIN;
 
 NetlinkRoute::NetlinkRoute()
     : seq(time(NULL))
@@ -68,7 +70,7 @@ std::error_code NetlinkRoute::setInterfaceState(const std::string& dev, bool up)
     if (!mnl_attr_put_strz_check(nlh, bufsize, IFLA_IFNAME, dev.c_str()))
         return ScitraError::LogicError;
 
-    return execute(nlh, buf.get(), bufsize);
+    return execute(nlh, buf.get(), bufsize, nlh->nlmsg_seq);
 }
 
 Maybe<uint32_t> NetlinkRoute::getInterfaceMTU(const std::string& dev)
@@ -79,7 +81,7 @@ Maybe<uint32_t> NetlinkRoute::getInterfaceMTU(const std::string& dev)
 
     auto nlh = mnl_nlmsg_put_header(buf.get());
     nlh->nlmsg_type = RTM_GETLINK;
-    nlh->nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK;
+    nlh->nlmsg_flags = NLM_F_REQUEST;
     nlh->nlmsg_seq = seq++;
 
     auto info = (ifinfomsg*)mnl_nlmsg_put_extra_header(nlh, sizeof(ifinfomsg));
@@ -87,7 +89,7 @@ Maybe<uint32_t> NetlinkRoute::getInterfaceMTU(const std::string& dev)
     if (!mnl_attr_put_strz_check(nlh, bufsize, IFLA_IFNAME, dev.c_str()))
         return Error(ScitraError::LogicError);
 
-    if (auto ec = execute(nlh, buf.get(), bufsize); ec) {
+    if (auto ec = execute(nlh, buf.get(), bufsize, nlh->nlmsg_seq); ec) {
         return Error(ec);
     }
 
@@ -125,11 +127,12 @@ std::error_code NetlinkRoute::setInterfaceMTU(const std::string& dev, uint32_t m
     if (!mnl_attr_put_u32_check(nlh, bufsize, IFLA_MTU, mtu))
         return ScitraError::LogicError;
 
-    return execute(nlh, buf.get(), bufsize);
+    return execute(nlh, buf.get(), bufsize, nlh->nlmsg_seq);
 }
 
 std::error_code NetlinkRoute::addRoute(
-    const IPAddress& dst, PrefixLen prefixlen, const std::string& dev, int metric)
+    std::uint8_t table, const IPAddress& dst, PrefixLen prefixlen,
+    const std::string& dev, const IPAddress* via)
 {
     if (!nl) return ScitraError::SocketClosed;
     int iface = if_nametoindex(dev.c_str());
@@ -140,37 +143,46 @@ std::error_code NetlinkRoute::addRoute(
 
     auto nlh = mnl_nlmsg_put_header(buf.get());
     nlh->nlmsg_type = RTM_NEWROUTE;
-    nlh->nlmsg_flags = NLM_F_REQUEST | NLM_F_CREATE | NLM_F_ACK;
+    nlh->nlmsg_flags = NLM_F_REQUEST | NLM_F_CREATE | NLM_F_REPLACE | NLM_F_ACK;
     nlh->nlmsg_seq = seq++;
 
     auto rtm = (rtmsg*)mnl_nlmsg_put_extra_header(nlh, sizeof(rtmsg));
     rtm->rtm_dst_len = prefixlen;
     rtm->rtm_protocol = RTPROT_STATIC;
-    rtm->rtm_table = RT_TABLE_MAIN;
-    rtm->rtm_type = RTN_UNICAST;
+    rtm->rtm_table = table;
     rtm->rtm_scope = RT_SCOPE_UNIVERSE;
+    rtm->rtm_type = RTN_UNICAST;
     if (!mnl_attr_put_u32_check(nlh, bufsize, RTA_OIF, iface))
-        return ScitraError::LogicError;
-    if (!mnl_attr_put_u32_check(nlh, bufsize, RTA_PRIORITY, metric))
         return ScitraError::LogicError;
     if (dst.is4()) {
         rtm->rtm_family = AF_INET;
-        uint32_t ip = dst.getIPv4();
-        if (!mnl_attr_put_u32_check(nlh, bufsize, RTA_DST, ip))
+        if (!mnl_attr_put_u32_check(nlh, bufsize, RTA_DST, dst.getIPv4()))
             return ScitraError::LogicError;
+        if (via) {
+            if (!via->is4()) return ScitraError::InvalidArgument;
+            if (!mnl_attr_put_u32_check(nlh, bufsize, RTA_GATEWAY, via->getIPv4()))
+                return ScitraError::LogicError;
+        }
     } else {
         rtm->rtm_family = AF_INET6;
         auto ip = scion::generic::toUnderlay<in6_addr>(dst);
         if (scion::isError(ip)) return ScitraError::LogicError;
         if (!mnl_attr_put_check(nlh, bufsize, RTA_DST, sizeof(in6_addr), &(*ip)))
             return ScitraError::LogicError;
+        if (via) {
+            if (!via->is6()) return ScitraError::InvalidArgument;
+            ip = scion::generic::toUnderlay<in6_addr>(*via);
+            if (scion::isError(ip)) return ScitraError::LogicError;
+            if (!mnl_attr_put_check(nlh, bufsize, RTA_GATEWAY, sizeof(in6_addr), &(*ip)))
+                return ScitraError::LogicError;
+        }
     }
 
-    return execute(nlh, buf.get(), bufsize);
+    return execute(nlh, buf.get(), bufsize, nlh->nlmsg_seq);
 }
 
 std::error_code NetlinkRoute::delRoute(
-    const IPAddress& dst, PrefixLen prefixlen, const std::string& dev)
+    std::uint8_t table, const IPAddress& dst, PrefixLen prefixlen, const std::string& dev)
 {
     using namespace std::literals;
 
@@ -188,13 +200,12 @@ std::error_code NetlinkRoute::delRoute(
 
     auto rtm = (rtmsg*)mnl_nlmsg_put_extra_header(nlh, sizeof(rtmsg));
     rtm->rtm_dst_len = prefixlen;
-    rtm->rtm_table = RT_TABLE_MAIN;
+    rtm->rtm_table = table;
     if (!mnl_attr_put_u32_check(nlh, bufsize, RTA_OIF, iface))
         return ScitraError::LogicError;
     if (dst.is4()) {
         rtm->rtm_family = AF_INET;
-        uint32_t ip = dst.getIPv4();
-        if (!mnl_attr_put_u32_check(nlh, bufsize, RTA_DST, ip))
+        if (!mnl_attr_put_u32_check(nlh, bufsize, RTA_DST, dst.getIPv4()))
             return ScitraError::LogicError;
     } else {
         rtm->rtm_family = AF_INET6;
@@ -204,7 +215,41 @@ std::error_code NetlinkRoute::delRoute(
             return ScitraError::LogicError;
     }
 
-    return execute(nlh, buf.get(), bufsize);
+    return execute(nlh, buf.get(), bufsize, nlh->nlmsg_seq);
+}
+
+std::error_code NetlinkRoute::addSourceRoutingRule(
+    const IPAddress& src, PrefixLen srcPrefix, std::uint8_t table)
+{
+    if (!nl) return ScitraError::SocketClosed;
+
+    size_t bufsize = MNL_SOCKET_BUFFER_SIZE;
+    auto buf = std::make_unique<char[]>(bufsize);
+
+    auto nlh = mnl_nlmsg_put_header(buf.get());
+    nlh->nlmsg_type = RTM_NEWRULE;
+    nlh->nlmsg_flags = NLM_F_REQUEST | NLM_F_CREATE | NLM_F_REPLACE | NLM_F_ACK;
+    nlh->nlmsg_seq = seq++;
+
+    auto rtm = (rtmsg*)mnl_nlmsg_put_extra_header(nlh, sizeof(rtmsg));
+    rtm->rtm_src_len = srcPrefix;
+    rtm->rtm_protocol = RTPROT_STATIC;
+    rtm->rtm_table = table;
+    rtm->rtm_scope = RT_SCOPE_UNIVERSE;
+    rtm->rtm_type = RTN_UNICAST;
+    if (src.is4()) {
+        rtm->rtm_family = AF_INET;
+        if (!mnl_attr_put_u32_check(nlh, bufsize, RTA_SRC, src.getIPv4()))
+            return ScitraError::LogicError;
+    } else {
+        rtm->rtm_family = AF_INET6;
+        auto ip = scion::generic::toUnderlay<in6_addr>(src);
+        if (scion::isError(ip)) return ScitraError::LogicError;
+        if (!mnl_attr_put_check(nlh, bufsize, RTA_SRC, sizeof(in6_addr), &(*ip)))
+            return ScitraError::LogicError;
+    }
+
+    return execute(nlh, buf.get(), bufsize, nlh->nlmsg_seq);
 }
 
 std::error_code NetlinkRoute::modAddress(
@@ -226,8 +271,7 @@ std::error_code NetlinkRoute::modAddress(
     msg->ifa_prefixlen = prefixlen;
     if (addr.is4()) {
         msg->ifa_family = AF_INET;
-        uint32_t ip = addr.getIPv4();
-        if (!mnl_attr_put_u32_check(nlh, bufsize, IFA_ADDRESS, ip))
+        if (!mnl_attr_put_u32_check(nlh, bufsize, IFA_ADDRESS, addr.getIPv4()))
             return ScitraError::LogicError;
     } else {
         msg->ifa_family = AF_INET6;
@@ -239,10 +283,10 @@ std::error_code NetlinkRoute::modAddress(
     }
     msg->ifa_index = iface;
 
-    return execute(nlh, buf.get(), bufsize);
+    return execute(nlh, buf.get(), bufsize, nlh->nlmsg_seq);
 }
 
-std::error_code NetlinkRoute::execute(nlmsghdr* nlh, char* buf, size_t bufsize)
+std::error_code NetlinkRoute::execute(nlmsghdr* nlh, char* buf, size_t bufsize, unsigned int seq)
 {
     auto portid = mnl_socket_get_portid(nl);
     if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0) {
@@ -252,7 +296,7 @@ std::error_code NetlinkRoute::execute(nlmsghdr* nlh, char* buf, size_t bufsize)
     if (numbytes < 0) {
         return std::error_code(errno, std::generic_category());
     }
-    if (mnl_cb_run(buf, numbytes, nlh->nlmsg_seq, portid, nullptr, nullptr) < 0) {
+    if (mnl_cb_run(buf, numbytes, seq, portid, nullptr, nullptr) < 0) {
         return std::error_code(errno, std::generic_category());
     }
     return ScitraError::Ok;

@@ -336,11 +336,11 @@ void Policy::parseRequirements(const boost::json::object& reqs)
             m_reqs->push_back(std::make_unique<MinMetaMtu>(
                 (std::uint16_t)std::min<std::uint64_t>(value.as_int64(), 65535)
             ));
-        } else if (name == "min_mtu") {
+        } else if (name == "max_meta_lat") {
             m_reqs->push_back(std::make_unique<MaxMetaLat>(
                 std::chrono::milliseconds(value.as_int64())
             ));
-        } else if (name == "min_mtu") {
+        } else if (name == "min_meta_bw") {
             m_reqs->push_back(std::make_unique<MinMetaBw>(value.as_int64()));
         } else {
             throw ParserError(std::format(
@@ -359,8 +359,14 @@ void Policy::parseOrdering(const boost::json::array& order)
             m_ordering->push_back(PathOrder::Random);
         } else if (ordering == "hops_asc") {
             m_ordering->push_back(PathOrder::HopsAsc);
+        } else if (ordering == "hops_desc") {
+            m_ordering->push_back(PathOrder::HopsDesc);
         } else if (ordering == "meta_latency_asc") {
             m_ordering->push_back(PathOrder::MetaLatAsc);
+        } else if (ordering == "meta_latency_desc") {
+            m_ordering->push_back(PathOrder::MetaLatDesc);
+        } else if (ordering == "meta_bandwidth_asc") {
+            m_ordering->push_back(PathOrder::MetaBwAsc);
         } else if (ordering == "meta_bandwidth_desc") {
             m_ordering->push_back(PathOrder::MetaBwDesc);
         } else {
@@ -416,10 +422,28 @@ void Policy::sort(std::span<PathPtr> paths) const
                     return p->hopCount();
             });
             break;
+        case PathOrder::HopsDesc:
+            std::ranges::stable_sort(paths,
+                std::greater<std::uint32_t>(), [] (const PathPtr& p) {
+                    return p->hopCount();
+            });
+            break;
         case PathOrder::MetaLatAsc:
             std::ranges::stable_sort(paths,
                 std::less<path_meta::Duration>(), [] (const PathPtr& p) {
                     return getMetaLatency(*p);
+            });
+            break;
+        case PathOrder::MetaLatDesc:
+            std::ranges::stable_sort(paths,
+                std::greater<path_meta::Duration>(), [] (const PathPtr& p) {
+                    return getMetaLatency(*p);
+            });
+            break;
+        case PathOrder::MetaBwAsc:
+            std::ranges::stable_sort(paths,
+                std::less<std::uint32_t>(), [] (const PathPtr& p) {
+                    return getMetaBw(*p);
             });
             break;
         case PathOrder::MetaBwDesc:

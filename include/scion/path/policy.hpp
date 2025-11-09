@@ -120,6 +120,7 @@ Maybe<std::regex> translateHopSeqExprToRegex(std::string_view seq);
 class PathRequirement
 {
 public:
+    virtual ~PathRequirement() = default;
     virtual bool fullfills(const Path& path) const = 0;
 };
 
@@ -165,10 +166,13 @@ public:
 
 enum class PathOrder
 {
-    Random,     ///< Randomize order
-    HopsAsc,    ///< Ascending number of hops
-    MetaLatAsc, ///< Ascending metadata path latency
-    MetaBwDesc, ///< Descending metadata path bandwidth
+    Random,      ///< Randomize order
+    HopsAsc,     ///< Ascending number of hops
+    HopsDesc,    ///< Descending number of hops
+    MetaLatAsc,  ///< Ascending metadata path latency
+    MetaLatDesc, ///< Descending metadata path latency
+    MetaBwAsc,   ///< Ascending metadata path bandwidth
+    MetaBwDesc,  ///< Descending metadata path bandwidth
 };
 
 /// \brief Path policy similar to the [Path Policy Language][ppl].

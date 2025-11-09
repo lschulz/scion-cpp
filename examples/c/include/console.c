@@ -56,7 +56,7 @@ void console_printf(const char* fmt, ...)
 
 #include <ncurses.h>
 
-void curses_init_server()
+void curses_init_server(void)
 {
     initscr();
     cbreak();
@@ -65,17 +65,17 @@ void curses_init_server()
     nodelay(stdscr, TRUE);
 }
 
-void curses_refresh_screen()
+void curses_refresh_screen(void)
 {
     refresh();
 }
 
-int curses_get_char()
+int curses_get_char(void)
 {
     return getch();
 }
 
-void curses_end_server()
+void curses_end_server(void)
 {
     endwin();
 }

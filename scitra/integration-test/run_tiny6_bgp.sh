@@ -18,15 +18,19 @@ ASes:
     authoritative: true
     issuing: true
     underlay: UDP/IPv6
+    mtu: 1452
   "1-64513":
     cert_issuer: 1-64512
     underlay: UDP/IPv6
+    mtu: 1452
   "1-64514":
     cert_issuer: 1-64512
     underlay: UDP/IPv6
+    mtu: 1452
 links:
-  - {a: "1-64512-br1#1", b: "1-64513#1", linkAtoB: CHILD, underlay: UDP/IPv6}
-  - {a: "1-64512-br1#2", b: "1-64514#1", linkAtoB: CHILD, underlay: UDP/IPv6}
+  - {a: "1-64512-br1#1", b: "1-64513-br1#1", linkAtoB: CHILD, underlay: UDP/IPv6, mtu: 1452}
+  - {a: "1-64512-br1#2", b: "1-64514-br1#1", linkAtoB: CHILD, underlay: UDP/IPv6, mtu: 1452}
+  - {a: "1-64513-br1#3", b: "1-64514-br1#3", linkAtoB: PEER, underlay: UDP/IPv6, mtu: 1452}
 EOF
 
 set +e

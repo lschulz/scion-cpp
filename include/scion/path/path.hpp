@@ -250,13 +250,14 @@ inline Path::Path(IsdAsn source, IsdAsn destination,
     m_hopCount = (std::uint32_t)std::ranges::distance(hops());
 
     // Compute the path digest
-    std::array<std::pair<std::uint16_t, std::uint16_t>, 64> buffer;
+    using Hop = std::pair<std::uint16_t, std::uint16_t>;
+    std::array<Hop, 64> buffer = {};
     std::size_t i = 0;
     for (auto hop : hops()) {
         if (i >= buffer.size()) break;
         buffer[i++] = hop;
     }
-    m_digest = details::computeDigest(m_source, buffer);
+    m_digest = details::computeDigest(m_source, std::span<Hop>(buffer.data(), i));
 }
 
 using PathPtr = boost::intrusive_ptr<Path>;

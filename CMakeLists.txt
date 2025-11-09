@@ -76,6 +76,25 @@ endif()
 
 add_subdirectory(deps/asio-grpc)
 
+# =====
+# ImTui
+# =====
+
+if (LINUX)
+add_subdirectory(deps/imtui)
+target_compile_options(imgui-for-imtui PRIVATE
+    -Wno-unused-variable
+    -Wno-deprecated-enum-enum-conversion
+)
+endif(LINUX)
+
+# ======
+# spdlog
+# ======
+
+set(SPDLOG_USE_STD_FORMAT ON)
+add_subdirectory(deps/spdlog)
+
 # ==========
 # GoogleTest
 # ==========

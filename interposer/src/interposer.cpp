@@ -868,7 +868,7 @@ static auto promote_to_scion(NativeSocket sockfd, int family)
     }
 
     interposer_log(LEVEL_INFO, "Promoting socket %d", sockfd);
-    auto udp = posix::IpUdpSocket(std::move(posix::PosixSocket<>(sockfd)));
+    auto udp = posix::IpUdpSocket(posix::PosixSocket<>(sockfd));
     auto socket = std::make_unique<Socket>(family, protocol, std::move(udp));
     udp.setNextScmpHandler(&interposer->pathCache)->setNextScmpHandler(&interposer->pmtu);
     socket->selectorCtx = interposer->selector.notify_created(sockfd, type, protocol);

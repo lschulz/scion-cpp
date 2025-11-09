@@ -20,11 +20,11 @@
 
 #pragma once
 
-#include "scitra/linux/error_codes.hpp"
-#include "scitra/packet.hpp"
 #include "scion/addr/address.hpp"
 #include "scion/addr/generic_ip.hpp"
 #include "scion/path/path.hpp"
+#include "scitra/packet.hpp"
+#include "scitra/scitra-tun/error_codes.hpp"
 
 #include <cstdint>
 #include <mutex>
@@ -45,12 +45,61 @@ enum class FlowState
     CLOSING,     // TCP FIN or RST send/received
 };
 
+inline const char* toString(int proto)
+{
+    using namespace scion::hdr;
+    switch (proto) {
+    case (int)IPProto::ICMP:
+        return "ICMP";
+    case (int)IPProto::TCP:
+        return "TCP";
+    case (int)IPProto::UDP:
+        return "UDP";
+    case (int)IPProto::ICMPv6:
+        return "ICMPv6";
+    case (int)ScionProto::SCMP:
+        return "SCMP";
+    default:
+        return "error";
+    }
+}
+
+inline const char* toString(FlowType type)
+{
+    switch (type) {
+    case FlowType::Active:
+        return "active";
+    case FlowType::Passive:
+        return "passive";
+    default:
+        return "error";
+    }
+}
+
+inline const char* toString(FlowState state)
+{
+    switch (state) {
+    case FlowState::CLOSED:
+        return "CLOSED";
+    case FlowState::OPEN:
+        return "OPEN";
+    case FlowState::SYN:
+        return "SYN";
+    case FlowState::ESTABLISHED:
+        return "ESTABLISHED";
+    case FlowState::CLOSING:
+        return "CLOSING";
+    default:
+        return "error";
+    }
+}
+
 struct FlowCounters
 {
-    std::uint32_t pktsIngress;
-    std::uint32_t bytesIngress;
     std::uint32_t pktsEgress;
     std::uint32_t bytesEgress;
+    std::uint32_t pktsIngress;
+    std::uint32_t bytesIngress;
 };
 
 enum EgrTag { Egr };
@@ -60,27 +109,37 @@ struct FlowID
 {
     scion::ScIPEndpoint src;
     scion::ScIPEndpoint dst;
-    scion::hdr::ScionProto proto = scion::hdr::ScionProto::SCMP;
+    scion::hdr::ScionProto proto = scion::hdr::ScionProto::TCP;
 
     FlowID() = default;
     FlowID(const scion::ScIPAddress& src, const scion::ScIPAddress& dst,
         std::uint16_t sport, std::uint16_t dport, scion::hdr::ScionProto proto)
         : src(src, sport)
         , dst(dst, dport)
-        , proto(proto)
+        , proto(mapProto((int)proto))
     {}
     FlowID(EgrTag, const scion::scitra::PacketBuffer& pkt)
         : src(pkt.sci.src, pkt.l4SPort())
         , dst(pkt.sci.dst, pkt.l4DPort())
-        , proto(static_cast<scion::hdr::ScionProto>(pkt.l4Valid))
+        , proto(mapProto((int)pkt.l4Valid))
     {}
     FlowID(IgrTag, const scion::scitra::PacketBuffer& pkt)
         : src(pkt.sci.dst, pkt.l4DPort())
         , dst(pkt.sci.src, pkt.l4SPort())
-        , proto(static_cast<scion::hdr::ScionProto>(pkt.l4Valid))
+        , proto(mapProto((int)pkt.l4Valid))
     {}
 
     bool operator==(const FlowID&) const = default;
+
+private:
+    static scion::hdr::ScionProto mapProto(int proto)
+    {
+        // Throw SCMP and ICMPv6 into the same bucket as we freely translate
+        // between them.
+        if (proto == (int)scion::hdr::IPProto::ICMPv6)
+            return scion::hdr::ScionProto::SCMP;
+        return scion::hdr::ScionProto(proto);
+    }
 };
 
 template <>
@@ -103,10 +162,14 @@ private:
     FlowState state = FlowState::OPEN;
     FlowCounters counters = {};
     scion::PathPtr path;
+    std::uint8_t tc = 0;
+    std::chrono::steady_clock::time_point lastUsed;
 
     friend class FlowProxy;
 
 public:
+    static inline const auto FLOW_TIMEOUT = std::chrono::minutes(2);
+
     explicit Flow(FlowType type)
         : type(type)
     {}
@@ -151,7 +214,7 @@ public:
     {
         if (flow.type == FlowType::Passive) {
             if (flow.path) {
-                if (flow.path->digest() != rp.digest() && flow.path->expiry() < rp.expiry()) {
+                if (flow.path->digest() != rp.digest() || flow.path->expiry() < rp.expiry()) {
                     flow.path = scion::makePath(rp, nh);
                 }
             } else {
@@ -168,6 +231,20 @@ public:
         return *this;
     }
 
+    // Returns the traffic class of the last packet in `tc`.
+    FlowProxy& getTrafficClass(std::uint8_t& tc)
+    {
+        tc = flow.tc;
+        return *this;
+    }
+
+    // Returns the last time the flow state was updated in `t`.
+    FlowProxy& getLastUpdate(std::chrono::steady_clock::time_point& t)
+    {
+        t = flow.lastUsed;
+        return *this;
+    }
+
     // Set the flow state to closed.
     FlowProxy& close()
     {
@@ -175,17 +252,23 @@ public:
         return *this;
     }
 
-    // Advances the flow state by one tick.
-    FlowProxy& tick()
+    // Advances the flow state.
+    FlowProxy& tick(const std::chrono::steady_clock::time_point& now)
     {
         if (flow.state == FlowState::CLOSING)
             flow.state = FlowState::CLOSED;
+        else if (flow.state == FlowState::OPEN) {
+            if (now - flow.lastUsed > Flow::FLOW_TIMEOUT)
+                flow.state = FlowState::CLOSING;
+        }
         return *this;
     }
 
     // Update the flow state by analyzing the headers of the last observed
-    // packet.
-    FlowProxy& updateState(const scion::scitra::PacketBuffer& pkt)
+    // packet and reset the last used timeout to `t`.
+    FlowProxy& updateState(
+        const scion::scitra::PacketBuffer& pkt,
+        const std::chrono::steady_clock::time_point& t)
     {
         using namespace scion::scitra;
         using scion::hdr::TCP;
@@ -200,13 +283,11 @@ public:
         } else {
             flow.state = FlowState::OPEN;
         }
-        return *this;
-    }
-
-    FlowProxy& countIngress(std::uint32_t pkts, std::uint32_t bytes)
-    {
-        flow.counters.pktsIngress += pkts;
-        flow.counters.bytesIngress += bytes;
+        if (pkt.scionValid)
+            flow.tc = pkt.sci.qos >> 2;
+        else if (pkt.ipValid == scion::scitra::PacketBuffer::IPValidity::IPv6)
+            flow.tc = pkt.ipv6.tc >> 2;
+        flow.lastUsed = t;
         return *this;
     }
 
@@ -214,6 +295,13 @@ public:
     {
         flow.counters.pktsEgress += pkts;
         flow.counters.bytesEgress += bytes;
+        return *this;
+    }
+
+    FlowProxy& countIngress(std::uint32_t pkts, std::uint32_t bytes)
+    {
+        flow.counters.pktsIngress += pkts;
+        flow.counters.bytesIngress += bytes;
         return *this;
     }
 

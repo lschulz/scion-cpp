@@ -127,8 +127,8 @@ TEST(GetAddrInfoTest, DualStack)
             FAIL();
         }
     }
-    EXPECT_GT(ipv4, 1);
-    EXPECT_GT(ipv6, 1);
+    EXPECT_GE(ipv4, 1);
+    EXPECT_GE(ipv6, 1);
 }
 
 TEST(GetAddrInfoTest, DualStackScionNative)

@@ -235,6 +235,27 @@ public:
             return *this;
     }
 
+    /// \brief Test if the first `prefixLen` bits of `a` and `b` match.
+    friend bool samePrefix(const IPAddress& a, const IPAddress& b, unsigned prefixLen)
+    {
+        if (a.is4()) {
+            if (!b.is4() || prefixLen > 32) return false;
+            std::uint64_t mask = ~0ull << (32 - prefixLen);
+            return (a.m_lo & mask) == (b.m_lo & mask);
+        } else {
+            if (!b.is6() || prefixLen > 128) return false;
+            auto shift = 64 - std::min(prefixLen, 64u);
+            std::uint64_t hiMask = shift > 63 ? 0 : ~0ull << shift;
+            if ((a.m_hi & hiMask) != (b.m_hi & hiMask))
+                return false;
+            else if (prefixLen <= 64)
+                return true;
+            shift = 64 - (prefixLen - 64);
+            std::uint64_t loMask = shift > 63 ? 0 : ~0ull << shift;
+            return (a.m_lo & loMask) == (b.m_lo & loMask);
+        }
+    }
+
     /// \brief Get IPv4 address as big-endian integer.
     std::uint32_t getIPv4() const { assert(is4()); return std::uint32_t(m_lo); }
 

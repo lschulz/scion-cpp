@@ -20,25 +20,17 @@
 
 #pragma once
 
-#include <CLI/CLI.hpp>
+#include <chrono>
 
-#include <cstdint>
-#include <filesystem>
-#include <string>
-
-
-struct Arguments
-{
-    std::string publicAddress;
-    std::string publicInterface;
-    std::string sciond = "127.0.0.1:30255";
-    std::string tunDevice = "scion";
-    std::vector<int> ports;
-    int queues = 1;
-    int threads = 1;
-    std::uint32_t mtu = 0;
-    std::filesystem::path policy;
-    bool enabledDispatch = false;
-    bool noTui = false;
-    bool noDeviceBind = false;
-};
+#ifndef NNPERF_DEBUG
+using DebugTimestamp = std::chrono::high_resolution_clock::time_point;
+#define DBG_TIME_BEGIN(temp) temp = std::chrono::high_resolution_clock::now()
+#define DBG_TIME_END(temp, dest, counter) do {\
+dest += std::chrono::duration_cast<std::chrono::nanoseconds>(\
+std::chrono::high_resolution_clock::now() - temp).count();\
+++counter;\
+} while(0)
+#else
+#define DBG_TIME_BEGIN(temp)
+#define DBG_TIME_END(temp, dest, counter)
+#endif

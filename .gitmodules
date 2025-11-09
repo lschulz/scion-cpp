@@ -10,3 +10,9 @@
 [submodule "examples/deps/CLI11"]
 	path = examples/deps/CLI11
 	url = https://github.com/CLIUtils/CLI11.git
+[submodule "deps/imtui"]
+	path = deps/imtui
+	url = https://github.com/lschulz/imtui.git
+[submodule "deps/spdlog"]
+	path = deps/spdlog
+	url = https://github.com/gabime/spdlog.git

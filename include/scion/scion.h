@@ -202,11 +202,11 @@ typedef struct scion_timer_t scion_timer;
 /// \brief Returns the current UTC time in nanoseconds since the UNIX epoch.
 /// This clock follows time adjustments of the host clock, if a steady clock is
 /// needed use `scion_time_steady()`.
-uint64_t scion_time_utc();
+uint64_t scion_time_utc(void);
 
 /// \brief Retruns the number of nanoseconds elapsed since sum undefined epoch.
 /// This clock is monotonically increasing.
-uint64_t scion_time_steady();
+uint64_t scion_time_steady(void);
 
 ///@}
 
@@ -682,7 +682,7 @@ scion_error scion_path_print(scion_path* path, char* buffer, size_t* buffer_len)
 ///@{
 
 /// \brief Allocates storage for a raw path.
-scion_raw_path* scion_raw_path_allocate();
+scion_raw_path* scion_raw_path_allocate(void);
 
 /// \brief Frees memory allocated by scion_raw_path(). Freeing a NULL pointer
 /// has no effect.
@@ -720,7 +720,7 @@ scion_error scion_raw_path_print(scion_raw_path* path, char* buffer, size_t* buf
 ///@{
 
 /// \brief Allocates storage for assembling SCION headers.
-scion_hdr_cache* scion_hdr_cache_allocate();
+scion_hdr_cache* scion_hdr_cache_allocate(void);
 
 /// \brief Frees memory allocted by scion_hdr_cache_allocate(). Freeing a NULL
 /// pointer has no effect.

@@ -18,18 +18,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "scitra/linux/error_codes.hpp"
+#include "scitra/scitra-tun/error_codes.hpp"
 #include "scion/error_codes.hpp"
 
 
 struct ScitraErrorCategory : public std::error_category
 {
-    const char* name() const noexcept
+    const char* name() const noexcept override
     {
         return "scitra";
     }
 
-    std::string message(int code) const
+    std::string message(int code) const override
     {
         switch (static_cast<ScitraError>(code)) {
             case ScitraError::Ok:

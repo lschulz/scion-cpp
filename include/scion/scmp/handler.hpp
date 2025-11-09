@@ -47,6 +47,7 @@ public:
         }
     }
 
+    virtual ~ScmpHandler() = default;
     virtual ScmpHandler* nextScmpHandler() = 0;
     virtual void setNextScmpHandler(ScmpHandler* handler) = 0;
 

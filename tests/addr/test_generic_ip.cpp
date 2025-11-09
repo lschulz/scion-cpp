@@ -334,6 +334,88 @@ TEST(GenericIP, UnmapIPv6ToScion)
     ASSERT_FALSE(opt.has_value());
 }
 
+TEST(GenericIP, MatchPrefixIPv4)
+{
+    using namespace scion::generic;
+
+    EXPECT_TRUE(samePrefix(
+        IPAddress::MakeIPv4(0xc0a8f401u),
+        IPAddress::MakeIPv4(0xc0a8f401u),
+        32
+    ));
+    EXPECT_FALSE(samePrefix(
+        IPAddress::MakeIPv4(0xc0a8f400u),
+        IPAddress::MakeIPv4(0xc0a8f401u),
+        32
+    ));
+    EXPECT_TRUE(samePrefix(
+        IPAddress::MakeIPv4(0xc0a8f400u),
+        IPAddress::MakeIPv4(0xc0a8f401u),
+        31
+    ));
+    EXPECT_TRUE(samePrefix(
+        IPAddress::MakeIPv4(0xc0a80000u),
+        IPAddress::MakeIPv4(0xc0a8f401u),
+        16
+    ));
+    EXPECT_FALSE(samePrefix(
+        IPAddress::MakeIPv4(0xc0a80000u),
+        IPAddress::MakeIPv4(0x0a000001u),
+        16
+    ));
+    EXPECT_TRUE(samePrefix(
+        IPAddress::MakeIPv4(0x00000000u),
+        IPAddress::MakeIPv4(0xffffffffu),
+        0
+    ));
+}
+
+TEST(GenericIP, MatchPrefixIPv6)
+{
+    using namespace scion::generic;
+
+    EXPECT_TRUE(samePrefix(
+        IPAddress::MakeIPv6(0xfd01'0203'0405'0607u, 0x0809'0a0b'cb0d'0e0fu),
+        IPAddress::MakeIPv6(0xfd01'0203'0405'0607u, 0x0809'0a0b'cb0d'0e0fu),
+        128
+    ));
+    EXPECT_FALSE(samePrefix(
+        IPAddress::MakeIPv6(0xfd01'0203'0405'0607u, 0x0809'0a0b'cb0d'0e0fu),
+        IPAddress::MakeIPv6(0xfd01'0203'0405'0607u, 0x0809'0a0b'cb0d'0e0eu),
+        128
+    ));
+    EXPECT_FALSE(samePrefix(
+        IPAddress::MakeIPv6(0xfd01'0203'0405'0607u, 0x0809'0a0b'cb0d'0e0fu),
+        IPAddress::MakeIPv6(0xfd01'0203'0405'0607u, 0xffff'ffff'ffff'ffffu),
+        65
+    ));
+    EXPECT_FALSE(samePrefix(
+        IPAddress::MakeIPv6(0xfd01'0203'0405'0607u, 0x0809'0a0b'cb0d'0e0fu),
+        IPAddress::MakeIPv6(0xfdff'ffff'ffff'ffffu, 0xffff'ffff'ffff'ffffu),
+        64
+    ));
+    EXPECT_TRUE(samePrefix(
+        IPAddress::MakeIPv6(0xfd01'0203'0405'0607u, 0x0809'0a0b'cb0d'0e0fu),
+        IPAddress::MakeIPv6(0xfd01'0203'0405'0607u, 0xffff'ffff'ffff'ffffu),
+        64
+    ));
+    EXPECT_TRUE(samePrefix(
+        IPAddress::MakeIPv6(0xfd01'0203'0405'0607u, 0x0809'0a0b'cb0d'0e0fu),
+        IPAddress::MakeIPv6(0xfdff'ffff'ffff'ffffu, 0xffff'ffff'ffff'ffffu),
+        8
+    ));
+    EXPECT_FALSE(samePrefix(
+        IPAddress::MakeIPv6(0xfd01'0203'0405'0607u, 0x0809'0a0b'cb0d'0e0fu),
+        IPAddress::MakeIPv6(0xfc01'0203'0405'0607u, 0x0809'0a0b'cb0d'0e0fu),
+        8
+    ));
+    EXPECT_TRUE(samePrefix(
+        IPAddress::MakeIPv6(0, 0),
+        IPAddress::MakeIPv6(~0, ~0),
+        0
+    ));
+}
+
 TEST(GenericEP, Unspecified)
 {
     using namespace scion::generic;

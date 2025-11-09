@@ -21,6 +21,7 @@
 #pragma once
 
 #include "scion/details/bit.hpp"
+#include "scion/details/debug.hpp"
 #include "scion/error_codes.hpp"
 
 #include <algorithm>
@@ -40,12 +41,6 @@
 /////////////////
 // StreamError //
 /////////////////
-
-#ifdef NDEBUG
-#define SCION_STREAM_ERROR NullStreamErrorT
-#else
-#define SCION_STREAM_ERROR StreamError
-#endif
 
 namespace scion {
 
