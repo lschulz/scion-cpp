@@ -213,9 +213,11 @@ translateEgress(
     // Check Path MTU
     // The SCION MTU is the maximum size of a SCION packet over the UDP/IP
     // underlay. The IPv6 MTU is the maximum size of an IPv6 packet over the
-    // link layer. To conservatively calculate the IPv6 MTU from the SCION MTU,
-    // we add the size of an UDP/IPv6 underlay and subtract the size of the
-    // SCION headers.
+    // link layer. Here we calculate the effective IPv6 MTU before the
+    // translation to SCION from the SCION MTU associated with the path.
+    // MTU(SCION) = size(SCION) + size(path) + size(L4) + size(payload)
+    // MTU(IPv6)  = size(IPv6) + size(L4) + size(payload)
+    // MTU(IPv6)  = MTU(SCION) + size(IPv6) - size(SCION) - size(path)
     if (pkt.sci.size() + (*path)->size() + pkt.l4Size() + pkt.payload().size() > mtu) {
         std::size_t ipMtu = mtu + pkt.ipv6.size() - pkt.sci.size() - (*path)->size();
         if (ipMtu >= IPV6_MIN_LINK_MTU) {
@@ -227,10 +229,8 @@ translateEgress(
     }
 
     // TCP MSS Clamping
-    // MSS is the SCION MTU minus the size of all underlay and SCION headers.
-    // The TCP MSS takes the IP and TCP header into account, the SCION MTU the
-    // underlay IP and UDP headers, so we need to subtract the size difference
-    // between TCP and UDP in addition to the SCION header size.
+    // MSS(IPv6) = MTU(IPv6) - size(IPv6) - size(TCP)
+    // MSS(SCION) = MTU(SCION) - size(SCION) - size(path) - size(TCP)
     std::uint32_t mss = 0, clampedMSS = 0;
     if (pkt.l4Valid == PacketBuffer::L4Type::TCP) {
         if (pkt.tcp.optMask.MSS) {
@@ -346,9 +346,8 @@ Verdict translateIngress(
     }
 
     // TCP MSS Clamping
-    // Get a Path MTU to the sender from the path selector. If the path used by
-    // the sender is longer than the path picked by the path selector, use the
-    // longer path in the MSS calculation.
+    // Clamp MSS on ingress as well in case the remote SCION host does not
+    // calculate the MSS correctly.
     std::uint32_t mss = 0, clampedMSS = 0;
     if (pkt.l4Valid == PacketBuffer::L4Type::TCP) {
         if (pkt.tcp.optMask.MSS) {
