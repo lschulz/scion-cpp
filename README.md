@@ -1,7 +1,11 @@
-SCION-CPP: A SCION Client Library in C++
-========================================
+SCION-CPP: SCION Endhost Libraries and Applications
+===================================================
 
-Still a work in progress.
+This repository contains the scion-cpp library, its C bindings, and applications built on top of it.
+Currently available are:
+- [SCION-IP Translators](./scitra/): Seamlessly use SCION from legacy applications and networks.
+  - [Scitra-TUN](./scitra/docs/scitra-tun.md)
+- [SCION API Interposers](./interposer/): Deep SCION integration without touching application code.
 
 ### Dependencies
 - Boost >= 1.83.0
@@ -16,14 +20,36 @@ Still a work in progress.
 For scitra-tun (Linux only):
 - liburing >= 2.5
 - libmnl >= 1.0.5
+- [ImTui](https://github.com/ggerganov/imtui) (included as submodule)
+- [spdlog](https://github.com/gabime/spdlog) (included as submodule)
 
 For interposer (Linux only):
 - [re2](https://github.com/google/re2)
 - [toml++](https://marzer.github.io/tomlplusplus/)
 
-Dependencies can be installed locally with vcpkg:
+Dependencies can be built and installed with vcpkg:
 ```bash
 vcpkg install
+```
+
+Alternatively, all required build tools and dependencies can be installed with
+apt in Ubuntu 24.04.
+```bash
+sudo apt-get install \
+  build-essential \
+  cmake \
+  libboost-dev \
+  libboost-json-dev \
+  libgrpc++-dev \
+  libmnl-dev \
+  libncurses-dev \
+  libprotobuf-dev \
+  libre2-dev \
+  libtomlplusplus-dev \
+  liburing-dev \
+  ninja-build \
+  protobuf-compiler \
+  protobuf-compiler-grpc
 ```
 
 Make sure to initialize the submodules in `deps/` and `examples/deps/`.
@@ -39,12 +65,14 @@ Building with CMake and Ninja:
 mkdir build
 cmake -G 'Ninja Multi-Config' -B build
 cmake --build build --config Debug
+cmake --build build --config Release
 ```
 
 CMake preset for Windows:
 ```bash
 cmake --preset=vcpkg-vs
 cmake --build build --config Debug
+cmake --build build --config Release
 ```
 
 ### Unit Tests
