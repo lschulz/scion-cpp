@@ -8,8 +8,6 @@ if (NOT WIN32)
     find_package(Curses)
 endif()
 
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/deps/CLI11)
-
 # ========
 # echo-udp
 # ========

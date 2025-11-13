@@ -34,6 +34,34 @@ reached. In contrast, IP-to-SCION translation has to solve two problems:
    the needs of different applications and usage scenarios, path policies and path selector
    functions are employed.
 
+Mapping of SCION Addresses to IPv6
+----------------------------------
+SCION addresses are converted to IPv6 by truncating the ISD to 12 bit and the ASN to 20 bit. ASNs 0
+to 2<sup>19</sup>-1 are represented directly. ASNs 2:0:0 to 2:7:ffff are encoded as `(1 << 19) |
+(asn & 0x7ffff)`. Thus the most significant bit of the encoded ASN is used to distinguish
+BGP-compatible and SCION-only ASNs. All SCION-mapped IPv6 addresses have a common 8 bit prefix which
+is currently set to `fc00::/8`.
+
+SCION IPv4 host addresses are represented by storing the IPv4 address in the lower half of the
+interface ID and setting the upper half to `0x0000ffff`. The local routing prefix and subnet ID must
+also be zero.
+
+#### SCION-IPv6 in IPv6
+<table>
+<tr align="center"><td colspan=6>128-bit IPv6 address</td></tr>
+<tr align="center"><td>8 bit</td><td>12 bit</td><td>20 bit</td><td>24 - m bit</td><td>m bit</td><td>64 bit</td></tr>
+<tr align="center"><td colspan=4>global routing prefix</td><td>subnet ID</td><td>interface ID</td></tr>
+<tr align="center"><td>0xfc</td><td>ISD</td><td>ASN</td><td>local prefix</td><td>subnet ID</td><td>interface ID</td></tr>
+</table>
+
+#### SCION-IPv4 in IPv6
+<table>
+<tr align="center"><td colspan=7>128-bit IPv6 address</td></tr>
+<tr align="center"><td>8 bit</td><td>12 bit</td><td>20 bit</td><td>24 - m bit</td><td>m bit</td><td>32 bit</td><td>32 bit</td></tr>
+<tr align="center"><td colspan=4>global routing prefix</td><td>subnet ID</td><td colspan=2>interface ID</td></tr>
+<tr align="center"><td>0xfc</td><td>ISD</td><td>ASN</td><td>0</td><td>0</td><td>0xffff</td><td>IPv4 address</td></tr>
+</table>
+
 Implementations
 ---------------
 
@@ -47,5 +75,5 @@ applications:
 Additional Resources
 --------------------
 
-- [SCION-mapped IPv6 Address Converter](tools/scion2ip/README.md) A tool that converts between SCION
+- [scion2ip](tools/scion2ip/README.md) A tool that converts between SCION
   and IPv6 address to help with network configuration.

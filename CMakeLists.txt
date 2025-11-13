@@ -77,6 +77,12 @@ endif()
 add_subdirectory(deps/asio-grpc)
 
 # =====
+# CLI11
+# =====
+
+add_subdirectory(deps/CLI11)
+
+# =====
 # ImTui
 # =====
 

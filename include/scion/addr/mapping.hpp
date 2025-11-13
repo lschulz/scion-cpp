@@ -29,6 +29,8 @@
 
 namespace scion {
 
+constexpr std::uint64_t SCION_IP_PREFIX = 0xfcull << 56;
+
 /// \brief Extracts the ISD-ASN from a SCION-mapped IPv6 address.
 inline IsdAsn unmapIsdAsn(const generic::IPAddress& ip)
 {
@@ -81,7 +83,7 @@ inline Maybe<generic::IPAddress> mapToIPv6(const ScIPAddress& addr)
         return Error(ErrorCode::InvalidArgument);
     }
 
-    std::uint64_t hi = (0xfcull << 56) | (isd << 44) | (encodedAsn << 24);
+    std::uint64_t hi = SCION_IP_PREFIX | (isd << 44) | (encodedAsn << 24);
     std::uint64_t lo = 0xffffull << 32 | host.getIPv4();
     return generic::IPAddress::MakeIPv6(hi, lo);
 }
@@ -92,7 +94,7 @@ inline Maybe<ScIPAddress> unmapFromIPv6(const generic::IPAddress& ip)
 {
     using generic::IPAddress;
     auto [prefix, interface] = ip.getIPv6();
-    if ((prefix & (0xffull << 56)) != (0xfcull << 56))
+    if ((prefix & (0xffull << 56)) != SCION_IP_PREFIX)
         return Error(ErrorCode::InvalidArgument); // not the right prefix
 
     auto isdAsn = unmapIsdAsn(ip);

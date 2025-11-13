@@ -55,3 +55,9 @@ target_include_directories(scitra-tests PRIVATE
     "${CMAKE_SOURCE_DIR}/tests"
 )
 target_link_libraries(scitra-tests PRIVATE gtest gmock scion-cpp)
+
+# =====
+# Tools
+# =====
+
+add_subdirectory(tools/scion2ip)

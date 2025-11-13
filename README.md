@@ -52,7 +52,7 @@ sudo apt-get install \
   protobuf-compiler-grpc
 ```
 
-Make sure to initialize the submodules in `deps/` and `examples/deps/`.
+Make sure to initialize the submodules in `deps/`.
 ```bash
 git submodule update --init --recursive
 ```

@@ -8,7 +8,7 @@
 	path = deps/asio-grpc
 	url = https://github.com/Tradias/asio-grpc.git
 [submodule "examples/deps/CLI11"]
-	path = examples/deps/CLI11
+	path = deps/CLI11
 	url = https://github.com/CLIUtils/CLI11.git
 [submodule "deps/imtui"]
 	path = deps/imtui
