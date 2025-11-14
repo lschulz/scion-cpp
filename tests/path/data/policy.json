@@ -11,6 +11,12 @@
             "source": "1-64512",
             "protocol": "tcp",
             "policy": "p2"
+        },
+        {
+            "destination": "[1-ff00:0:1,10.0.0.1]:80",
+            "source": "1-64512",
+            "protocol": "tcp",
+            "policy": "p3"
         }
     ],
     "policies": {
@@ -31,6 +37,13 @@
         "p2": {
             "extends": "default",
             "sequence": "1-64512#20 0*"
+        },
+        "p3": {
+            "extends": "p2",
+            "failover": "p2",
+            "requirements": {
+                "min_mtu": 1500
+            }
         }
     }
 }

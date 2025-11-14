@@ -288,7 +288,7 @@ Policy::Policy(const boost::json::object& obj, const Policy* base)
             parseRequirements(value.as_object());
         } else if (name == "ordering") {
             parseOrdering(value.as_array());
-        } else if (name == "extends") {
+        } else if (name == "extends" || name == "failover") {
             continue;
         } else {
             throw ParserError(std::format(
@@ -490,25 +490,47 @@ void PolicySet::parse(const boost::json::value& data)
         for (auto&& [name, policy] : policies->as_object()) {
             auto obj = policy.as_object();
             Policy* basePolicy = nullptr;
+            std::size_t nextPolicy = POLICY_INDEX_NONE;
             if (auto raw = obj.if_contains("extends"); raw) {
                 auto extends = raw->as_string();
                 if (extends == "default") {
                     basePolicy = &m_defaultPolicy;
                 } else if (auto i = policyNames.find(extends); i != policyNames.end()) {
-                    basePolicy = &m_policies[i->second];
+                    basePolicy = &m_policies[i->second].first;
                 } else {
                     throw ParserError(std::format(
                         "Policy '{}' referenced before definition", extends.c_str()));
                 }
             }
+            if (auto raw = obj.if_contains("failover"); raw) {
+                auto failover = raw->as_string();
+                if (failover == "default") {
+                    nextPolicy = POLICY_INDEX_DEFAULT;
+                } if (auto i = policyNames.find(failover); i != policyNames.end()) {
+                    nextPolicy = i->second;
+                } else {
+                    throw ParserError(std::format(
+                        "Policy '{}' referenced before definition", failover.c_str()));
+                }
+            }
             if (name == "default") {
+                if (nextPolicy != POLICY_INDEX_NONE) {
+                    // By demanding that policies referenced in failover must be defined before the
+                    // referencing policy we can guarantee that there will be no cycles. We disallow
+                    // failover in the default policy, because it is automatically defined and could
+                    // be referenced before its explicit definition.
+                    throw ParserError("'failover' not allowed in default policy");
+                }
                 m_defaultPolicy = Policy(obj, basePolicy);
             } else {
                 policyNames[name] = m_policies.size();
-                m_policies.emplace_back(Policy(obj, basePolicy));
+                m_policies.emplace_back(std::piecewise_construct,
+                    std::forward_as_tuple(obj, basePolicy),
+                    std::forward_as_tuple(nextPolicy));
             }
         }
     }
+
     if (auto matchers = data.as_object().if_contains("matchers"); matchers) {
         m_matchers.reserve(matchers->as_array().size());
         for (auto&& m : matchers->as_array()) {

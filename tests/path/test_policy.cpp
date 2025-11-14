@@ -192,6 +192,7 @@ TEST(PathPolicy, PolicySet)
     EXPECT_FALSE(policy.test(*paths.at(1)));
     EXPECT_TRUE(policy.test(*paths.at(2)));
 
+    // Apply policy
     std::vector copy = paths;
     auto filtered = policies.apply(
         unwrap(ScIPEndpoint::Parse("1-64512,127.0.0.1:34000")),
@@ -203,5 +204,19 @@ TEST(PathPolicy, PolicySet)
     ASSERT_EQ(filtered.data(), copy.data());
     EXPECT_THAT(filtered, testing::ElementsAre(
         paths.at(2), paths.at(1)
+    ));
+
+    // Expect failover
+    copy = paths;
+    filtered = policies.apply(
+        unwrap(ScIPEndpoint::Parse("1-64512,127.0.0.1:32000")),
+        unwrap(ScIPEndpoint::Parse("[1-ff00:0:1,10.0.0.1]:80")),
+        hdr::ScionProto::TCP,
+        1,
+        copy
+    );
+    ASSERT_EQ(filtered.data(), copy.data());
+    EXPECT_THAT(filtered, testing::ElementsAre(
+        paths.at(2)
     ));
 }

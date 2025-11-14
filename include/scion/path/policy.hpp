@@ -189,6 +189,7 @@ private:
 
 public:
     Policy() = default;
+    Policy(const boost::json::object& obj, const Policy* base);
 
     /// \brief Returns true if the path is allowed by the policy, otherwise
     /// false.
@@ -221,9 +222,6 @@ public:
     }
 
 private:
-    friend class PolicySet;
-
-    Policy(const boost::json::object& obj, const Policy* base);
     void parseAcl(const boost::json::array& acl);
     void parseRequirements(const boost::json::object& reqs);
     void parseOrdering(const boost::json::array& order);
@@ -239,9 +237,14 @@ private:
 class PolicySet
 {
 private:
+    static constexpr std::size_t POLICY_INDEX_NONE = -1;
+    static constexpr std::size_t POLICY_INDEX_DEFAULT = -2;
+
     // Pairs of matcher and index into policies table.
     std::vector<std::pair<TrafficMatcher, std::size_t>> m_matchers;
-    std::vector<Policy> m_policies;
+    // Pairs of policies and index of the next failover policy.
+    std::vector<std::pair<Policy, std::size_t>> m_policies;
+    // The default policy is always present.
     Policy m_defaultPolicy;
 
 public:
@@ -252,8 +255,37 @@ public:
     /// is not zero.
     std::pair<std::error_code, std::string> loadJsonFile(const std::filesystem::path& path);
 
-    /// \brief Get the policy matching flows with the given parameters.
+    /// \brief Get the first policy matching flows with the given parameters.
     const Policy& getPolicy(
+        ScIPEndpoint src, ScIPEndpoint dst, hdr::ScionProto proto, std::uint8_t tc) const
+    {
+        return getPolicyIndex(src, dst, proto, tc).first;
+    }
+
+    /// \brief Apply the matching policy to the given paths. See
+    /// Policy::apply(). If the policy filters out every available path,
+    /// recursively tries the "failover" policy until paths are returned or no
+    /// more policies remain.
+    std::span<PathPtr> apply(
+        ScIPEndpoint src, ScIPEndpoint dst, hdr::ScionProto proto, std::uint8_t tc,
+        std::span<PathPtr> paths) const
+    {
+        if (paths.empty()) return paths;
+        auto [policy, next] = getPolicyIndex(src, dst, proto, tc);
+        auto filtered = policy.apply(paths);
+        while (filtered.empty() && next != POLICY_INDEX_NONE) {
+            if (next == POLICY_INDEX_DEFAULT) {
+                return m_defaultPolicy.apply(paths);
+            } else {
+                filtered = m_policies[next].first.apply(paths);
+                next = m_policies[next].second;
+            }
+        }
+        return filtered;
+    }
+
+private:
+    std::pair<const Policy&, std::size_t> getPolicyIndex(
         ScIPEndpoint src, ScIPEndpoint dst, hdr::ScionProto proto, std::uint8_t tc) const
     {
         for (auto& [matcher, policy] : m_matchers) {
@@ -261,19 +293,9 @@ public:
                 return m_policies[policy];
             }
         }
-        return m_defaultPolicy;
+        return std::make_pair(m_defaultPolicy, POLICY_INDEX_NONE);
     }
 
-    /// \brief Apply the matching policy to the given paths. See
-    /// Policy::apply().
-    std::span<PathPtr> apply(
-        ScIPEndpoint src, ScIPEndpoint dst, hdr::ScionProto proto, std::uint8_t tc,
-        std::span<PathPtr> paths) const
-    {
-        return getPolicy(src, dst, proto, tc).apply(paths);
-    }
-
-private:
     void parse(const boost::json::value& data);
 };
 
