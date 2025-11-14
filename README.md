@@ -58,7 +58,7 @@ git submodule update --init --recursive
 ```
 
 ### Building
-Requires a C++23 compiler. gcc 13.3.0, clang 19.1.1, and MSVC 19.44.35209 work.
+Requires a C++23 compiler. gcc 13.3.0, clang 19.1.1 and MSVC 19.44.35209 work.
 
 Building with CMake and Ninja:
 ```bash
@@ -73,6 +73,19 @@ CMake preset for Windows:
 cmake --preset=vcpkg-vs
 cmake --build build --config Debug
 cmake --build build --config Release
+```
+
+### Installation
+```bash
+cmake --install build --config Release
+```
+Installs the scion++ and scionc libraries as well as application binaries for scitra-tun and the
+interposer.
+
+The install location is determined by `CMAKE_INSTALL_PREFIX` set during the cmake configuration
+step.
+```bash
+cmake --build build --config Release -DCMAKE_INSTALL_PREFIX=~/example
 ```
 
 ### Unit Tests

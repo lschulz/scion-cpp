@@ -26,8 +26,8 @@
 #include "scion/error_codes.hpp"
 #include "scion/path/path_meta.hpp"
 #include "scion/path/path.hpp"
+#include "scion/proto/daemon/v1/daemon.grpc.pb.h"
 
-#include "proto/daemon/v1/daemon.grpc.pb.h"
 #include <grpcpp/client_context.h>
 #include <grpcpp/create_channel.h>
 #include <grpcpp/security/credentials.h>

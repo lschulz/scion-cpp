@@ -5,7 +5,8 @@ cmake_minimum_required(VERSION 3.28)
 # =========
 
 if (LINUX)
-set(SRC_SCITRA_TUN
+add_executable(scitra-tun)
+target_sources(scitra-tun PRIVATE
     "src/packet.cpp"
     "src/translator.cpp"
     "src/scitra-tun/error_codes.cpp"
@@ -15,8 +16,6 @@ set(SRC_SCITRA_TUN
     "src/scitra-tun/sys_net.cpp"
     "src/scitra-tun/tui.cpp"
 )
-
-add_executable(scitra-tun ${SRC_SCITRA_TUN})
 target_include_directories(scitra-tun PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
@@ -34,6 +33,12 @@ target_compile_definitions(scitra-tun PRIVATE
     BOOST_ASIO_HAS_IO_URING=1
     SCION_NO_DEBUG=1
 )
+set_target_properties(scitra-tun PROPERTIES
+    OUTPUT_NAME "scitra-tun"
+    DEBUG_POSTFIX "-debug"
+)
+install(TARGETS scitra-tun RUNTIME)
+
 endif(LINUX)
 
 # ==========

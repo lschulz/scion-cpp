@@ -23,15 +23,17 @@ add_compile_definitions(
 )
 endif()
 
+include(GNUInstallDirs)
+
 # =====
 # Boost
 # =====
 
 find_package(Boost CONFIG REQUIRED COMPONENTS json)
 
-# =========================
-# Protobuf, gRPC, asio-grpc
-# =========================
+# ==============
+# Protobuf, gRPC
+# ==============
 
 find_package(protobuf CONFIG)
 
@@ -74,7 +76,18 @@ else()
 
 endif()
 
+# =========
+# asio-grpc
+# =========
+
 add_subdirectory(deps/asio-grpc)
+
+# Install a private copy of asio-grpc
+install(
+    DIRECTORY "deps/asio-grpc/src/agrpc"
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/scion"
+    FILES_MATCHING PATTERN "*.hpp"
+)
 
 # =====
 # CLI11
@@ -106,6 +119,7 @@ add_subdirectory(deps/spdlog)
 # ==========
 
 include(GoogleTest)
+set(INSTALL_GTEST OFF)
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 add_subdirectory(deps/googletest)
 
@@ -126,7 +140,7 @@ asio_grpc_protobuf_generate(
     TARGET scion-proto
     USAGE_REQUIREMENT PUBLIC
     IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
-    OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated"
+    OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated/scion"
     PROTOS "${PROTO_SRC}"
 )
 
@@ -134,48 +148,134 @@ asio_grpc_protobuf_generate(
 # Main Library
 # ============
 
-set(SRC
-    "src/addr/endpoint.cpp"
-    "src/addr/generic_ip.cpp"
-    "src/addr/isd_asn.cpp"
-    "src/bit_stream.cpp"
-    "src/daemon/client.cpp"
-    "src/default_address.cpp"
-    "src/error_codes.cpp"
-    "src/hdr/details.cpp"
-    "src/murmur_hash3.cpp"
-    "src/path/path_meta.cpp"
-    "src/path/path.cpp"
-    "src/path/policy.cpp"
-    "src/resolver.cpp"
+add_library(scion-cpp)
+target_sources(scion-cpp
+    PRIVATE
+        "src/addr/endpoint.cpp"
+        "src/addr/generic_ip.cpp"
+        "src/addr/isd_asn.cpp"
+        "src/bit_stream.cpp"
+        "src/daemon/client.cpp"
+        "src/default_address.cpp"
+        "src/error_codes.cpp"
+        "src/hdr/details.cpp"
+        "src/murmur_hash3.cpp"
+        "src/path/path_meta.cpp"
+        "src/path/path.cpp"
+        "src/path/policy.cpp"
+        "src/resolver.cpp"
+    PUBLIC FILE_SET public_headers TYPE HEADERS
+    BASE_DIRS
+        "include"
+        "${CMAKE_CURRENT_BINARY_DIR}/generated"
+    FILES
+        "include/scion/error_codes.hpp"
+        "include/scion/scmp/handler.hpp"
+        "include/scion/scmp/path_mtu.hpp"
+        "include/scion/addr/address.hpp"
+        "include/scion/addr/endpoint.hpp"
+        "include/scion/addr/isd_asn.hpp"
+        "include/scion/addr/generic_ip.hpp"
+        "include/scion/addr/mapping.hpp"
+        "include/scion/murmur_hash3.h"
+        "include/scion/path/path_meta.hpp"
+        "include/scion/path/policy.hpp"
+        "include/scion/path/shared_cache.hpp"
+        "include/scion/path/raw.hpp"
+        "include/scion/path/digest.hpp"
+        "include/scion/path/cache.hpp"
+        "include/scion/path/attributes.hpp"
+        "include/scion/path/decoded_scion.hpp"
+        "include/scion/path/path.hpp"
+        "include/scion/path/raw_hop_range.hpp"
+        "include/scion/socket/header_cache.hpp"
+        "include/scion/socket/packager.hpp"
+        "include/scion/socket/parsed_packet.hpp"
+        "include/scion/socket/flags.hpp"
+        "include/scion/details/debug.hpp"
+        "include/scion/details/bit.hpp"
+        "include/scion/details/protobuf_time.hpp"
+        "include/scion/details/from_chars.hpp"
+        "include/scion/details/c_interface.hpp"
+        "include/scion/details/flags.hpp"
+        "include/scion/asio/addresses.hpp"
+        "include/scion/asio/scmp_socket.hpp"
+        "include/scion/asio/udp_socket.hpp"
+        "include/scion/scion_asio.hpp"
+        "include/scion/posix/underlay.hpp"
+        "include/scion/posix/scmp_socket.hpp"
+        "include/scion/posix/udp_socket.hpp"
+        "include/scion/posix/sockaddr.hpp"
+        "include/scion/extensions/extension.hpp"
+        "include/scion/extensions/idint.hpp"
+        "include/scion/as_interface.hpp"
+        "include/scion/resolver.hpp"
+        "include/scion/scion.hpp"
+        "include/scion/daemon/client.hpp"
+        "include/scion/daemon/co_client.hpp"
+        "include/scion/drkey/drkey.hpp"
+        "include/scion/bit_stream.hpp"
+        "include/scion/hdr/details.hpp"
+        "include/scion/hdr/scmp.hpp"
+        "include/scion/hdr/udp.hpp"
+        "include/scion/hdr/tcp.hpp"
+        "include/scion/hdr/proto.hpp"
+        "include/scion/hdr/ethernet.hpp"
+        "include/scion/hdr/idint.hpp"
+        "include/scion/hdr/ip.hpp"
+        "include/scion/hdr/scion.hpp"
+        "${CMAKE_CURRENT_BINARY_DIR}/generated/scion/proto/daemon/v1/daemon.grpc.pb.h"
+        "${CMAKE_CURRENT_BINARY_DIR}/generated/scion/proto/daemon/v1/daemon.pb.h"
+        "${CMAKE_CURRENT_BINARY_DIR}/generated/scion/proto/drkey/v1/drkey.grpc.pb.h"
+        "${CMAKE_CURRENT_BINARY_DIR}/generated/scion/proto/drkey/v1/drkey.pb.h"
 )
-
-add_library(scion-cpp ${SRC})
 target_link_libraries(scion-cpp PUBLIC
     Boost::headers
     Boost::json
     asio-grpc::asio-grpc
     scion-proto
 )
-target_include_directories(scion-cpp
-    PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
-    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/deps/asio-grpc/src"
-    PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/generated" # TODO: Install generated files
+target_include_directories(scion-cpp PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/deps/asio-grpc/src"
+)
+set_target_properties(scion-cpp PROPERTIES
+    OUTPUT_NAME "scion++"
+    DEBUG_POSTFIX "d"
+    VERSION "0.0.1"
+    SOVERSION "0"
+)
+install(TARGETS scion-cpp
+    FILE_SET public_headers
+    ARCHIVE
+    LIBRARY
 )
 
 # ===========
 # C Interface
 # ===========
 
-set(SRC_C
-    "src/scion_c/scion.cpp"
-    "src/scion_c/scion.c"
+add_library(scion-c)
+target_sources(scion-c
+    PRIVATE
+        "src/scion_c/scion.cpp"
+        "src/scion_c/scion.c"
+    PUBLIC FILE_SET public_headers TYPE HEADERS
+    BASE_DIRS
+        "include"
+    FILES
+        "include/scion/scion.h"
 )
-
-add_library(scion-c ${SRC_C})
 target_link_libraries(scion-c PRIVATE scion-cpp)
-target_include_directories(scion-c
-    PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
+set_target_properties(scion-c PROPERTIES
+    OUTPUT_NAME "scionc"
+    DEBUG_POSTFIX "d"
+    VERSION "0.0.1"
+    SOVERSION "0"
+)
+install(TARGETS scion-c
+    FILE_SET public_headers
+    ARCHIVE
+    LIBRARY
 )
 
 # ==========

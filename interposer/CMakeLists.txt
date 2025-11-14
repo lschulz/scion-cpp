@@ -18,7 +18,8 @@ endif()
 # Interposer
 # ==========
 
-set(LIBC_INTERPOSER_SRC
+add_library(interposer SHARED)
+target_sources(interposer PRIVATE
     "src/builtin_selector.cpp"
     "src/control_plane.cpp"
     "src/interposer.cpp"
@@ -27,8 +28,6 @@ set(LIBC_INTERPOSER_SRC
     "src/options.cpp"
     "src/selector.cpp"
 )
-
-add_library(interposer SHARED ${LIBC_INTERPOSER_SRC})
 target_include_directories(interposer PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
@@ -41,6 +40,14 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     # g++ sets _GNU_SOURCE for C++ files, make sure it is also set for C
     target_compile_definitions(interposer PUBLIC _GNU_SOURCE=1)
 endif()
+
+set_target_properties(interposer PROPERTIES
+    OUTPUT_NAME "scion-interposer"
+    DEBUG_POSTFIX "d"
+    VERSION "0.0.1"
+    SOVERSION "0"
+)
+install(TARGETS interposer RUNTIME)
 
 # =====================
 # Default Path Selector

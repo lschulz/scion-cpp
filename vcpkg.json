@@ -4,6 +4,10 @@
   "version": "0.0.1",
   "dependencies": [
     {
+      "name": "asio-grpc",
+      "version>=": "3.4.3"
+    },
+    {
       "name": "boost-algorithm",
       "version>=": "1.83.0"
     },

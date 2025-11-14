@@ -19,8 +19,7 @@
 // SOFTWARE.
 
 #include "scion/daemon/client.hpp"
-
-#include "proto/daemon/v1/daemon.grpc.pb.h"
+#include "scion/proto/daemon/v1/daemon.grpc.pb.h"
 
 #include <system_error>
 #include <type_traits>

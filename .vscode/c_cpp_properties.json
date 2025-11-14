@@ -7,6 +7,7 @@
                 "${workspaceFolder}/src",
                 "${workspaceFolder}/deps/asio-grpc/src",
                 "${workspaceFolder}/deps/googletest/googletest/include",
+                "${workspaceFolder}/deps/googletest/googlemock/include",
                 "${workspaceFolder}/deps/imtui/include",
                 "${workspaceFolder}/deps/imtui/third-party/imgui",
                 "${workspaceFolder}/deps/spdlog/include",
@@ -16,7 +17,8 @@
                 "${workspaceFolder}/examples/c/include",
                 "${workspaceFolder}/interposer/src",
                 "${workspaceFolder}/interposer/include",
-                "${workspaceFolder}/scitra/include"
+                "${workspaceFolder}/scitra/include",
+                "${workspaceFolder}/build/generated/scion"
             ],
             "defines": [
                 "AGRPC_BOOST_ASIO"
@@ -31,9 +33,9 @@
                 "${workspaceFolder}/src",
                 "${workspaceFolder}/deps/asio-grpc/src",
                 "${workspaceFolder}/deps/googletest/googletest/include",
+                "${workspaceFolder}/deps/googletest/googlemock/include",
                 "${workspaceFolder}/build/generated",
                 "${workspaceFolder}/tests",
-                "${workspaceFolder}/deps/googletest/googlemock/include",
                 "${workspaceFolder}/examples/include",
                 "${workspaceFolder}/vcpkg_installed/x64-windows/include"
             ],
