@@ -1,8 +1,11 @@
+import datetime
+
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Mapping, Optional as _Optional, Union as _Union
+from collections.abc import Iterable as _Iterable, Mapping as _Mapping
+from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
@@ -16,7 +19,7 @@ class ChainsRequest(_message.Message):
     subject_key_id: bytes
     at_least_valid_until: _timestamp_pb2.Timestamp
     at_least_valid_since: _timestamp_pb2.Timestamp
-    def __init__(self, isd_as: _Optional[int] = ..., subject_key_id: _Optional[bytes] = ..., at_least_valid_until: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., at_least_valid_since: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    def __init__(self, isd_as: _Optional[int] = ..., subject_key_id: _Optional[bytes] = ..., at_least_valid_until: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., at_least_valid_since: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class ChainsResponse(_message.Message):
     __slots__ = ("chains",)

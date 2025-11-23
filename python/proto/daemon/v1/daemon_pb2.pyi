@@ -1,3 +1,5 @@
+import datetime
+
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf import duration_pb2 as _duration_pb2
 from google.protobuf import empty_pb2 as _empty_pb2
@@ -6,7 +8,8 @@ from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Mapping, Optional as _Optional, Union as _Union
+from collections.abc import Iterable as _Iterable, Mapping as _Mapping
+from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
@@ -65,7 +68,7 @@ class Path(_message.Message):
     internal_hops: _containers.RepeatedScalarFieldContainer[int]
     notes: _containers.RepeatedScalarFieldContainer[str]
     epic_auths: EpicAuths
-    def __init__(self, raw: _Optional[bytes] = ..., interface: _Optional[_Union[Interface, _Mapping]] = ..., interfaces: _Optional[_Iterable[_Union[PathInterface, _Mapping]]] = ..., mtu: _Optional[int] = ..., expiration: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., latency: _Optional[_Iterable[_Union[_duration_pb2.Duration, _Mapping]]] = ..., bandwidth: _Optional[_Iterable[int]] = ..., geo: _Optional[_Iterable[_Union[GeoCoordinates, _Mapping]]] = ..., link_type: _Optional[_Iterable[_Union[LinkType, str]]] = ..., internal_hops: _Optional[_Iterable[int]] = ..., notes: _Optional[_Iterable[str]] = ..., epic_auths: _Optional[_Union[EpicAuths, _Mapping]] = ...) -> None: ...
+    def __init__(self, raw: _Optional[bytes] = ..., interface: _Optional[_Union[Interface, _Mapping]] = ..., interfaces: _Optional[_Iterable[_Union[PathInterface, _Mapping]]] = ..., mtu: _Optional[int] = ..., expiration: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., latency: _Optional[_Iterable[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]]] = ..., bandwidth: _Optional[_Iterable[int]] = ..., geo: _Optional[_Iterable[_Union[GeoCoordinates, _Mapping]]] = ..., link_type: _Optional[_Iterable[_Union[LinkType, str]]] = ..., internal_hops: _Optional[_Iterable[int]] = ..., notes: _Optional[_Iterable[str]] = ..., epic_auths: _Optional[_Union[EpicAuths, _Mapping]] = ...) -> None: ...
 
 class EpicAuths(_message.Message):
     __slots__ = ("auth_phvf", "auth_lhvf")
@@ -199,7 +202,7 @@ class DRKeyHostASRequest(_message.Message):
     src_ia: int
     dst_ia: int
     src_host: str
-    def __init__(self, val_time: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., protocol_id: _Optional[_Union[_drkey_pb2.Protocol, str]] = ..., src_ia: _Optional[int] = ..., dst_ia: _Optional[int] = ..., src_host: _Optional[str] = ...) -> None: ...
+    def __init__(self, val_time: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., protocol_id: _Optional[_Union[_drkey_pb2.Protocol, str]] = ..., src_ia: _Optional[int] = ..., dst_ia: _Optional[int] = ..., src_host: _Optional[str] = ...) -> None: ...
 
 class DRKeyHostASResponse(_message.Message):
     __slots__ = ("epoch_begin", "epoch_end", "key")
@@ -209,7 +212,7 @@ class DRKeyHostASResponse(_message.Message):
     epoch_begin: _timestamp_pb2.Timestamp
     epoch_end: _timestamp_pb2.Timestamp
     key: bytes
-    def __init__(self, epoch_begin: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., epoch_end: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., key: _Optional[bytes] = ...) -> None: ...
+    def __init__(self, epoch_begin: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., epoch_end: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., key: _Optional[bytes] = ...) -> None: ...
 
 class DRKeyASHostRequest(_message.Message):
     __slots__ = ("val_time", "protocol_id", "src_ia", "dst_ia", "dst_host")
@@ -223,7 +226,7 @@ class DRKeyASHostRequest(_message.Message):
     src_ia: int
     dst_ia: int
     dst_host: str
-    def __init__(self, val_time: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., protocol_id: _Optional[_Union[_drkey_pb2.Protocol, str]] = ..., src_ia: _Optional[int] = ..., dst_ia: _Optional[int] = ..., dst_host: _Optional[str] = ...) -> None: ...
+    def __init__(self, val_time: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., protocol_id: _Optional[_Union[_drkey_pb2.Protocol, str]] = ..., src_ia: _Optional[int] = ..., dst_ia: _Optional[int] = ..., dst_host: _Optional[str] = ...) -> None: ...
 
 class DRKeyASHostResponse(_message.Message):
     __slots__ = ("epoch_begin", "epoch_end", "key")
@@ -233,7 +236,7 @@ class DRKeyASHostResponse(_message.Message):
     epoch_begin: _timestamp_pb2.Timestamp
     epoch_end: _timestamp_pb2.Timestamp
     key: bytes
-    def __init__(self, epoch_begin: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., epoch_end: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., key: _Optional[bytes] = ...) -> None: ...
+    def __init__(self, epoch_begin: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., epoch_end: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., key: _Optional[bytes] = ...) -> None: ...
 
 class DRKeyHostHostRequest(_message.Message):
     __slots__ = ("val_time", "protocol_id", "src_ia", "dst_ia", "src_host", "dst_host")
@@ -249,7 +252,7 @@ class DRKeyHostHostRequest(_message.Message):
     dst_ia: int
     src_host: str
     dst_host: str
-    def __init__(self, val_time: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., protocol_id: _Optional[_Union[_drkey_pb2.Protocol, str]] = ..., src_ia: _Optional[int] = ..., dst_ia: _Optional[int] = ..., src_host: _Optional[str] = ..., dst_host: _Optional[str] = ...) -> None: ...
+    def __init__(self, val_time: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., protocol_id: _Optional[_Union[_drkey_pb2.Protocol, str]] = ..., src_ia: _Optional[int] = ..., dst_ia: _Optional[int] = ..., src_host: _Optional[str] = ..., dst_host: _Optional[str] = ...) -> None: ...
 
 class DRKeyHostHostResponse(_message.Message):
     __slots__ = ("epoch_begin", "epoch_end", "key")
@@ -259,4 +262,4 @@ class DRKeyHostHostResponse(_message.Message):
     epoch_begin: _timestamp_pb2.Timestamp
     epoch_end: _timestamp_pb2.Timestamp
     key: bytes
-    def __init__(self, epoch_begin: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., epoch_end: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., key: _Optional[bytes] = ...) -> None: ...
+    def __init__(self, epoch_begin: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., epoch_end: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., key: _Optional[bytes] = ...) -> None: ...
