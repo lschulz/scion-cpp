@@ -86,11 +86,13 @@ public:
         HeaderCache<Alloc>& headers,
         const Path& path,
         const UnderlayEp& nextHop,
-        std::span<const std::byte> payload)
+        std::span<const std::byte> payload,
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
+        if (flags & ~SMSG_NO_FLAGS) return Error(ErrorCode::InvalidArgument);
         auto ec = packager.pack(headers, nullptr, path, ext::NoExtensions, hdr::UDP{}, payload);
         if (ec) return Error(ec);
-        return sendUnderlay(headers.get(), payload, nextHop);
+        return sendUnderlay(headers.get(), payload, nextHop, flags);
     }
 
     template <typename Path, ext::extension_range ExtRange, typename Alloc>
@@ -99,12 +101,14 @@ public:
         const Path& path,
         const UnderlayEp& nextHop,
         ExtRange&& extensions,
-        std::span<const std::byte> payload)
+        std::span<const std::byte> payload,
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
+        if (flags & ~SMSG_NO_FLAGS) return Error(ErrorCode::InvalidArgument);
         auto ec = packager.pack(headers, nullptr, path,
             std::forward<ExtRange>(extensions), hdr::UDP{}, payload);
         if (ec) return Error(ec);
-        return sendUnderlay(headers.get(), payload, nextHop);
+        return sendUnderlay(headers.get(), payload, nextHop, flags);
     }
 
     template <typename Path, typename Alloc>
@@ -113,11 +117,13 @@ public:
         const Endpoint& to,
         const Path& path,
         const UnderlayEp& nextHop,
-        std::span<const std::byte> payload)
+        std::span<const std::byte> payload,
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
+        if (flags & ~SMSG_NO_FLAGS) return Error(ErrorCode::InvalidArgument);
         auto ec = packager.pack(headers, &to, path, ext::NoExtensions, hdr::UDP{}, payload);
         if (ec) return Error(ec);
-        return sendUnderlay(headers.get(), payload, nextHop);
+        return sendUnderlay(headers.get(), payload, nextHop, flags);
     }
 
     template <typename Path, ext::extension_range ExtRange, typename Alloc>
@@ -127,26 +133,30 @@ public:
         const Path& path,
         const UnderlayEp& nextHop,
         ExtRange&& extensions,
-        std::span<const std::byte> payload)
+        std::span<const std::byte> payload,
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
+        if (flags & ~SMSG_NO_FLAGS) return Error(ErrorCode::InvalidArgument);
         auto ec = packager.pack(headers, &to, path,
             std::forward<ExtRange>(extensions), hdr::UDP{}, payload);
         if (ec) return Error(ec);
-        return sendUnderlay(headers.get(), payload, nextHop);
+        return sendUnderlay(headers.get(), payload, nextHop, flags);
     }
 
     template <typename Alloc>
     Maybe<std::span<const std::byte>> sendCached(
         HeaderCache<Alloc>& headers,
         const UnderlayEp& nextHop,
-        std::span<const std::byte> payload)
+        std::span<const std::byte> payload,
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
+        if (flags & ~SMSG_NO_FLAGS) return Error(ErrorCode::InvalidArgument);
         hdr::UDP udp;
         udp.sport = packager.localEp().port();
         udp.dport = packager.remoteEp().port();
         auto ec = packager.pack(headers, udp, payload);
         if (ec) return Error(ec);
-        return sendUnderlay(headers.get(), payload, nextHop);
+        return sendUnderlay(headers.get(), payload, nextHop, flags);
     }
 
     template <typename Alloc>
@@ -154,14 +164,16 @@ public:
         HeaderCache<Alloc>& headers,
         const Endpoint& to,
         const UnderlayEp& nextHop,
-        std::span<const std::byte> payload)
+        std::span<const std::byte> payload,
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
+        if (flags & ~SMSG_NO_FLAGS) return Error(ErrorCode::InvalidArgument);
         hdr::UDP udp;
         udp.sport = packager.localEp().port();
         udp.dport = to.port();
         auto ec = packager.pack(headers, udp, payload);
         if (ec) return Error(ec);
-        return sendUnderlay(headers.get(), payload, nextHop);
+        return sendUnderlay(headers.get(), payload, nextHop, flags);
     }
 
     ///@}
@@ -267,28 +279,37 @@ public:
     /// \name Synchronous Receive
     ///@{
 
-    Maybe<std::span<std::byte>> recv(std::span<std::byte> buf)
+    Maybe<std::span<std::byte>> recv(std::span<std::byte> buf, MsgFlags flags = SMSG_NO_FLAGS)
     {
+        if (flags & ~(SMSG_PEEK | SMSG_RECV_SCMP | SMSG_RECV_STUN))
+            return Error(ErrorCode::InvalidArgument);
         UnderlayEp ulSource;
-        return recvImpl(buf, nullptr, nullptr, ulSource, ext::NoExtensions, ext::NoExtensions);
+        return recvImpl(buf, nullptr, nullptr, ulSource,
+            ext::NoExtensions, ext::NoExtensions, flags);
     }
 
     template<ext::extension_range HbHExt, ext::extension_range E2EExt>
     Maybe<std::span<std::byte>> recvExt(
         std::span<std::byte> buf,
         HbHExt& hbhExt,
-        E2EExt& e2eExt)
+        E2EExt& e2eExt,
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
+        if (flags & ~(SMSG_PEEK | SMSG_RECV_SCMP | SMSG_RECV_STUN))
+            return Error(ErrorCode::InvalidArgument);
         UnderlayEp ulSource;
-        return recvImpl(buf, nullptr, nullptr, ulSource, hbhExt, e2eExt);
+        return recvImpl(buf, nullptr, nullptr, ulSource, hbhExt, e2eExt, flags);
     }
 
     Maybe<std::span<std::byte>> recvFrom(
         std::span<std::byte> buf,
-        Endpoint& from)
+        Endpoint& from,
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
+        if (flags & ~(SMSG_PEEK | SMSG_RECV_SCMP | SMSG_RECV_STUN))
+            return Error(ErrorCode::InvalidArgument);
         UnderlayEp ulSource;
-        return recvImpl(buf, &from, nullptr, ulSource, ext::NoExtensions, ext::NoExtensions);
+        return recvImpl(buf, &from, nullptr, ulSource, ext::NoExtensions, ext::NoExtensions, flags);
     }
 
     template <ext::extension_range HbHExt, ext::extension_range E2EExt>
@@ -296,31 +317,40 @@ public:
         std::span<std::byte> buf,
         Endpoint& from,
         HbHExt& hbhExt,
-        E2EExt& e2eExt)
+        E2EExt& e2eExt,
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
+        if (flags & ~(SMSG_PEEK | SMSG_RECV_SCMP | SMSG_RECV_STUN))
+            return Error(ErrorCode::InvalidArgument);
         UnderlayEp ulSource;
-        return recvImpl(buf, &from, nullptr, ulSource, hbhExt, e2eExt);
+        return recvImpl(buf, &from, nullptr, ulSource, hbhExt, e2eExt, flags);
     }
 
-    auto recvFromVia(
+    Maybe<std::span<std::byte>> recvFromVia(
         std::span<std::byte> buf,
         Endpoint& from,
         RawPath& path,
-        UnderlayEp& ulSource)
+        UnderlayEp& ulSource,
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
-        return recvImpl(buf, &from, &path, ulSource, ext::NoExtensions, ext::NoExtensions);
+        if (flags & ~(SMSG_PEEK | SMSG_RECV_SCMP | SMSG_RECV_STUN))
+            return Error(ErrorCode::InvalidArgument);
+        return recvImpl(buf, &from, &path, ulSource, ext::NoExtensions, ext::NoExtensions, flags);
     }
 
     template<ext::extension_range HbHExt, ext::extension_range E2EExt>
-    auto recvFromViaExt(
+    Maybe<std::span<std::byte>> recvFromViaExt(
         std::span<std::byte> buf,
         Endpoint& from,
         RawPath& path,
         UnderlayEp& ulSource,
         HbHExt& hbhExt,
-        E2EExt& e2eExt)
+        E2EExt& e2eExt,
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
-        return recvImpl(buf, &from, &path, ulSource, hbhExt, e2eExt);
+        if (flags & ~(SMSG_PEEK | SMSG_RECV_SCMP | SMSG_RECV_STUN))
+            return Error(ErrorCode::InvalidArgument);
+        return recvImpl(buf, &from, &path, ulSource, hbhExt, e2eExt, flags);
     }
 
     ///@}
@@ -336,7 +366,20 @@ public:
         CompletionToken&& token)
     {
         return recvAsyncImpl(buf, nullptr, nullptr, ulSource, ext::NoExtensions, ext::NoExtensions,
-            std::forward<CompletionToken>(token));
+            SMSG_NO_FLAGS, std::forward<CompletionToken>(token));
+    }
+
+    template<
+        boost::asio::completion_token_for<void(Maybe<std::span<std::byte>>)>
+            CompletionToken>
+    auto recvAsync(
+        std::span<std::byte> buf,
+        UnderlayEp& ulSource,
+        MsgFlags flags,
+        CompletionToken&& token)
+    {
+        return recvAsyncImpl(buf, nullptr, nullptr, ulSource, ext::NoExtensions, ext::NoExtensions,
+            flags, std::forward<CompletionToken>(token));
     }
 
     template<
@@ -350,7 +393,23 @@ public:
         E2EExt& e2eExt,
         CompletionToken&& token)
     {
-        return recvAsyncImpl(buf, nullptr, nullptr, ulSource, hbhExt, e2eExt,
+        return recvAsyncImpl(buf, nullptr, nullptr, ulSource, hbhExt, e2eExt, SMSG_NO_FLAGS,
+            std::forward<CompletionToken>(token));
+    }
+
+    template<
+        ext::extension_range HbHExt, ext::extension_range E2EExt,
+        boost::asio::completion_token_for<void(Maybe<std::span<std::byte>>)>
+            CompletionToken>
+    auto recvExtAsync(
+        std::span<std::byte> buf,
+        UnderlayEp& ulSource,
+        HbHExt& hbhExt,
+        E2EExt& e2eExt,
+        MsgFlags flags,
+        CompletionToken&& token)
+    {
+        return recvAsyncImpl(buf, nullptr, nullptr, ulSource, hbhExt, e2eExt, flags,
             std::forward<CompletionToken>(token));
     }
 
@@ -364,7 +423,21 @@ public:
         CompletionToken&& token)
     {
         return recvAsyncImpl(buf, &from, nullptr, ulSource, ext::NoExtensions, ext::NoExtensions,
-            std::forward<CompletionToken>(token));
+            SMSG_NO_FLAGS, std::forward<CompletionToken>(token));
+    }
+
+    template<
+        boost::asio::completion_token_for<void(Maybe<std::span<std::byte>>)>
+            CompletionToken>
+    auto recvFromAsync(
+        std::span<std::byte> buf,
+        Endpoint& from,
+        UnderlayEp& ulSource,
+        MsgFlags flags,
+        CompletionToken&& token)
+    {
+        return recvAsyncImpl(buf, &from, nullptr, ulSource, ext::NoExtensions, ext::NoExtensions,
+            flags, std::forward<CompletionToken>(token));
     }
 
     template<
@@ -379,7 +452,24 @@ public:
         E2EExt& e2eExt,
         CompletionToken&& token)
     {
-        return recvAsyncImpl(buf, &from, nullptr, ulSource, hbhExt, e2eExt,
+        return recvAsyncImpl(buf, &from, nullptr, ulSource, hbhExt, e2eExt, SMSG_NO_FLAGS,
+            std::forward<CompletionToken>(token));
+    }
+
+    template<
+        ext::extension_range HbHExt, ext::extension_range E2EExt,
+        boost::asio::completion_token_for<void(Maybe<std::span<std::byte>>)>
+            CompletionToken>
+    auto recvFromExtAsync(
+        std::span<std::byte> buf,
+        Endpoint& from,
+        UnderlayEp& ulSource,
+        HbHExt& hbhExt,
+        E2EExt& e2eExt,
+        MsgFlags flags,
+        CompletionToken&& token)
+    {
+        return recvAsyncImpl(buf, &from, nullptr, ulSource, hbhExt, e2eExt, flags,
             std::forward<CompletionToken>(token));
     }
 
@@ -394,7 +484,22 @@ public:
         CompletionToken&& token)
     {
         return recvAsyncImpl(buf, &from, &path, ulSource, ext::NoExtensions, ext::NoExtensions,
-            std::forward<CompletionToken>(token));
+            SMSG_NO_FLAGS, std::forward<CompletionToken>(token));
+    }
+
+    template<
+        boost::asio::completion_token_for<void(Maybe<std::span<std::byte>>)>
+            CompletionToken>
+    auto recvFromViaAsync(
+        std::span<std::byte> buf,
+        Endpoint& from,
+        RawPath& path,
+        UnderlayEp& ulSource,
+        MsgFlags flags,
+        CompletionToken&& token)
+    {
+        return recvAsyncImpl(buf, &from, &path, ulSource, ext::NoExtensions, ext::NoExtensions,
+            flags, std::forward<CompletionToken>(token));
     }
 
     template<
@@ -410,7 +515,25 @@ public:
         E2EExt& e2eExt,
         CompletionToken&& token)
     {
-        return recvAsyncImpl(buf, &from, &path, ulSource, hbhExt, e2eExt,
+        return recvAsyncImpl(buf, &from, &path, ulSource, hbhExt, e2eExt, SMSG_NO_FLAGS,
+            std::forward<CompletionToken>(token));
+    }
+
+    template<
+        ext::extension_range HbHExt, ext::extension_range E2EExt,
+        boost::asio::completion_token_for<void(Maybe<std::span<std::byte>>)>
+            CompletionToken>
+    auto recvFromViaExtAsync(
+        std::span<std::byte> buf,
+        Endpoint& from,
+        RawPath& path,
+        UnderlayEp& ulSource,
+        HbHExt& hbhExt,
+        E2EExt& e2eExt,
+        MsgFlags flags,
+        CompletionToken&& token)
+    {
+        return recvAsyncImpl(buf, &from, &path, ulSource, hbhExt, e2eExt, flags,
             std::forward<CompletionToken>(token));
     }
 
@@ -611,6 +734,7 @@ private:
         UnderlayEp& ulSource,
         HbHExt& hbhExt,
         E2EExt& e2eExt,
+        MsgFlags flags,
         CompletionToken&& token)
     {
         auto initiation = [] (
@@ -624,6 +748,7 @@ private:
             UnderlayEp& ulSource,
             HbHExt& hbhExt,
             E2EExt& e2eExt,
+            MsgFlags flags,
             ScmpHandler* scmpHandler)
         {
             struct intermediate_completion_handler
@@ -636,6 +761,7 @@ private:
                 UnderlayEp& ulSource_;
                 HbHExt& hbhExt_;
                 E2EExt& e2eExt_;
+                MsgFlags flags_;
                 ScmpHandler* scmpHandler_;
                 boost::asio::executor_work_guard<UnderlaySocket::executor_type> ioWork_;
                 typename std::decay<decltype(completionHandler)>::type handler_;
@@ -660,7 +786,19 @@ private:
                         generic::toGenericAddr(EndpointTraits<UnderlayEp>::host(ulSource_)),
                         hbhExt_, e2eExt_, from_, path_, scmpCallback);
                     if (isError(payload)) {
-                        if (getError(payload) != ErrorCode::ScmpReceived) {
+                        if (getError(payload) == ErrorCode::ScmpReceived) {
+                            if (flags_ & SMSG_RECV_SCMP) {
+                                ioWork_.reset();
+                                handler_(propagateError(payload));
+                                return;
+                            }
+                        } else if (getError(payload) == ErrorCode::ScmpReceived) {
+                            if (flags_ & SMSG_RECV_STUN) {
+                                ioWork_.reset();
+                                handler_(propagateError(payload));
+                                return;
+                            }
+                        } else {
                             SCION_DEBUG_PRINT((std::format(
                                 "Received invalid packet from {}: {}\n",
                                 ulSource_, fmtError(getError(payload))
@@ -700,7 +838,7 @@ private:
 
             socket.async_receive_from(boost::asio::buffer(buf), ulSource,
                 intermediate_completion_handler{
-                    socket, packager, buf, from, path, ulSource, hbhExt, e2eExt, scmpHandler,
+                    socket, packager, buf, from, path, ulSource, hbhExt, e2eExt, flags, scmpHandler,
                     boost::asio::make_work_guard(socket.get_executor()),
                     std::forward<decltype(completionHandler)>(completionHandler)
                 }
@@ -712,7 +850,7 @@ private:
         (
             initiation, token,
             std::ref(socket), std::ref(packager), buf, from, path, std::ref(ulSource),
-            std::ref(hbhExt), std::ref(e2eExt), scmpHandler
+            std::ref(hbhExt), std::ref(e2eExt), flags, scmpHandler
         );
     }
 
@@ -723,7 +861,8 @@ private:
         RawPath* path,
         UnderlayEp& ulSource,
         HbHExt&& hbhExt,
-        E2EExt&& e2eExt)
+        E2EExt&& e2eExt,
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
         auto scmpCallback = [this] (
             const scion::ScIPAddress& from,
@@ -743,15 +882,27 @@ private:
                 generic::toGenericAddr(ulSource.address()),
                 std::forward<HbHExt>(hbhExt), std::forward<E2EExt>(e2eExt),
                 from, path, scmpCallback);
+
             if (payload.has_value()) {
                 return std::span<std::byte>{
                     const_cast<std::byte*>(payload->data()),
                     payload->size()
                 };
+            } else if (flags & SMSG_PEEK) {
+                // discard the peeked packet from the receive queue
+                (void)socket.receive_from(buffer(buf), ulSource,
+                    flags & ~(SMSG_PEEK | SMSG_SCION_ALL), ec);
             }
-            if (getError(payload) != ErrorCode::ScmpReceived) {
-                SCION_DEBUG_PRINT((std::format(
-                    "Received invalid packet from {}: {}\n", ulSource, fmtError(getError(payload)))));
+
+            if (isError(payload)) {
+                if (getError(payload) == ErrorCode::ScmpReceived) {
+                    if (flags & SMSG_RECV_SCMP) return propagateError(payload);
+                } else if (getError(payload) == ErrorCode::StunReceived) {
+                    if (flags & SMSG_RECV_STUN) return propagateError(payload);
+                } else {
+                    SCION_DEBUG_PRINT((std::format("Received invalid packet from {}: {}\n",
+                        ulSource, fmtError(getError(payload)))));
+                }
             }
         }
     }

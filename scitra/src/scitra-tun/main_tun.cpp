@@ -55,10 +55,10 @@ std::unique_ptr<Arguments> parseCommandLine(int argc, char* argv[])
     app.add_option("-p,--ports", args->ports,
         "One ore mote statically forwarded TCP/UDP ports.");
     app.add_option("-q,--queues", args->queues,
-        "Number of TUN queues to create (default 1, max. 64)")
+        "Number of TUN queues to create (default 1)")
         ->check(CLI::Range(1, 64));
     app.add_option("-t,--threads", args->threads,
-        "Number of worker threads to create (default 1, max. 64)")
+        "Number of worker threads to create (default 1)")
         ->check(CLI::Range(1, 64));
     app.add_option("--policy", args->policy,
         "Path to a JSON file containing path policies");
@@ -66,6 +66,13 @@ std::unique_ptr<Arguments> parseCommandLine(int argc, char* argv[])
         "Path to log file. If not given logs to stderr");
     app.add_flag("--dispatch", args->enabledDispatch,
         "Assume the duties of the dispatcher and listen on UDP port 30041");
+    app.add_flag("--stun", args->stun, "Attempt NAT traversal");
+    app.add_option("--stun-port", args->stunPort,
+        "Port at which STUN servers are expected. If set to zero uses the same port as for SCION"
+        " (default 3478");
+    app.add_option("--nat-timeout", args->stunTimeout,
+        "Timeout for NAT bindings. After how many seconds of inactivity a STUN request must be"
+        " repeated. (default 30)");
     app.add_flag("--tui", args->tui, "Start with TUI");
     try {
         app.parse(argc, argv);
@@ -108,6 +115,7 @@ int main(int argc, char* argv[])
 
     try {
         blockSignals();
+        Socket::configureStun(args->stun, args->stunPort, args->stunTimeout);
         ScitraTun app(*args);
         bool tui = args->tui;
         args.reset();

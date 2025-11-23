@@ -50,6 +50,7 @@ struct arguments {
     const char* message;
     int count;
     bool interactive;
+    bool stun;
     bool quiet;
 };
 
@@ -61,6 +62,7 @@ static const char* HELP_MESSAGE = \
     "  COUNT   Number of messages to send\n"
     "Optional Flags:\n"
     "  -interactive Prompt for path selection (client only)\n"
+    "  -stun        Attempt NAT traversal (client only)\n"
     "  -quiet       Don't print addresses and paths";
 
 bool parse_args(int argc, char* argv[], struct arguments* args)
@@ -73,6 +75,7 @@ bool parse_args(int argc, char* argv[], struct arguments* args)
         { "msg", 'm', OPTPARSE_REQUIRED },
         { "count", 'c', OPTPARSE_REQUIRED },
         { "interactive", 'i', OPTPARSE_NONE},
+        { "stun", 's', OPTPARSE_NONE},
         { "quiet", 'q', OPTPARSE_NONE},
         { 0 }
     };
@@ -105,6 +108,9 @@ bool parse_args(int argc, char* argv[], struct arguments* args)
             break;
         case 'i':
             args->interactive = true;
+            break;
+        case 's':
+            args->stun = true;
             break;
         case 'q':
             args->quiet = true;
@@ -222,6 +228,46 @@ cleanup1:
     return EXIT_SUCCESS;
 }
 
+void get_stun_mapping(scion_socket* socket, const struct sockaddr* next_hop, socklen_t next_hop_len)
+{
+    scion_error err;
+    struct sockaddr_storage stun_server;
+    memcpy(&stun_server, next_hop, next_hop_len);
+    if (stun_server.ss_family == AF_INET)
+        ((struct sockaddr_in*)&stun_server)->sin_port = htons(3478);
+    else if (stun_server.ss_family == AF_INET6)
+        ((struct sockaddr_in6*)&stun_server)->sin6_port = htons(3478);
+
+    err = scion_request_stun_mapping(socket, (struct sockaddr*)&stun_server, next_hop_len);
+    if (err) {
+        printf("Sending STUN request failed\n");
+        return;
+    }
+
+    // use poll for the timeout
+    struct pollfd fds = {
+        .fd = scion_underlay_handle(socket),
+        .events = POLLIN,
+    };
+    if (poll(&fds, 1, 500) <= 0) {
+        printf("Can't get SNAT address mapping: %s\n", "Timeout");
+        return;
+    }
+
+    // TODO: If an unrelated packet was received first, this can still hang forever.
+    err = scion_recv_stun_response(socket);
+    if (err == SCION_STUN_RECEIVED) {
+        struct sockaddr_scion addr;
+        scion_getmapped(socket, &addr);
+        char buffer[128] = {0};
+        size_t len = sizeof(buffer);
+        if (!scion_print_ep(&addr, buffer, &len))
+            printf("SNAT mapped address: %s\n", buffer);
+    } else {
+        printf("Can't get SNAT address mapping: %s\n", scion_error_string(err));
+    }
+}
+
 int run_client(
     scion_context* ctx, const struct sockaddr_storage* bind, const struct arguments* args)
 {
@@ -300,6 +346,11 @@ int run_client(
     }
     err = scion_connect(socket, &remote);
     if (err) goto cleanup2;
+
+    // STUN
+    if (args->stun) {
+        get_stun_mapping(socket, (struct sockaddr*)&next_hop, next_hop_len);
+    }
 
     // Send message
     scion_hdr_cache* headers = scion_hdr_cache_allocate();

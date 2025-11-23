@@ -45,6 +45,8 @@ struct ScionErrorCategory : public std::error_category
                 return "operation timed out";
             case ErrorCode::ScmpReceived:
                 return "received an SCMP packet";
+            case ErrorCode::StunReceived:
+                return "received a STUN packet";
             case ErrorCode::LogicError:
                 return "expected precondition failed";
             case ErrorCode::NotImplemented:
@@ -115,6 +117,10 @@ struct ScionErrorCondition : std::error_category
                 return "operation timed out";
             case ErrorCondition::ScmpReceived:
                 return "received an SCMP packet";
+            case ErrorCondition::StunReceived:
+                return "received a STUN packet";
+            case ErrorCondition::AltSuccess:
+                return "no error or alternate success";
             case ErrorCondition::LogicError:
                 return "expected precondition failed";
             case ErrorCondition::NotImplemented:
@@ -159,6 +165,9 @@ struct ScionErrorCondition : std::error_category
     bool equivalent(const std::error_code& ec, int condition) const noexcept
     {
         if (ec.category() == scionErrorCategory) {
+            if (static_cast<ErrorCondition>(condition) == ErrorCondition::AltSuccess) {
+                return ec.value() <= static_cast<int>(ErrorCondition::AltSuccess);
+            }
             return ec.value() == condition;
         } else if (ec.category() == std::system_category()) {
             auto value = ec.value();
@@ -171,6 +180,8 @@ struct ScionErrorCondition : std::error_category
                 return value == EBADF || value == ENOTSOCK;
             case ErrorCondition::NoLocalHostAddr:
                 return value == EDESTADDRREQ;
+            case ErrorCondition::Timeout:
+                // fall-through to ErrorCondition::WouldBlock
             case ErrorCondition::WouldBlock:
                 // POSIX does not require EAGAIN and EWOULDBLOCK to have the same value
                 return value == EAGAIN || value == EWOULDBLOCK;

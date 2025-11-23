@@ -13,6 +13,7 @@ target_sources(scitra-tun PRIVATE
     "src/scitra-tun/main_tun.cpp"
     "src/scitra-tun/netlink.cpp"
     "src/scitra-tun/scitra_tun.cpp"
+    "src/scitra-tun/socket.cpp"
     "src/scitra-tun/sys_net.cpp"
     "src/scitra-tun/tui.cpp"
 )

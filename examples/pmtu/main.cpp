@@ -160,7 +160,7 @@ int main(int argc, char* argv[])
         }
 
         // Wait for reply or SCMP error
-        auto recvd = s.recv(recvBuffer, MSG_RECV_SCMP);
+        auto recvd = s.recv(recvBuffer, SMSG_RECV_SCMP);
         if (isError(recvd)) {
             if (recvd.error() != ErrorCode::ScmpReceived) {
                 std::cerr << "Error: " << fmtError(recvd.error()) << '\n';

@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 /// \file
-/// \brief Main include file for SCION-CPP with the POSIX backend.
+/// \brief Main include file for SCION++ with a POSIX socket-like API.
 
 #pragma once
 

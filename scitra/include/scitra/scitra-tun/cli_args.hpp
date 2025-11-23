@@ -40,5 +40,8 @@ struct Arguments
     std::filesystem::path policy;
     std::filesystem::path logFile;
     bool enabledDispatch = false;
+    bool stun = false;
+    std::uint16_t stunPort = 3478;
+    std::uint32_t stunTimeout = 30;
     bool tui = false;
 };

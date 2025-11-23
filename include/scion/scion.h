@@ -123,6 +123,7 @@ typedef enum scion_error_t
     SCION_PENDING,            ///< operation not completed yet
     SCION_TIMEOUT,            ///< operation timed out
     SCION_SCMP_RECEIVED,      ///< received an SCMP packet
+    SCION_STUN_RECEIVED,      ///< received a STUN packet
     SCION_NO_METADATA = 64,   ///< no path metadata available
     SCION_PATH_IS_EMPTY = 65, ///< path is empty
     // errors
@@ -219,9 +220,9 @@ uint64_t scion_time_steady(void);
 
 /// \brief SCION host address. All fields are in network byte order.
 struct scion_addr {
-    scion_host_addr_type sscion_host_type; /// \brief Host address type
-    uint32_t sscion_scope_id;              /// \brief IPv6 scope-id
-    uint64_t sscion_isd_asn;               /// \brief SCION ISD and ASN
+    scion_host_addr_type sscion_host_type; ///< Host address type
+    uint32_t sscion_scope_id;              ///< IPv6 scope-id
+    uint64_t sscion_isd_asn;               ///< SCION ISD and ASN
     /// \brief Host address 4-16 bytes
     union {
         uint8_t sscion_addr[16];
@@ -786,6 +787,10 @@ scion_error scion_set_nonblocking(scion_socket* socket, bool nonblocking);
 /// \brief Returns the current address to which the socket is bound in `addr`.
 void scion_getsockname(scion_socket* socket, struct sockaddr_scion* addr);
 
+/// \brief Returns the local address after SNAT. Differs from
+/// scion_getsockname() if and only if NAT traversal is active.
+void scion_getmapped(scion_socket* socket, struct sockaddr_scion* addr);
+
 /// \brief Returns the currently connected remote address in `addr`.
 void scion_getpeername(scion_socket* socket, struct sockaddr_scion* addr);
 
@@ -835,6 +840,11 @@ struct scion_packet
 scion_error scion_measure(
     scion_socket* socket, const struct scion_packet* args, size_t* hdr_size);
 
+/// \brief Send a STUN binding request to the given router and prepare the
+/// the scion_recv* functions to expect a STUN response.
+scion_error scion_request_stun_mapping(scion_socket* socket, struct sockaddr* router,
+    socklen_t router_len);
+
 /// \brief Transmits a message.
 ///
 /// \param[in] headers Pointer to a header cache. Must not be NULL. If the same
@@ -864,6 +874,11 @@ scion_error scion_send(
 scion_error scion_send_cached(
     scion_socket* socket, scion_hdr_cache* headers, const void* buf, size_t* n,
     struct scion_packet* args);
+
+/// \brief Receive packets until a STUN response matching the last request
+/// made with scion_request_stun_mapping() or scion_request_stun_mapping_async()
+/// is found.
+scion_error scion_recv_stun_response(scion_socket* socket);
 
 /// \brief Receive messages from a socket.
 ///
@@ -895,6 +910,12 @@ struct scion_async_send_handler
     void* user_ptr;
 };
 
+/// \brief Same as scion_request_stun_mapping(), but returns immediately without
+/// waiting for the send operation to complete. On completion, `handler` is
+/// called with any potential error code.
+void scion_request_stun_mapping_async(scion_socket* socket, struct sockaddr* router,
+    socklen_t router_len, struct scion_async_send_handler handler);
+
 /// \brief Same as scion_send(), but returns immediately without waiting for the
 /// send operation to complete. On completion, `handler` is called with any
 /// potential error code and the number of bytes sent.
@@ -924,7 +945,13 @@ struct scion_async_recv_handler
     void* user_ptr;
 };
 
-/// \brief Same as scion_recv, but returns immediately without waiting for
+/// \brief Same as scion_recv_stun_response(), but returns immediately without
+/// waiting for messages to be received. When the asynchronous operation
+/// completes, `handler` is called with any potential error code.
+void scion_recv_stun_response_async(scion_socket* socket,
+    struct scion_async_recv_handler handler);
+
+/// \brief Same as scion_recv(), but returns immediately without waiting for
 /// messages to be received. When the asynchronous operation completes,
 /// `handler` is called with any potential error code and the number of bytes
 /// received.

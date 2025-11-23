@@ -103,6 +103,16 @@ bool PacketBuffer::parse(ReadStream& rs, bool noUnderlay, IsScion* isScion, SCIO
         }
     }
 
+    // STUN
+    std::span<const std::byte> header;
+    if (rs.lookahead(header, STUN::stunHeaderSize, NullStreamError)) {
+        if (detectStun(header)) {
+            if (!stun.serialize(rs, err)) return err.propagate();
+            stunValid = true;
+            return true;
+        }
+    }
+
     // SCION and/or L4
     auto proto = ScionProto(0);
     if (noUnderlay) {
@@ -186,6 +196,9 @@ bool PacketBuffer::emit(WriteStream& ws, bool noUnderlay, SCION_STREAM_ERROR& er
             outerUdpPos = ws.getPos().first;
             if (!outerUDP.serialize(ws, err)) return err.propagate();
         }
+    }
+    if (stunValid) {
+        if (!stun.serialize(ws, err)) return err.propagate();
     }
     if (scionValid) {
         if (!sci.serialize(ws, err)) return err.propagate();

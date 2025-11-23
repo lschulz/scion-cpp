@@ -1137,6 +1137,16 @@ void scion_getsockname(scion_socket* socket, struct sockaddr_scion* addr)
 }
 
 extern "C"
+void scion_getmapped(scion_socket* socket, struct sockaddr_scion* addr)
+{
+    using namespace scion;
+    auto local = std::visit([&](auto&& s) -> ScIPEndpoint {
+        return s.mappedEp();
+    }, socket->v);
+    *addr = details::endpoint_cast(local);
+}
+
+extern "C"
 void scion_getpeername(scion_socket* socket, struct sockaddr_scion* addr)
 {
     using namespace scion;
@@ -1182,6 +1192,26 @@ scion_error scion_measure(scion_socket* socket, const scion_packet* args, size_t
         *hdr_size = *size;
         return SCION_OK;
     }
+}
+
+extern "C"
+scion_error scion_request_stun_mapping(scion_socket* socket, struct sockaddr* router,
+    socklen_t router_len)
+{
+    using namespace scion;
+
+    if (!router) {
+        return SCION_INVALID_ARGUMENT;
+    }
+
+    boost::asio::ip::udp::endpoint addr;
+    auto err = sockaddr_to_asio(router, router_len, addr);
+    if (err) return err;
+
+    auto ec = std::visit([&](auto&& s) -> std::error_code {
+        return s.requestStunMapping(addr);
+    }, socket->v);
+    return translate_error(ec);
 }
 
 extern "C"
@@ -1269,6 +1299,16 @@ scion_error scion_send_cached(scion_socket* socket, scion_hdr_cache* headers,
 }
 
 extern "C"
+scion_error scion_recv_stun_response(scion_socket* socket)
+{
+    using namespace scion;
+    auto ec = std::visit([&] (auto&& s) -> std::error_code {
+        return s.recvStunResponse();
+    }, socket->v);
+    return translate_error(ec);
+}
+
+extern "C"
 void* scion_recv(scion_socket* socket,
     void* buf, size_t* n, struct scion_packet* args, scion_error* err)
 {
@@ -1304,6 +1344,52 @@ void* scion_recv(scion_socket* socket,
 
     *n = recvd->size();
     return recvd->data();
+}
+
+extern "C"
+void scion_request_stun_mapping_async(scion_socket* socket, struct sockaddr* router,
+    socklen_t router_len, struct scion_async_send_handler handler)
+{
+    using namespace scion;
+
+    if (!router) {
+        handler.callback(SCION_INVALID_ARGUMENT, 0, handler.user_ptr);
+        return;
+    }
+
+    auto addr = std::make_unique<boost::asio::ip::udp::endpoint>();
+    auto err = sockaddr_to_asio(router, router_len, *addr);
+    if (err) {
+        handler.callback(err, 0, handler.user_ptr);
+        return;
+    }
+
+    struct send_stun_impl {
+        scion_async_send_handler m_handler;
+        const scion_packet* m_args;
+        std::unique_ptr<boost::asio::ip::udp::endpoint> m_addr;
+
+        send_stun_impl(scion_async_send_handler handler,
+            std::unique_ptr<boost::asio::ip::udp::endpoint>&& underlay)
+            : m_handler(handler), m_addr(std::move(underlay))
+        {}
+
+        void operator()(std::error_code ec)
+        {
+            m_addr.reset();
+            // all memory must have been released before calling the completion handler
+            if (ec) {
+                m_handler.callback(translate_error(ec), 0, m_handler.user_ptr);
+            } else {
+                m_handler.callback(SCION_OK, 0, m_handler.user_ptr);
+            }
+        }
+    };
+
+    std::visit([&] (auto&& s) {
+        send_stun_impl token(handler, std::move(addr));
+        s.requestStunMappingAsync(*token.m_addr, std::move(token));
+    }, socket->v);
 }
 
 extern "C"
@@ -1440,6 +1526,24 @@ void scion_send_cached_async(
             std::span<const std::byte>(reinterpret_cast<const std::byte*>(buf), n),
             std::move(token)
         );
+    }, socket->v);
+}
+
+extern "C"
+void scion_recv_stun_response_async(scion_socket* socket,
+    struct scion_async_recv_handler handler)
+{
+    using namespace scion;
+
+    struct recv_stun_impl {
+        scion_async_recv_handler m_handler;
+        void operator()(std::error_code ec)
+        {
+            m_handler.callback(translate_error(ec), nullptr, 0, m_handler.user_ptr);
+        }
+    };
+    std::visit([&] (auto&& s) {
+        s.recvStunResponseAsync(recv_stun_impl{handler});
     }, socket->v);
 }
 

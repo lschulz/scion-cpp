@@ -50,6 +50,7 @@ struct arguments {
     const char* message;
     int count;
     bool interactive;
+    bool stun;
     bool quiet;
 };
 
@@ -61,6 +62,7 @@ static const char* HELP_MESSAGE = \
     "  COUNT   Number of messages to send\n"
     "Optional Flags:\n"
     "  -interactive Prompt for path selection (client only)\n"
+    "  -stun        Attempt NAT traversal (client only)\n"
     "  -quiet       Don't print addresses and paths";
 
 bool parse_args(int argc, char* argv[], struct arguments* args)
@@ -73,6 +75,7 @@ bool parse_args(int argc, char* argv[], struct arguments* args)
         { "msg", 'm', OPTPARSE_REQUIRED },
         { "count", 'c', OPTPARSE_REQUIRED },
         { "interactive", 'i', OPTPARSE_NONE},
+        { "stun", 's', OPTPARSE_NONE},
         { "quiet", 'q', OPTPARSE_NONE},
         { 0 }
     };
@@ -105,6 +108,9 @@ bool parse_args(int argc, char* argv[], struct arguments* args)
             break;
         case 'i':
             args->interactive = true;
+            break;
+        case 's':
+            args->stun = true;
             break;
         case 'q':
             args->quiet = true;
@@ -250,17 +256,20 @@ struct Client
     scion_hdr_cache* headers;
     struct sockaddr_scion from;
     struct sockaddr_storage next_hop;
+    socklen_t next_hop_len;
     struct scion_packet pkt;
     char buffer[1024];
     const struct arguments* args;
     int i;
 };
 
+void client_stun_sent(scion_error err, size_t n, void* user_ptr);
+void client_stun_received(scion_error err, void* recvd, size_t n, void* user_ptr);
 void client_sent(scion_error err, size_t n, void* user_ptr);
 void client_received(scion_error err, void* recvd, size_t n, void* user_ptr);
 void client_timeout(scion_error err, void* user_ptr);
 
-int run_client(struct Client* cl,
+int client_init(struct Client* cl,
     scion_context* ctx, const struct sockaddr_storage* bind, const struct arguments* args)
 {
     memset(cl, 0, sizeof(struct Client));
@@ -321,10 +330,10 @@ int run_client(struct Client* cl,
     paths[selection] = NULL;
     scion_release_paths(paths, path_count); // release paths we didn't choose
 
-    socklen_t next_hop_len = sizeof(cl->next_hop);
-    err = scion_path_next_hop(cl->path, (struct sockaddr*)&cl->next_hop, &next_hop_len);
+    cl->next_hop_len = sizeof(cl->next_hop);
+    err = scion_path_next_hop(cl->path, (struct sockaddr*)&cl->next_hop, &cl->next_hop_len);
     if (err == SCION_PATH_IS_EMPTY) {
-        if (scion_sockaddr_get_host(&remote, (struct sockaddr*)&cl->next_hop, next_hop_len))
+        if (scion_sockaddr_get_host(&remote, (struct sockaddr*)&cl->next_hop, cl->next_hop_len))
         return EXIT_FAILURE;
     } else if (err) {
         return EXIT_FAILURE;
@@ -343,7 +352,66 @@ int run_client(struct Client* cl,
     }
     err = scion_connect(cl->socket, &remote);
     if (err) return EXIT_FAILURE;
+    return EXIT_SUCCESS;
+}
 
+void client_cleanup(struct Client* cl)
+{
+    scion_hdr_cache_free(cl->headers);
+    scion_close(cl->socket);
+    scion_release_paths(&cl->path, 1);
+    scion_timer_free(cl->timer);
+}
+
+void client_get_stun_mapping(scion_context* ctx, struct Client* cl)
+{
+    struct sockaddr_storage stun_server;
+    memcpy(&stun_server, &cl->next_hop, cl->next_hop_len);
+    if (stun_server.ss_family == AF_INET)
+        ((struct sockaddr_in*)&stun_server)->sin_port = htons(3478);
+    else if (stun_server.ss_family == AF_INET6)
+        ((struct sockaddr_in6*)&stun_server)->sin6_port = htons(3478);
+
+    struct scion_async_send_handler handler = {
+        &client_stun_sent, cl
+    };
+    scion_request_stun_mapping_async(cl->socket,
+        (struct sockaddr*)&stun_server, cl->next_hop_len, handler);
+    if (scion_run_for(ctx, 500) < 2) {
+        // STUN timed out, cancel socket operations and run completion handlers
+        scion_cancel(cl->socket);
+        scion_restart(ctx);
+        scion_run(ctx);
+    }
+}
+
+void client_stun_sent(scion_error err, size_t n, void* user_ptr)
+{
+    struct Client* cl = user_ptr;
+    struct scion_async_recv_handler handler = {
+        &client_stun_received, cl
+    };
+    scion_recv_stun_response_async(cl->socket, handler);
+}
+
+void client_stun_received(scion_error err, void* recvd, size_t n, void* user_ptr)
+{
+    struct Client* cl = user_ptr;
+    if (err == SCION_STUN_RECEIVED) {
+        struct sockaddr_scion addr;
+        scion_getmapped(cl->socket, &addr);
+        char buffer[128] = {0};
+        size_t len = sizeof(buffer);
+        if (!scion_print_ep(&addr, buffer, &len))
+            printf("SNAT mapped address: %s\n", buffer);
+    } else {
+        printf("Can't get SNAT address mapping: %s\n", scion_error_string(err));
+    }
+}
+
+int client_run(struct Client* cl,
+    scion_context* ctx, const struct sockaddr_storage* bind, const struct arguments* args)
+{
     // Send message
     cl->headers = scion_hdr_cache_allocate();
     if (!cl->headers) return EXIT_FAILURE;
@@ -356,14 +424,6 @@ int run_client(struct Client* cl,
     };
     scion_send_async(cl->socket, cl->headers, args->message, strlen(args->message), &cl->pkt, handler);
     return EXIT_SUCCESS;
-}
-
-void client_cleanup(struct Client* cl)
-{
-    scion_hdr_cache_free(cl->headers);
-    scion_close(cl->socket);
-    scion_release_paths(&cl->path, 1);
-    scion_timer_free(cl->timer);
 }
 
 void client_sent(scion_error err, size_t n, void* user_ptr)
@@ -472,9 +532,15 @@ int main(int argc, char* argv[])
     int result = 0;
     if (args.remote_addr) {
         struct Client* client = malloc(sizeof(struct Client));
-        result = run_client(client, ctx, &bind_addr, &args);
+        result = client_init(client, ctx, &bind_addr, &args);
         if (result == EXIT_SUCCESS) {
-            scion_run(ctx);
+            if (args.stun) {
+                client_get_stun_mapping(ctx, client);
+                scion_restart(ctx);
+            }
+            if (client_run(client, ctx, &bind_addr, &args) == EXIT_SUCCESS) {
+                scion_run(ctx);
+            }
         }
         client_cleanup(client);
         free(client);

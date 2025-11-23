@@ -98,8 +98,9 @@ public:
         const Path& path,
         const UnderlayEp& nextHop,
         std::span<const std::byte> payload,
-        int flags = 0)
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
+        if (flags & ~SMSG_NO_FLAGS) return Error(ErrorCode::InvalidArgument);
         auto ec = packager.pack(
             headers, nullptr, path, ext::NoExtensions, hdr::UDP{}, payload);
         if (ec) return Error(ec);
@@ -113,8 +114,9 @@ public:
         const UnderlayEp& nextHop,
         ExtRange&& extensions,
         std::span<const std::byte> payload,
-        int flags = 0)
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
+        if (flags & ~SMSG_NO_FLAGS) return Error(ErrorCode::InvalidArgument);
         auto ec = packager.pack(
             headers, nullptr, path, std::forward<ExtRange>(extensions), hdr::UDP{}, payload);
         if (ec) return Error(ec);
@@ -128,8 +130,9 @@ public:
         const Path& path,
         const UnderlayEp& nextHop,
         std::span<const std::byte> payload,
-        int flags = 0)
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
+        if (flags & ~SMSG_NO_FLAGS) return Error(ErrorCode::InvalidArgument);
         auto ec = packager.pack(
             headers, &to, path, ext::NoExtensions, hdr::UDP{}, payload);
         if (ec) return Error(ec);
@@ -144,8 +147,9 @@ public:
         const UnderlayEp& nextHop,
         ExtRange&& extensions,
         std::span<const std::byte> payload,
-        int flags = 0)
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
+        if (flags & ~SMSG_NO_FLAGS) return Error(ErrorCode::InvalidArgument);
         auto ec = packager.pack(
             headers, &to, path, std::forward<ExtRange>(extensions), hdr::UDP{}, payload);
         if (ec) return Error(ec);
@@ -157,8 +161,9 @@ public:
         HeaderCache<Alloc>& headers,
         const UnderlayEp& nextHop,
         std::span<const std::byte> payload,
-        int flags = 0)
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
+        if (flags & ~SMSG_NO_FLAGS) return Error(ErrorCode::InvalidArgument);
         hdr::UDP udp;
         udp.sport = packager.localEp().port();
         udp.dport = packager.remoteEp().port();
@@ -173,8 +178,9 @@ public:
         const Endpoint& to,
         const UnderlayEp& nextHop,
         std::span<const std::byte> payload,
-        int flags = 0)
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
+        if (flags & ~SMSG_NO_FLAGS) return Error(ErrorCode::InvalidArgument);
         hdr::UDP udp;
         udp.sport = packager.localEp().port();
         udp.dport = to.port();
@@ -183,8 +189,10 @@ public:
         return ScmpSocket<Underlay>::sendUnderlay(headers.get(), payload, nextHop, flags);
     }
 
-    Maybe<std::span<std::byte>> recv(std::span<std::byte> buf, int flags = 0)
+    Maybe<std::span<std::byte>> recv(std::span<std::byte> buf, MsgFlags flags = SMSG_NO_FLAGS)
     {
+        if (flags & ~(SMSG_DONTWAIT | SMSG_PEEK | SMSG_RECV_SCMP | SMSG_RECV_STUN))
+            return Error(ErrorCode::InvalidArgument);
         UnderlayEp ulSource;
         return recvImpl(buf, nullptr, nullptr, ulSource,
             ext::NoExtensions, ext::NoExtensions, flags);
@@ -195,8 +203,10 @@ public:
         std::span<std::byte> buf,
         HbHExt&& hbhExt,
         E2EExt&& e2eExt,
-        int flags = 0)
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
+        if (flags & ~(SMSG_DONTWAIT | SMSG_PEEK | SMSG_RECV_SCMP | SMSG_RECV_STUN))
+            return Error(ErrorCode::InvalidArgument);
         UnderlayEp ulSource;
         return recvImpl(buf, nullptr, nullptr, ulSource,
             std::forward<HbHExt>(hbhExt), std::forward<E2EExt>(e2eExt), flags);
@@ -205,8 +215,10 @@ public:
     Maybe<std::span<std::byte>> recvFrom(
         std::span<std::byte> buf,
         Endpoint& from,
-        int flags = 0)
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
+        if (flags & ~(SMSG_DONTWAIT | SMSG_PEEK | SMSG_RECV_SCMP | SMSG_RECV_STUN))
+            return Error(ErrorCode::InvalidArgument);
         UnderlayEp ulSource;
         return recvImpl(buf, &from, nullptr, ulSource,
             ext::NoExtensions, ext::NoExtensions, flags);
@@ -218,8 +230,10 @@ public:
         Endpoint& from,
         HbHExt&& hbhExt,
         E2EExt&& e2eExt,
-        int flags = 0)
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
+        if (flags & ~(SMSG_DONTWAIT | SMSG_PEEK | SMSG_RECV_SCMP | SMSG_RECV_STUN))
+            return Error(ErrorCode::InvalidArgument);
         UnderlayEp ulSource;
         return recvImpl(buf, &from, nullptr, ulSource,
             std::forward<HbHExt>(hbhExt), std::forward<E2EExt>(e2eExt), flags);
@@ -230,8 +244,10 @@ public:
         Endpoint& from,
         RawPath& path,
         UnderlayEp& ulSource,
-        int flags = 0)
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
+        if (flags & ~(SMSG_DONTWAIT | SMSG_PEEK | SMSG_RECV_SCMP | SMSG_RECV_STUN))
+            return Error(ErrorCode::InvalidArgument);
         return recvImpl(buf, &from, &path, ulSource,
             ext::NoExtensions, ext::NoExtensions, flags);
     }
@@ -244,8 +260,10 @@ public:
         UnderlayEp& ulSource,
         HbHExt&& hbhExt,
         E2EExt&& e2eExt,
-        int flags = 0)
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
+        if (flags & ~(SMSG_DONTWAIT | SMSG_PEEK | SMSG_RECV_SCMP | SMSG_RECV_STUN))
+            return Error(ErrorCode::InvalidArgument);
         return recvImpl(buf, &from, &path, ulSource, hbhExt, e2eExt, flags);
     }
 
@@ -258,7 +276,7 @@ private:
         UnderlayEp& ulSource,
         HbHExt&& hbhExt,
         E2EExt&& e2eExt,
-        int flags = 0)
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
         auto scmpCallback = [this] (
             const scion::ScIPAddress& from,
@@ -269,23 +287,28 @@ private:
             if (scmpHandler) scmpHandler->handleScmp(from, path, msg, payload);
         };
         while (true) {
-            auto recvd = socket.recvfrom(buf, ulSource, flags & ~MSG_RECV_SCMP);
+            auto recvd = socket.recvfrom(buf, ulSource, flags & ~SMSG_SCION_ALL);
             if (isError(recvd)) return propagateError(recvd);
             auto payload = packager.template unpack<hdr::UDP>(get(recvd),
                 generic::toGenericAddr(EndpointTraits<UnderlayEp>::host(ulSource)),
                 std::forward<HbHExt>(hbhExt), std::forward<E2EExt>(e2eExt),
                 from, path, scmpCallback);
+
             if (payload.has_value()) {
+                // received a regular SCION data packet
                 return std::span<std::byte>{
                     const_cast<std::byte*>(payload->data()),
                     payload->size()
                 };
-            } else if (flags & MSG_PEEK) {
+            } else if (flags & SMSG_PEEK) {
                 // discard the peeked packet from the receive queue
-                (void)socket.recvfrom(buf, ulSource, flags & ~MSG_PEEK);
+                (void)socket.recvfrom(buf, ulSource, flags & ~(SMSG_PEEK | SMSG_SCION_ALL));
             }
+
             if (getError(payload) == ErrorCode::ScmpReceived) {
-                if (flags & MSG_RECV_SCMP) return propagateError(payload);
+                if (flags & SMSG_RECV_SCMP) return propagateError(payload);
+            } else if (getError(payload) == ErrorCode::StunReceived){
+                if (flags & SMSG_RECV_STUN) return propagateError(payload);
             } else {
                 SCION_DEBUG_PRINT((std::format("Received invalid packet from {}: {}\n",
                     ulSource, fmtError(getError(payload)))));

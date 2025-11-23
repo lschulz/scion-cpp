@@ -26,6 +26,7 @@
 #include "scion/asio/addresses.hpp"
 #include "scion/extensions/extension.hpp"
 #include "scion/posix/underlay.hpp"
+#include "scion/socket/flags.hpp"
 #include "scion/socket/packager.hpp"
 
 #include <boost/asio.hpp>
@@ -137,6 +138,14 @@ public:
         }
     }
 
+    /// \brief Set the host address and port after SNAT to facilitate NAT
+    /// traversal. NAT traversal can be disabled by setting this address to
+    /// the same IP and port as returned by localEp() again.
+    void setMappedIpAndPort(const Endpoint::LocalEp& mapped)
+    {
+        packager.setMappedIpAndPort(mapped);
+    }
+
     /// \brief Locally store a default remote address. Receive methods will only
     /// return packets from the "connected" address. Can be called multiple
     /// times to change the remote address or with an unspecified address to
@@ -172,6 +181,10 @@ public:
 
     /// \brief Returns the full address of the socket.
     Endpoint localEp() const { return packager.localEp(); }
+
+    /// \brief Returns the local address after SNAT. Differs from localEp() if
+    /// and only if NAT traversal is active.
+    Endpoint mappedEp() const { return packager.localEp(); }
 
     /// \brief Returns the address of the connected remote host.
     Endpoint remoteEp() const { return packager.remoteEp(); }
@@ -218,6 +231,20 @@ public:
     /// \name Synchronous Send
     ///@{
 
+    /// \brief Send a STUN binding request to the given router and prepare the
+    /// recv* methods to expect a STUN response.
+    std::error_code requestStunMapping(const UnderlayEp& router)
+    {
+        std::array<std::byte, 20> buffer;
+        std::span<std::byte> span(buffer.data(), buffer.size());
+        auto server = generic::toGenericAddr(EndpointTraits<UnderlayEp>::host(router));
+        auto ec = packager.createStunRequest(span, server);
+        if (ec) return ec;
+        auto res = sendUnderlay(span, std::span<std::byte>(), router);
+        if (isError(res)) return res.error();
+        return ErrorCode::Ok;
+    }
+
     template <typename Path, typename Alloc>
     Maybe<std::span<const std::byte>> sendScmpTo(
         HeaderCache<Alloc>& headers,
@@ -225,12 +252,14 @@ public:
         const Path& path,
         const UnderlayEp& nextHop,
         const hdr::ScmpMessage& message,
-        std::span<const std::byte> payload)
+        std::span<const std::byte> payload,
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
+        if (flags & ~SMSG_NO_FLAGS) return Error(ErrorCode::InvalidArgument);
         auto ec = packager.pack(
             headers, &to, path, ext::NoExtensions, hdr::SCMP(message), payload);
         if (ec) return Error(ec);
-        return sendUnderlay(headers.get(), payload, nextHop);
+        return sendUnderlay(headers.get(), payload, nextHop, flags);
     }
 
     template <typename Path, ext::extension_range ExtRange, typename Alloc>
@@ -241,17 +270,91 @@ public:
         const UnderlayEp& nextHop,
         ExtRange&& extensions,
         const hdr::ScmpMessage& message,
-        std::span<const std::byte> payload)
+        std::span<const std::byte> payload,
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
+        if (flags & ~SMSG_NO_FLAGS) return Error(ErrorCode::InvalidArgument);
         auto ec = packager.pack(
             headers, &to, path, std::forward<ExtRange>(extensions), hdr::SCMP(message), payload);
         if (ec) return Error(ec);
-        return sendUnderlay(headers.get(), payload, nextHop);
+        return sendUnderlay(headers.get(), payload, nextHop, flags);
     }
 
     ///@}
     /// \name Asynchronous Send
     ///@{
+
+    /// \brief Send a STUN binding request to the given router and prepare the
+    /// recv* methods to expect a STUN response.
+    template <boost::asio::completion_token_for<void(std::error_code)> CompletionToken>
+    auto requestStunMappingAsync(const UnderlayEp& router, CompletionToken&& token)
+    {
+        auto initiation = [] (
+            boost::asio::completion_handler_for<void(std::error_code)> auto&& completionHandler,
+            UnderlaySocket& socket,
+            ScionPackager& packager,
+            const UnderlayEp& router)
+        {
+            struct intermediate_completion_handler
+            {
+                UnderlaySocket& socket_;
+                std::unique_ptr<std::array<std::byte, 20>> buf_;
+                typename std::decay<decltype(completionHandler)>::type handler_;
+
+                void operator()(const boost::system::error_code& error, std::size_t sent)
+                {
+                    if (error) handler_(error);
+                    handler_(ErrorCode::Ok);
+                }
+
+                using executor_type = boost::asio::associated_executor_t<
+                    typename std::decay<decltype(completionHandler)>::type,
+                    UnderlaySocket::executor_type>;
+                executor_type get_executor() const noexcept
+                {
+                    return boost::asio::get_associated_executor(
+                        handler_, socket_.get_executor());
+                }
+
+                using allocator_type = boost::asio::associated_allocator_t<
+                    typename std::decay<decltype(completionHandler)>::type,
+                    std::allocator<void>>;
+                allocator_type get_allocator() const noexcept
+                {
+                    return boost::asio::get_associated_allocator(
+                        handler_, std::allocator<void>{});
+                }
+            };
+
+            auto buf = std::make_unique<std::array<std::byte, 20>>();
+            auto ec = packager.createStunRequest(
+                std::span<std::byte, 20>(buf->data(), buf->size()),
+                generic::toGenericAddr(EndpointTraits<UnderlayEp>::host(router)));
+            if (ec) {
+                auto executor = boost::asio::get_associated_executor(
+                    completionHandler, socket.get_executor());
+                boost::asio::post(
+                    boost::asio::bind_executor(executor,
+                        std::bind(std::forward<decltype(completionHandler)>(completionHandler),
+                            ec)));
+            } else {
+                auto asioBuffer = boost::asio::buffer(*buf);
+                socket.async_send_to(asioBuffer, router,
+                    intermediate_completion_handler{
+                        socket, std::move(buf),
+                        std::forward<decltype(completionHandler)>(completionHandler)
+                    }
+                );
+            }
+        };
+
+        return boost::asio::async_initiate<
+            CompletionToken, void(std::error_code)>
+        (
+            initiation, token,
+            std::ref(socket), std::ref(packager), std::ref(router)
+        );
+    }
 
     template <typename Path, typename Alloc,
         boost::asio::completion_token_for<void(Maybe<std::span<const std::byte>>)>
@@ -290,15 +393,37 @@ public:
     /// \name Synchronous Receive
     ///@{
 
+    /// \brief Receive packets until a STUN response matching the last request
+    /// made with requestStunMapping() or requestStunMappingAsync() is found.
+    std::error_code recvStunResponse(MsgFlags flags = SMSG_NO_FLAGS)
+    {
+        if (flags & ~SMSG_NO_FLAGS) return ErrorCode::InvalidArgument;
+        std::array<std::byte, 128> buf;
+        UnderlayEp ulSource;
+        while (true) {
+            using namespace boost::asio;
+            boost::system::error_code ec;
+            auto n = socket.receive_from(buffer(buf), ulSource, flags, ec);
+            if (ec) return ec;
+            auto server = generic::toGenericAddr(EndpointTraits<UnderlayEp>::host(ulSource));
+            ec = packager.unpackStun(std::span<std::byte>(buf.data(), n), server);
+            if (ec == ErrorCode::StunReceived) return ec;
+            else if (ec != ErrorCode::Pending) return ec;
+        }
+    }
+
     Maybe<std::span<std::byte>> recvScmpFromVia(
         std::span<std::byte> buf,
         Endpoint& from,
         RawPath& path,
         UnderlayEp& ulSource,
-        hdr::ScmpMessage& message)
+        hdr::ScmpMessage& message,
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
+        if (flags & ~(SMSG_PEEK | SMSG_RECV_SCMP | SMSG_RECV_STUN))
+            return Error(ErrorCode::InvalidArgument);
         return recvScmpImpl(buf, &from, &path, ulSource,
-            ext::NoExtensions, ext::NoExtensions, message);
+            ext::NoExtensions, ext::NoExtensions, message, flags);
     }
 
     template <ext::extension_range HbHExt, ext::extension_range E2EExt>
@@ -309,15 +434,97 @@ public:
         UnderlayEp& ulSource,
         HbHExt&& hbhExt,
         E2EExt&& e2eExt,
-        hdr::ScmpMessage& message)
+        hdr::ScmpMessage& message,
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
+        if (flags & ~(SMSG_PEEK | SMSG_RECV_SCMP | SMSG_RECV_STUN))
+            return Error(ErrorCode::InvalidArgument);
         return recvScmpImpl(buf, &from, &path, ulSource,
-            std::forward<HbHExt>(hbhExt), std::forward<E2EExt>(e2eExt), message);
+            std::forward<HbHExt>(hbhExt), std::forward<E2EExt>(e2eExt), message, flags);
     }
 
     ///@}
     /// \name Asynchronous Receive
     ///@{
+
+    /// \brief Receive packets until a STUN response matchin the last request
+    /// made with requestStunMapping() is found.
+    template <boost::asio::completion_token_for<void(std::error_code)> CompletionToken>
+    auto recvStunResponseAsync(CompletionToken&& token)
+    {
+        auto initiation = [] (
+            boost::asio::completion_handler_for<void(std::error_code)> auto&& completionHandler,
+            UnderlaySocket& socket,
+            ScionPackager& packager)
+        {
+            struct intermediate_completion_handler
+            {
+                UnderlaySocket& socket_;
+                ScionPackager& packager_;
+                std::unique_ptr<std::array<std::byte, 128>> buf_;
+                std::unique_ptr<UnderlayEp> ulSource_;
+                boost::asio::executor_work_guard<UnderlaySocket::executor_type> ioWork_;
+                typename std::decay<decltype(completionHandler)>::type handler_;
+
+                void operator()(const boost::system::error_code& error, std::size_t n)
+                {
+                    if (error) {
+                        ioWork_.reset();
+                        handler_(error);
+                        return;
+                    }
+
+                    auto ec = packager_.unpackStun(*buf_,
+                        generic::toGenericAddr(EndpointTraits<UnderlayEp>::host(*ulSource_)));
+                    if (ec == ErrorCode::StunReceived || ec != ErrorCode::Pending) {
+                        // call the final completion handler
+                        ioWork_.reset();
+                        handler_(ec);
+                        return;
+                    } else {
+                        // do it again
+                        socket_.async_receive_from(
+                            boost::asio::buffer(*buf_), *ulSource_, std::move(*this));
+                    }
+                }
+
+                using executor_type = boost::asio::associated_executor_t<
+                    typename std::decay<decltype(completionHandler)>::type,
+                    UnderlaySocket::executor_type>;
+                executor_type get_executor() const noexcept
+                {
+                    return boost::asio::get_associated_executor(
+                        handler_, socket_.get_executor());
+                }
+
+                using allocator_type = boost::asio::associated_allocator_t<
+                    typename std::decay<decltype(completionHandler)>::type,
+                    std::allocator<void>>;
+                allocator_type get_allocator() const noexcept
+                {
+                    return boost::asio::get_associated_allocator(
+                        handler_, std::allocator<void>{});
+                }
+            };
+
+            intermediate_completion_handler intermediate{
+                socket, packager,
+                std::make_unique<std::array<std::byte, 128>>(),
+                std::make_unique<UnderlayEp>(),
+                boost::asio::make_work_guard(socket.get_executor()),
+                std::forward<decltype(completionHandler)>(completionHandler)
+            };
+            socket.async_receive_from(
+                boost::asio::buffer(*intermediate.buf_), *intermediate.ulSource_,
+                std::move(intermediate)
+            );
+        };
+
+        return boost::asio::async_initiate<CompletionToken, void(std::error_code)>
+        (
+            initiation, token, std::ref(socket), std::ref(packager)
+        );
+    }
 
     template <boost::asio::completion_token_for<void(Maybe<std::span<std::byte>>)>
         CompletionToken>
@@ -330,7 +537,23 @@ public:
         CompletionToken&& token)
     {
         return recvScmpAsyncImpl(buf, &from, &path, ulSource,
-            ext::NoExtensions, ext::NoExtensions, message, token);
+            ext::NoExtensions, ext::NoExtensions, message, SMSG_NO_FLAGS, token);
+    }
+
+    template <boost::asio::completion_token_for<void(Maybe<std::span<std::byte>>)>
+        CompletionToken>
+    auto recvScmpFromViaAsync(
+        std::span<std::byte> buf,
+        Endpoint& from,
+        RawPath& path,
+        UnderlayEp& ulSource,
+        hdr::ScmpMessage& message,
+        MsgFlags flags,
+        CompletionToken&& token)
+    {
+        if (flags & ~(SMSG_RECV_SCMP | SMSG_RECV_STUN)) return Error(ErrorCode::InvalidArgument);
+        return recvScmpAsyncImpl(buf, &from, &path, ulSource,
+            ext::NoExtensions, ext::NoExtensions, message, flags, token);
     }
 
     template <ext::extension_range HbHExt, ext::extension_range E2EExt,
@@ -346,7 +569,27 @@ public:
         hdr::ScmpMessage& message,
         CompletionToken&& token)
     {
-        return recvScmpAsyncImpl(buf, &from, &path, ulSource, hbhExt, e2eExt, message, token);
+        return recvScmpAsyncImpl(buf, &from, &path, ulSource,
+            hbhExt, e2eExt, message, SMSG_NO_FLAGS, token);
+    }
+
+    template <ext::extension_range HbHExt, ext::extension_range E2EExt,
+        boost::asio::completion_token_for<void(Maybe<std::span<std::byte>>)>
+            CompletionToken>
+    auto recvScmpFromViaExtAsync(
+        std::span<std::byte> buf,
+        Endpoint& from,
+        RawPath& path,
+        UnderlayEp& ulSource,
+        HbHExt& hbhExt,
+        E2EExt& e2eExt,
+        hdr::ScmpMessage& message,
+        MsgFlags flags,
+        CompletionToken&& token)
+    {
+        if (flags & ~(SMSG_RECV_SCMP | SMSG_RECV_STUN)) return Error(ErrorCode::InvalidArgument);
+        return recvScmpAsyncImpl(buf, &from, &path, ulSource,
+            hbhExt, e2eExt, message, flags, token);
     }
 
     ///@}
@@ -459,6 +702,7 @@ private:
         HbHExt& hbhExt,
         E2EExt& e2eExt,
         hdr::ScmpMessage& message,
+        MsgFlags flags,
         CompletionToken&& token)
     {
         auto initiation = [] (
@@ -472,7 +716,8 @@ private:
             UnderlayEp& ulSource,
             HbHExt& hbhExt,
             E2EExt& e2eExt,
-            hdr::ScmpMessage& message)
+            hdr::ScmpMessage& message,
+            MsgFlags flags)
         {
             struct intermediate_completion_handler
             {
@@ -485,6 +730,7 @@ private:
                 HbHExt& hbhExt_;
                 E2EExt& e2eExt_;
                 hdr::ScmpMessage& message_;
+                MsgFlags flags_;
                 boost::asio::executor_work_guard<UnderlaySocket::executor_type> ioWork_;
                 typename std::decay<decltype(completionHandler)>::type handler_;
 
@@ -512,14 +758,22 @@ private:
                         generic::toGenericAddr(ulSource_.address()),
                         std::forward<HbHExt>(hbhExt_), std::forward<E2EExt>(e2eExt_),
                         from_, path_, scmp);
-                    if (isError(decoded) && getError(decoded) == ErrorCode::ScmpReceived) {
-                        // call the final completion handler
-                        ioWork_.reset();
-                        handler_(std::span<std::byte>{
-                            const_cast<std::byte*>(payload.data()),
-                            payload.size()
-                        });
-                        return;
+                    if (isError(decoded)) {
+                        if (getError(decoded) == ErrorCode::ScmpReceived) {
+                            // call the final completion handler
+                            ioWork_.reset();
+                            handler_(std::span<std::byte>{
+                                const_cast<std::byte*>(payload.data()),
+                                payload.size()
+                            });
+                            return;
+                        } else if (getError(decoded) == ErrorCode::ScmpReceived) {
+                            if (flags_ & SMSG_RECV_STUN) {
+                                ioWork_.reset();
+                                handler_(propagateError(decoded));
+                                return;
+                            }
+                        }
                     }
 
                     // do it again
@@ -546,9 +800,9 @@ private:
                 }
             };
 
-            socket.async_receive_from(boost::asio::buffer(buf), ulSource,
+            socket.async_receive_from(boost::asio::buffer(buf), ulSource, flags & ~SMSG_SCION_ALL,
                 intermediate_completion_handler{
-                    socket, packager, buf, from, path, ulSource, hbhExt, e2eExt, message,
+                    socket, packager, buf, from, path, ulSource, hbhExt, e2eExt, message, flags,
                     boost::asio::make_work_guard(socket.get_executor()),
                     std::forward<decltype(completionHandler)>(completionHandler)
                 }
@@ -560,7 +814,7 @@ private:
         (
             initiation, token,
             std::ref(socket), std::ref(packager), buf, from, path, std::ref(ulSource),
-            std::ref(hbhExt), std::ref(e2eExt), std::ref(message)
+            std::ref(hbhExt), std::ref(e2eExt), std::ref(message), flags
         );
     }
 
@@ -572,7 +826,8 @@ private:
         UnderlayEp& ulSource,
         HbHExt&& hbhExt,
         E2EExt&& e2eExt,
-        hdr::ScmpMessage& message)
+        hdr::ScmpMessage& message,
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
         std::span<std::byte> payload;
         auto scmp = [&] (const Address& from, const RawPath& path,
@@ -588,15 +843,23 @@ private:
         while (true) {
             using namespace boost::asio;
             boost::system::error_code ec;
-            auto recvd = socket.receive_from(buffer(buf), ulSource, 0, ec);
+            auto recvd = socket.receive_from(buffer(buf), ulSource, flags & ~SMSG_SCION_ALL, ec);
             if (ec) return Error(ec);
             auto decoded = packager.unpack<hdr::UDP>(
                 std::span<const std::byte>(buf.data(), recvd),
                 generic::toGenericAddr(ulSource.address()),
                 std::forward<HbHExt>(hbhExt), std::forward<E2EExt>(e2eExt),
                 from, path, scmp);
-            if (isError(decoded) && getError(decoded) == ErrorCode::ScmpReceived) {
-                return payload;
+            if (isError(decoded)) {
+                if (getError(decoded) == ErrorCode::ScmpReceived) {
+                    return payload;
+                } else if (getError(decoded) == ErrorCode::StunReceived) {
+                    if (flags & SMSG_RECV_STUN) return propagateError(decoded);
+                }
+            } else if (flags & SMSG_PEEK) {
+                // discard the peeked packet from the receive queue
+                (void)socket.receive_from(buffer(buf), ulSource,
+                    flags & ~(SMSG_PEEK | SMSG_SCION_ALL));
             }
         }
     }
@@ -605,14 +868,15 @@ protected:
     Maybe<std::span<const std::byte>> sendUnderlay(
         std::span<const std::byte> headers,
         std::span<const std::byte> payload,
-        const UnderlayEp& nextHop)
+        const UnderlayEp& nextHop,
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
         using namespace boost::asio;
         boost::system::error_code ec;
         std::array<const_buffer, 2> buffers = {
             buffer(headers), buffer(payload),
         };
-        auto sent = socket.send_to(buffers, nextHop, 0, ec);
+        auto sent = socket.send_to(buffers, nextHop, flags, ec);
         if (ec) return Error(ec);
         auto n = (std::int_fast32_t)sent - (std::int_fast32_t)headers.size();
         if (n < 0) return Error(ErrorCode::PacketTooBig);

@@ -1332,7 +1332,7 @@ static scion::PathPtr get_path(Socket& socket, NativeSocket fd,
 };
 
 static scion::Maybe<std::span<std::byte>> recv_dgram_impl(
-    Socket& socket, std::span<std::byte> pktBuffer, int flags,
+    Socket& socket, std::span<std::byte> pktBuffer, scion::MsgFlags flags,
     struct sockaddr* __restrict src_addr, socklen_t* __restrict addrlen)
 {
     using namespace scion;
@@ -1388,7 +1388,8 @@ ssize_t interposer_recvfrom_impl(Socket& socket, void* buf, size_t size, int fla
     }
 
     std::unique_lock<std::mutex> socketGuard(socket.mutex);
-    auto recvd = recv_dgram_impl(socket, pktBuffer, flags, src_addr, addrlen);
+    auto recvd = recv_dgram_impl(socket, pktBuffer, static_cast<MsgFlags>(flags & ~MSG_TRUNC),
+        src_addr, addrlen);
     if (recvd.has_value()) {
         auto ret = std::min(size, recvd->size());
         std::memcpy(buf, recvd->data(), ret);
@@ -1474,7 +1475,7 @@ static ssize_t interposer_recvmsg_impl(Socket& socket, struct msghdr* msg, int f
     std::unique_lock<std::mutex> socketGuard(socket.mutex);
 
     socklen_t addrlen = msg->msg_namelen;
-    auto recvd = recv_dgram_impl(socket, pktBuffer, flags,
+    auto recvd = recv_dgram_impl(socket, pktBuffer, static_cast<MsgFlags>(flags & ~MSG_TRUNC),
         reinterpret_cast<sockaddr*>(msg->msg_name), &addrlen);
     if (recvd) {
         // Copy payload out into scatter output buffers
@@ -1564,7 +1565,7 @@ static ssize_t send_dgram_get_dest(Socket& socket,
 }
 
 // Select a path and send a single datagram.
-static ssize_t send_dgram_impl(Socket& socket, const void* buf, size_t size, int flags,
+static ssize_t send_dgram_impl(Socket& socket, const void* buf, size_t size, scion::MsgFlags flags,
     const scion::ScIPEndpoint& ep, const sockaddr_scion& sa)
 {
     using namespace scion;
@@ -1663,7 +1664,7 @@ static ssize_t interposer_sendto_impl(Socket& socket, const void* buf, size_t si
     if (auto err = send_dgram_get_dest(socket, dest_addr, addrlen, ep, sa); err) {
         return err;
     }
-    return send_dgram_impl(socket, buf, size, flags, ep, sa);
+    return send_dgram_impl(socket, buf, size, static_cast<MsgFlags>(flags), ep, sa);
 }
 
 static int promote_on_sendto(Interposer* interposer, NativeSocket sockfd, int family)
@@ -1764,7 +1765,7 @@ static ssize_t interposer_sendmsg_impl(Socket& socket, const struct msghdr* msg,
         size += n;
     }
 
-    return send_dgram_impl(socket, pktBuffer.data(), size, flags, ep, sa);
+    return send_dgram_impl(socket, pktBuffer.data(), size, static_cast<MsgFlags>(flags), ep, sa);
 }
 
 extern "C"

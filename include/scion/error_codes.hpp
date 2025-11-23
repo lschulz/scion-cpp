@@ -38,6 +38,7 @@ enum class ErrorCode : int
     Pending,       ///< operation not completed yet
     Timeout,       ///< operation timed out
     ScmpReceived,  ///< received an SCMP packet
+    StunReceived,  ///< received a STUN packet
 
     // errors
     LogicError = 128, ///< expected precondition failed
@@ -68,11 +69,13 @@ std::error_code make_error_code(ErrorCode code);
 enum class ErrorCondition : int
 {
     // match codes equivalent to scion::ErrorCode
-    Ok = 0, ///< no error
-    Cancelled = 1, ///< operation cancelled
-    Pending,       ///< operation not completed yet
-    Timeout,       ///< operation timed out
-    ScmpReceived,  ///< received an SCMP packet
+    Ok = 0,           ///< no error
+    Cancelled = 1,    ///< operation cancelled
+    Pending,          ///< operation not completed yet
+    Timeout,          ///< operation timed out
+    ScmpReceived,     ///< received an SCMP packet
+    StunReceived,     ///< received a STUN packet
+    AltSuccess = 127, ///< no error or alternate success
     LogicError = 128, ///< expected precondition failed
     NotImplemented,   ///< not implemented (yet)
     InvalidArgument,  ///< invalid argument

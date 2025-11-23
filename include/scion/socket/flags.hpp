@@ -20,10 +20,46 @@
 
 #pragma once
 
-/// \brief SCION-specific bits for the flags argument to the send* and recv*
-/// methods.
-enum {
+#if _WIN32
+// TODO: Check flag values in WinSock2
+#include <Winsock2.h>
+#else
+#include <sys/socket.h>
+#endif
+
+
+namespace scion {
+
+/// \brief Flags that can be passed to the send* and recv* methods of SCION
+/// sockets. Some flags correspond to MSG_* flags in the POSIX or OS-specific
+/// socket API and can be cast to MsgFlags directly. Other flags are
+/// SCION-specific.
+enum MsgFlags
+{
+    /// \brief Empty set of flags.
+    SMSG_NO_FLAGS = 0,
+
+    /// \brief Enable nonblocking IO. Equivalent to MSG_DONTWAIT.
+    SMSG_DONTWAIT = MSG_DONTWAIT,
+
+    /// \brief Return data without removing it from the receive buffer.
+    /// Equivalent to MSG_PEEK.
+    SMSG_PEEK = MSG_PEEK,
+
+    /// \brief Wait until the full request is satisfied. Equivalent to
+    /// MSG_WAITALL.
+    SMSG_WAITALL = MSG_WAITALL,
+
     /// \brief Return immediately if an SCMP message has been received instead
     /// of waiting for more data.
-    MSG_RECV_SCMP = 0x10'0000,
+    SMSG_RECV_SCMP = 0x10'0000,
+
+    /// \brief Return immediately if a STUN packet has been received instead of
+    /// waiting for more data.
+    SMSG_RECV_STUN = 0x20'0000,
 };
+
+/// \brief Combination of all SCION-specific flags MsgFlags.
+constexpr int SMSG_SCION_ALL = SMSG_RECV_SCMP | SMSG_RECV_STUN;
+
+} // namespace scion

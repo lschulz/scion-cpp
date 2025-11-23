@@ -1,5 +1,4 @@
 /build
-/docs
 /vcpkg_installed
 .venv
 __pycache__

@@ -29,6 +29,7 @@ enum class ScitraError : int
     Ok = 0,
     Cancelled,
     Exiting,
+    StunReceived,
     LogicError,
     PartialWrite,
     InvalidArgument,
@@ -36,6 +37,7 @@ enum class ScitraError : int
     ProtocolNotSupported,
     SocketClosed,
     InterfaceNotFound,
+    InvalidPacket
 };
 
 const std::error_category& scitra_error_category();

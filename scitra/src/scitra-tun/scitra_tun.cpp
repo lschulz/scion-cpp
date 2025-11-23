@@ -656,7 +656,7 @@ asio::awaitable<std::error_code> ScitraTun::translateScionToIP(std::shared_ptr<S
         if (ec) {
             if (ec == std::errc::bad_file_descriptor || ec == std::errc::operation_canceled) {
                 break;
-            } else if (ec != ErrorCondition::InvalidPacket) {
+            } else if (ec != ErrorCondition::StunReceived && ec != ErrorCondition::InvalidPacket) {
                 spdlog::error("Error reading from socket: {}", fmtError(ec));
                 continue;
             }

@@ -440,7 +440,7 @@ public:
     /// \brief Retruns valid size of `authenticator`.
     std::size_t getAuthSize() const
     {
-        return std::max<std::size_t>(0u, (std::size_t)dataLen - minDataLen);
+        return (std::size_t)std::max(0, (int)dataLen - (int)minDataLen);
     }
 
     /// \brief Convenience method for setting the authenticator size.

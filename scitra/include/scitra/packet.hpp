@@ -26,6 +26,7 @@
 #include "scion/hdr/ip.hpp"
 #include "scion/hdr/scion.hpp"
 #include "scion/hdr/scmp.hpp"
+#include "scion/hdr/stun.hpp"
 #include "scion/hdr/tcp.hpp"
 #include "scion/hdr/udp.hpp"
 #include "scion/path/raw.hpp"
@@ -74,10 +75,12 @@ public:
         UDP = (int)hdr::IPProto::UDP,
     };
 
-    /// \brief Indicated wgich of `ipv4` and `ipv6` holds valid data.
+    /// \brief Indicated which of `ipv4` and `ipv6` holds valid data.
     IPValidity ipValid = IPValidity::None;
     /// \brief Indicates whether `outerUDP` is valid.
     bool outerUDPValid = false;
+    /// \brief Indicates whether `stun` is valid.
+    bool stunValid = false;
     /// \brief Indicates whether `sci` and `path` are valid.
     bool scionValid = false;
     /// \brief Indicated which of `icmp`, `scmp`, `tcp`, and `udp` holds valid data.
@@ -87,6 +90,7 @@ public:
     hdr::IPv4 ipv4;
     hdr::IPv6 ipv6;
     hdr::UDP outerUDP;
+    hdr::STUN stun;
     hdr::SCION sci;
     RawPath path;
     hdr::ICMPv6 icmp;
@@ -123,6 +127,7 @@ public:
         headroom = std::min(headroom, buffer.size());
         ipValid = IPValidity::None;
         outerUDPValid = false;
+        stunValid = false;
         scionValid = false;
         l4Valid = L4Type::None;
         packet = std::span<std::byte>(buffer.data() + headroom, buffer.size() - headroom);

@@ -43,6 +43,7 @@ struct Arguments
     int count = 1;
     bool show_path = false;
     bool interactive = false;
+    bool stun = false;
     bool quiet = false;
 };
 
@@ -74,6 +75,9 @@ int main(int argc, char* argv[])
     app.add_flag("-s,--show-path", args.show_path, "Print the paths taken by each packet")
         ->group("Server/Client");
     app.add_flag("-i,--interactive", args.interactive, "Prompt for path selection")
+        ->group("Client");
+    app.add_flag("--stun", args.stun,
+        "Attempt NAT traversal (requires a STUN server on the path's first hop)")
         ->group("Client");
     app.add_flag("-q,--quiet", args.quiet, "Print responses as ASCII string")
         ->group("Client");
@@ -243,7 +247,18 @@ int runClient(
         std::uniform_int_distribution<> dist(0, (int)(paths->size() - 1));
         path = (*paths)[dist(rng)];
     }
-    auto nextHop = toUnderlay<Socket::UnderlayEp>(path->nextHop(remote->localEp())).value();
+    auto nextHop = path->nextHop(remote->localEp());
+    auto underlayDst = toUnderlay<Socket::UnderlayEp>(nextHop).value();
+
+    if (args.stun) {
+        auto stunServer = toUnderlay<Socket::UnderlayEp>(
+            generic::IPEndpoint(nextHop.host(), 3478)).value();
+        if (auto mapped = getStunMapping(s, stunServer, 100ms); mapped) {
+            std::cerr << "SNAT mapped address: " << mapped->localEp() << '\n';
+        } else {
+            std::cerr << "Can't get SNAT address mapping: " << fmtError(mapped.error()) << '\n';
+        }
+    }
 
     Socket::Endpoint from;
     HeaderCache headers;
@@ -255,7 +270,7 @@ int runClient(
     });
     recvBuffer.resize(2048);
     for (int i = 0; i < args.count; ++i) {
-        auto sent = s.send(headers, *path, nextHop, sendBuffer);
+        auto sent = s.send(headers, *path, underlayDst, sendBuffer);
         if (isError(sent)) {
             std::cerr << "Error: " << fmtError(sent.error()) << '\n';
             return EXIT_FAILURE;
@@ -263,7 +278,11 @@ int runClient(
 
         auto recvd = s.recvFrom(recvBuffer, from);
         if (isError(recvd)) {
-            std::cerr << "Error: " << fmtError(recvd.error()) << '\n';
+            if (recvd.error() == ErrorCondition::WouldBlock) {
+                std::cerr << "No response\n";
+            } else {
+                std::cerr << "Error: " << fmtError(recvd.error()) << '\n';
+            }
             return EXIT_FAILURE;
         }
         if (!args.quiet) {

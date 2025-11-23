@@ -27,6 +27,7 @@
 #include "scion/path/raw.hpp"
 #include "scion/posix/sockaddr.hpp"
 #include "scion/posix/underlay.hpp"
+#include "scion/socket/flags.hpp"
 #include "scion/socket/packager.hpp"
 
 #include <chrono>
@@ -138,6 +139,14 @@ public:
         }
     }
 
+    /// \brief Set the host address and port after SNAT to facilitate NAT
+    /// traversal. NAT traversal can be disabled by setting this address to
+    /// the same IP and port as returned by localEp() again.
+    void setMappedIpAndPort(const Endpoint::LocalEp& mapped)
+    {
+        packager.setMappedIpAndPort(mapped);
+    }
+
     /// \brief Locally store a default remote address. Receive methods will only
     /// return packets from the "connected" address. Can be called multiple
     /// times to change the remote address or with an unspecified address to
@@ -159,8 +168,12 @@ public:
     /// \brief Get the native handle of the underlay socket.
     NativeHandle underlaySocket() { return socket.underlaySocket(); }
 
-    /// \brief Returns the full address of the socket.
+    /// \brief Returns the full local address of the socket.
     Endpoint localEp() const { return packager.localEp(); }
+
+    /// \brief Returns the local address after SNAT. Differs from localEp() if
+    /// and only if NAT traversal is active.
+    Endpoint mappedEp() const { return packager.localEp(); }
 
     /// \brief Returns the address of the connected remote host.
     Endpoint remoteEp() const { return packager.remoteEp(); }
@@ -214,6 +227,20 @@ public:
         return packager.measure(&to, path, std::forward<ExtRange>(extensions), hdr::SCMP(message));
     }
 
+    /// \brief Send a STUN binding request to the given router and prepare the
+    /// recv* methods to expect a STUN response.
+    std::error_code requestStunMapping(const UnderlayEp& router)
+    {
+        std::array<std::byte, 20> buffer;
+        std::span<std::byte> span(buffer.data(), buffer.size());
+        auto server = generic::toGenericAddr(EndpointTraits<UnderlayEp>::host(router));
+        auto ec = packager.createStunRequest(span, server);
+        if (ec) return ec;
+        auto res = sendUnderlay(span, std::span<std::byte>(), router);
+        if (isError(res)) return res.error();
+        return ErrorCode::Ok;
+    }
+
     template <typename Path, typename Alloc>
     Maybe<std::span<const std::byte>> sendScmpTo(
         HeaderCache<Alloc>& headers,
@@ -221,12 +248,14 @@ public:
         const Path& path,
         const UnderlayEp& nextHop,
         const hdr::ScmpMessage& message,
-        std::span<const std::byte> payload)
+        std::span<const std::byte> payload,
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
+        if (flags & ~SMSG_NO_FLAGS) return Error(ErrorCode::InvalidArgument);
         auto ec = packager.pack(
             headers, &to, path, ext::NoExtensions, hdr::SCMP(message), payload);
         if (ec) return Error(ec);
-        return sendUnderlay(headers.get(), payload, nextHop);
+        return sendUnderlay(headers.get(), payload, nextHop, flags);
     }
 
     template <typename Path, ext::extension_range ExtRange, typename Alloc>
@@ -237,12 +266,32 @@ public:
         const UnderlayEp& nextHop,
         ExtRange&& extensions,
         const hdr::ScmpMessage& message,
-        std::span<const std::byte> payload)
+        std::span<const std::byte> payload,
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
+        if (flags & ~SMSG_NO_FLAGS) return Error(ErrorCode::InvalidArgument);
         auto ec = packager.pack(
             headers, &to, path, std::forward<ExtRange>(extensions), hdr::SCMP(message), payload);
         if (ec) return Error(ec);
-        return sendUnderlay(headers.get(), payload, nextHop);
+        return sendUnderlay(headers.get(), payload, nextHop, flags);
+    }
+
+    /// \brief Receive packets until a STUN response matching the last request
+    /// made with requestStunMapping() is found.
+    std::error_code recvStunResponse(MsgFlags flags = SMSG_NO_FLAGS)
+    {
+        if (flags & ~SMSG_DONTWAIT) return ErrorCode::InvalidArgument;
+        std::array<std::byte, 128> buf;
+        UnderlayEp ulSource;
+        while (true) {
+            auto recvd = socket.recvfrom(
+                std::span<std::byte>(buf.data(), buf.size()), ulSource, flags);
+            if (isError(recvd)) return recvd.error();
+            auto server = generic::toGenericAddr(EndpointTraits<UnderlayEp>::host(ulSource));
+            auto ec = packager.unpackStun(*recvd, server);
+            if (ec == ErrorCode::StunReceived) return ec;
+            else if (ec != ErrorCode::Pending) return ec;
+        }
     }
 
     Maybe<std::span<std::byte>> recvScmpFromVia(
@@ -250,10 +299,13 @@ public:
         Endpoint& from,
         RawPath& path,
         UnderlayEp& ulSource,
-        hdr::ScmpMessage& message)
+        hdr::ScmpMessage& message,
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
+        if (flags & ~(SMSG_DONTWAIT | SMSG_PEEK | SMSG_RECV_SCMP | SMSG_RECV_STUN))
+            return Error(ErrorCode::InvalidArgument);
         return recvScmpImpl(buf, &from, &path, ulSource,
-            ext::NoExtensions, ext::NoExtensions, message);
+            ext::NoExtensions, ext::NoExtensions, message, flags);
     }
 
     template <ext::extension_range HbHExt, ext::extension_range E2EExt>
@@ -264,10 +316,13 @@ public:
         UnderlayEp& ulSource,
         HbHExt&& hbhExt,
         E2EExt&& e2eExt,
-        hdr::ScmpMessage& message)
+        hdr::ScmpMessage& message,
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
+        if (flags & ~(SMSG_DONTWAIT | SMSG_PEEK | SMSG_RECV_SCMP | SMSG_RECV_STUN))
+            return Error(ErrorCode::InvalidArgument);
         return recvScmpImpl(buf, &from, &path, ulSource,
-            std::forward<HbHExt>(hbhExt), std::forward<E2EExt>(e2eExt), message);
+            std::forward<HbHExt>(hbhExt), std::forward<E2EExt>(e2eExt), message, flags);
     }
 
 private:
@@ -279,7 +334,8 @@ private:
         UnderlayEp& ulSource,
         HbHExt&& hbhExt,
         E2EExt&& e2eExt,
-        hdr::ScmpMessage& message)
+        hdr::ScmpMessage& message,
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
         std::span<std::byte> payload;
         auto scmp = [&] (const Address& from, const RawPath& path,
@@ -293,13 +349,20 @@ private:
         };
 
         while (true) {
-            auto recvd = socket.recvfrom(buf, ulSource);
+            auto recvd = socket.recvfrom(buf, ulSource, flags & ~SMSG_SCION_ALL);
             if (isError(recvd)) return propagateError(recvd);
             auto decoded = packager.unpack<hdr::UDP>(get(recvd),
                 generic::toGenericAddr(EndpointTraits<UnderlayEp>::host(ulSource)),
                 std::forward<HbHExt>(hbhExt), std::forward<E2EExt>(e2eExt), from, path, scmp);
-            if (isError(decoded) && getError(decoded) == ErrorCode::ScmpReceived) {
-                return payload;
+            if (isError(decoded)) {
+                if (getError(decoded) == ErrorCode::ScmpReceived) {
+                    return payload;
+                } else if (getError(decoded) == ErrorCode::StunReceived) {
+                    if (flags & SMSG_RECV_STUN) return propagateError(decoded);
+                }
+            } else if (flags & SMSG_PEEK) {
+                // discard the peeked packet from the receive queue
+                (void)socket.recvfrom(buf, ulSource, flags & ~(SMSG_PEEK | SMSG_SCION_ALL));
             }
         }
     }
@@ -309,7 +372,7 @@ protected:
         std::span<const std::byte> headers,
         std::span<const std::byte> payload,
         const UnderlayEp& nextHop,
-        int flags = 0)
+        MsgFlags flags = SMSG_NO_FLAGS)
     {
         auto sent = socket.sendmsg(nextHop, flags, headers, payload);
         if (isError(sent)) return propagateError(sent);
@@ -318,6 +381,49 @@ protected:
         return payload.subspan(0, n);
     }
 };
+
+/// \brief Try to get the mapped address of this socket by sending STUN binding
+/// requests to a STUN server (usually a SCION border router). This function
+/// blocks until the mapping has been found or a set number of retries has been
+/// exhausted. To query the STUN server without blocking, use
+/// requestStunMapping() directly instead.
+///
+/// \note This function sets the socket to blocking mode and manipulates the
+/// receive timeout. Callers should set a new receive timeout after this
+/// function returns and restore to socket to non-blocking mode if desired.
+///
+/// \param router STUN server to query. Usually the STUN server should be
+///     colocated with a border router. The default port for STUN is 3478,
+///     but some ASes might use a different port.
+/// \param rto Retransmission Timeout. How long to wait for a response
+///     before retransmitting the request. The RTO is doubled after each
+///     retransmission.
+/// \param retry Maximum number of retries.
+/// \returns The mapped address if a valid response was received.
+///     ErrorCondition::Timeout if the maximum number of retries was
+///     exhausted.
+template <typename Underlay>
+Maybe<ScIPEndpoint> getStunMapping(ScmpSocket<Underlay>& socket,
+    const typename Underlay::SockAddr& router,
+    std::chrono::milliseconds rto,
+    unsigned int retry = 5)
+{
+    std::error_code ec;
+    ec = socket.setNonblocking(false);
+    if (ec) return Error(ec);
+    for (unsigned int i = 0; i <= retry; ++i)
+    {
+        ec = socket.requestStunMapping(router);
+        if (ec) return Error(ec);
+        ec = socket.setRecvTimeout(rto);
+        if (ec) return Error(ec);
+        ec = socket.recvStunResponse();
+        if (ec == ErrorCode::StunReceived) return socket.mappedEp();
+        else if (ec != ErrorCondition::Timeout) return Error(ec);
+        rto *= 2;
+    }
+    return Error(ErrorCode::Timeout);
+}
 
 /// \brief SCMP socket with IPv4/IPv6 UDP underlay.
 using IpScmpSocket = ScmpSocket<PosixSocket<IPEndpoint>>;

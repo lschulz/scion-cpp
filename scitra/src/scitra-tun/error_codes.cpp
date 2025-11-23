@@ -38,6 +38,8 @@ struct ScitraErrorCategory : public std::error_category
                 return "operation cancelled";
             case ScitraError::Exiting:
                 return "application exiting";
+            case ScitraError::StunReceived:
+                return "received a STUN packet";
             case ScitraError::LogicError:
                 return "logic error";
             case ScitraError::PartialWrite:
@@ -52,6 +54,8 @@ struct ScitraErrorCategory : public std::error_category
                 return "socket closed";
             case ScitraError::InterfaceNotFound:
                 return "interface not found";
+            case ScitraError::InvalidPacket:
+                return "invalid packet";
             default:
                 return "unexpected error code";
         }
@@ -67,12 +71,16 @@ struct ScitraErrorCategory : public std::error_category
                 return code == (int)ScitraError::Ok;
             case ErrorCondition::Cancelled:
                 return code == (int)ScitraError::Cancelled;
+            case ErrorCondition::StunReceived:
+                return code == (int)ScitraError::StunReceived;
             case ErrorCondition::LogicError:
                 return code == (int)ScitraError::LogicError;
             case ErrorCondition::InvalidArgument:
                 return code == (int)ScitraError::InvalidArgument;
             case ErrorCondition::BufferTooSmall:
                 return code == (int)ScitraError::BufferTooSmall;
+            case ErrorCondition::InvalidPacket:
+                return code == (int)ScitraError::InvalidPacket;
             default:
                 return false;
             }
