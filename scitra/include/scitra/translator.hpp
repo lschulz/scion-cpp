@@ -197,7 +197,7 @@ translateEgress(
         details::makeIcmpDestUnreachable(pkt, 0); // no route to destination
         return std::make_tuple(Verdict::Return, 0, nextHop);
     }
-    nextHop = (*path)->nextHop(generic::IPEndpoint(dst->host(), pkt.l4DPort()));
+    nextHop = (*path)->nextHop(generic::IPEndpoint(dst->host(), pkt.l4DPort(DISPATCHER_PORT)));
 
     // Construct SCION header
     pkt.sci.qos = pkt.ipv6.tc;

@@ -84,7 +84,7 @@ public:
 
     /// \brief Set the attribute value size in bytes. The maximum supported size
     /// is 16 bytes.
-    std::size_t setValueSize(std::size_t size)
+    void setValueSize(std::size_t size)
     {
         assert(size <= value.size());
         length = (std::uint16_t)size;
@@ -110,7 +110,9 @@ public:
     template <typename Stream, typename Error>
     bool serialize(Stream& stream, Error& err)
     {
-        if (!stream.serializeUint16((std::uint16_t&)type, err)) return err.propagate();
+        auto temp = (std::uint16_t)type;
+        if (!stream.serializeUint16(temp, err)) return err.propagate();
+        type = (StunAttribType)temp;
         if (!stream.serializeUint16(length, err)) return err.propagate();
         if constexpr (Stream::IsReading) {
             if (length > value.size()) return err.error("STUN attribute too large");
@@ -168,7 +170,7 @@ public:
     static constexpr std::uint32_t magicCookie = 0x2112a442u;
     static constexpr std::size_t stunHeaderSize = 20;
 
-    StunMsgType type;
+    StunMsgType type = StunMsgType::BindingRequest;
     std::array<std::byte, 12> transaction;
     std::optional<StunXorMappedAddress> mapped;
 
@@ -184,7 +186,9 @@ public:
     template <typename Stream, typename Error>
     bool serialize(Stream& stream, Error& err)
     {
-        if (!stream.serializeUint16((std::uint16_t&)type, err)) return err.propagate();
+        auto temp = (std::uint16_t)type;
+        if (!stream.serializeUint16(temp, err)) return err.propagate();
+        type = (StunMsgType)temp;
         std::uint16_t length = size() - stunHeaderSize;
         if (!stream.serializeUint16(length, err)) return err.propagate();
         if constexpr (Stream::IsReading) {
@@ -262,10 +266,11 @@ template <typename Stream, typename Error>
 bool StunXorMappedAddress::serialize(
     Stream& stream, const std::array<std::byte, 12>& tx, Error& err)
 {
-    auto type = StunXorMappedAddress::type;
-    if (!stream.serializeUint16((std::uint16_t&)type, err)) return err.propagate();
+    auto temp = (std::uint16_t)type;
+    if (!stream.serializeUint16(temp, err)) return err.propagate();
     if constexpr (Stream::IsReading) {
-        if (type != StunXorMappedAddress::type) return err.error("incorrect attribute type");
+        if (temp != (std::uint16_t)type)
+            return err.error("incorrect attribute type");
     }
     auto length = (std::uint16_t)(size() - StunAttribute::minSize);
     if (!stream.serializeUint16(length, err)) return err.propagate();

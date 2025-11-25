@@ -69,7 +69,7 @@ std::unique_ptr<Arguments> parseCommandLine(int argc, char* argv[])
     app.add_flag("--stun", args->stun, "Attempt NAT traversal");
     app.add_option("--stun-port", args->stunPort,
         "Port at which STUN servers are expected. If set to zero uses the same port as for SCION"
-        " (default 3478");
+        " (default 3478)");
     app.add_option("--nat-timeout", args->stunTimeout,
         "Timeout for NAT bindings. After how many seconds of inactivity a STUN request must be"
         " repeated. (default 30)");

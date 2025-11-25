@@ -242,9 +242,9 @@ public:
         }
     }
 
-    /// \brief Returns the source port of the layer 4 protocol or 0 if the
+    /// \brief Returns the source port of the layer 4 protocol or `def` if the
     /// protocol does not use ports (ICMP and SCMP).
-    std::uint16_t l4SPort() const
+    std::uint16_t l4SPort(std::uint16_t def = 0) const
     {
         using namespace hdr;
         switch (l4Valid) {
@@ -253,13 +253,13 @@ public:
         case L4Type::UDP:
             return udp.sport;
         default:
-            return 0;
+            return def;
         }
     }
 
-    /// \brief Returns the source port of the layer 4 protocol or 0 if the
-    /// protocol does not use ports (ICMP and SCMP).
-    std::uint16_t l4DPort() const
+    /// \brief Returns the destination port of the layer 4 protocol or `def` if
+    /// the protocol does not use ports (ICMP and SCMP).
+    std::uint16_t l4DPort(std::uint16_t def = 0) const
     {
         using namespace hdr;
         switch (l4Valid) {
@@ -268,7 +268,7 @@ public:
         case L4Type::UDP:
             return udp.dport;
         default:
-            return 0;
+            return def;
         }
     }
 

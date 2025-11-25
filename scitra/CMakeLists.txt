@@ -36,7 +36,7 @@ target_compile_definitions(scitra-tun PRIVATE
 )
 set_target_properties(scitra-tun PROPERTIES
     OUTPUT_NAME "scitra-tun"
-    DEBUG_POSTFIX "-debug"
+    DEBUG_POSTFIX "-d"
 )
 install(TARGETS scitra-tun RUNTIME)
 

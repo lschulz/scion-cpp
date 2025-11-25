@@ -36,18 +36,18 @@ sudo ip netns exec host0 sudo -u $USER bash
 In namespace `host0`:
 ```bash
 # IPv4
-build/scitra/Debug/scitra-tun veth1 10.128.0.2 -d 10.128.0.1:30255 --dispatch --tui
+build/scitra/Debug/scitra-tun-d veth1 10.128.0.2 -d 10.128.0.1:30255 --dispatch --tui
 # IPv6
-build/scitra/Debug/scitra-tun veth1 fc00:10fc:100::2 -a fd00::1 -d [fc00:10fc:100::1]:30255 \
+build/scitra/Debug/scitra-tun-d veth1 fc00:10fc:100::2 -a fd00::1 -d [fc00:10fc:100::1]:30255 \
     --dispatch --tui
 ```
 
 In namespace `host1`:
 ```bash
 # IPv4
-build/scitra/Debug/scitra-tun veth3 10.128.1.2 -d 10.128.1.1:30255 --ports=32000 --dispatch --tui
+build/scitra/Debug/scitra-tun-d veth3 10.128.1.2 -d 10.128.1.1:30255 --ports=32000 --dispatch --tui
 # IPv6
-build/scitra/Debug/scitra-tun veth3 fc00:10fc:200::2 -a fd00::2 -d [fc00:10fc:200::1]:30255 \
+build/scitra/Debug/scitra-tun-d veth3 fc00:10fc:200::2 -a fd00::2 -d [fc00:10fc:200::1]:30255 \
     --ports=32000 --dispatch --tui
 ```
 

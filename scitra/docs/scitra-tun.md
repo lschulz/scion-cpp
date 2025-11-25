@@ -12,10 +12,14 @@ simply assigning the appropriate addresses to the interfaces with the `ip` comma
 are involved between SCION hosts and SCION border routers, you must create multiple SCION-mapped
 IPv6 subnets with the same ISD-ASN and set up IPv6 routes between them.
 
-Scitra-Tun requires `CAP_NET_ADMIN` to modify network interfaces. Capabilities
-must be assigned manually by root after building the binary. e.g.
+Scitra-Tun requires `CAP_NET_ADMIN` to modify network interfaces. Capabilities must be assigned
+manually by root after building the binary. e.g.
 ```bash
 sudo setcap CAP_NET_ADMIN=ep build/scitra/Release/scitra-tun
+```
+Using privileged ports < 1024 with SCION additionally requires `CAP_NET_BIND_SERVICE`.
+```bash
+sudo setcap CAP_NET_ADMIN,CAP_NET_BIND_SERVICE=ep build/scitra/Release/scitra-tun
 ```
 
 Configuration
@@ -154,6 +158,16 @@ destination port in the inner transport header differs from 30041. This behavior
 rules that filter by destination port that are placed between the SCION network and Scitra-TUN. To
 properly filter destination ports, the firewall rules must be applied after translation at the TUN
 interface.
+
+NAT
+---
+
+If Scitra-TUN is deployed behind a NAT, the `--stun` flag should be set to enable discovery of the
+mapped external address. Using the STUN feature requires a STUN server running on all border routers
+in the local AS. The STUN port may be set using the `--stun-port` option. If STUN is multiplexed on
+the border router's internal interface, set `--stun-port 0`. The `--nat-timeout` option sets after
+how much time of inactivity a flow between Scitra-TUN and the border router may receive a new
+address mapping and therefore requires STUN address discovery to be repeated.
 
 Path Policy
 -----------
