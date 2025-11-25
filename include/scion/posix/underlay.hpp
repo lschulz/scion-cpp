@@ -205,7 +205,8 @@ public:
     #if _WIN32
         unsigned long mode = nonblocking;
         if (ioctlsocket(handle, FIONBIO, &mode))
-            return std::errc(WSAGetLastError());
+            return details::getLastError();
+        return ErrorCode::Ok;
     #else
         int flags = fcntl(handle, F_GETFL, 0);
         if (flags == -1) return details::getLastError();

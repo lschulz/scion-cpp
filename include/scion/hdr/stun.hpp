@@ -189,7 +189,7 @@ public:
         auto temp = (std::uint16_t)type;
         if (!stream.serializeUint16(temp, err)) return err.propagate();
         type = (StunMsgType)temp;
-        std::uint16_t length = size() - stunHeaderSize;
+        auto length = (std::uint16_t)(size() - stunHeaderSize);
         if (!stream.serializeUint16(length, err)) return err.propagate();
         if constexpr (Stream::IsReading) {
         }

@@ -21,7 +21,6 @@
 #pragma once
 
 #if _WIN32
-// TODO: Check flag values in WinSock2
 #include <Winsock2.h>
 #else
 #include <sys/socket.h>
@@ -39,8 +38,13 @@ enum MsgFlags
     /// \brief Empty set of flags.
     SMSG_NO_FLAGS = 0,
 
-    /// \brief Enable nonblocking IO. Equivalent to MSG_DONTWAIT.
+#ifdef _WIN32
+    SMSG_DONTWAIT = 0,
+#else
+    /// \brief Enable nonblocking IO. Equivalent to MSG_DONTWAIT. Not supported
+    /// on Windows.
     SMSG_DONTWAIT = MSG_DONTWAIT,
+#endif
 
     /// \brief Return data without removing it from the receive buffer.
     /// Equivalent to MSG_PEEK.
