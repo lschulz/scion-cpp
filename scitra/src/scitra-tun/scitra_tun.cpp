@@ -76,7 +76,7 @@ ScitraTun::ScitraTun(const Arguments& args)
     , grpcIoCtx()
     , grpcWorkGuard(grpcIoCtx.get_executor())
     , daemon(grpcIoCtx, args.sciond)
-    , enabledDispatch(args.enabledDispatch)
+    , enableScmpDispatch(args.enableScmpDispatch)
     , staticPorts(args.ports)
     , configQueues(args.queues)
     , configThreads(args.threads)
@@ -95,13 +95,6 @@ ScitraTun::ScitraTun(const Arguments& args)
     // Get local AS info from daemon
     if (auto maybe = daemon.rpcAsInfo(IsdAsn()); maybe.has_value()) {
         localAS = *maybe;
-    } else {
-        throw std::runtime_error(std::format(
-            "Error connection to SCION daemon at '{}': {}",
-            args.sciond, fmtError(maybe.error())));
-    }
-    if (auto maybe = daemon.rpcPortRange(); maybe.has_value()) {
-        dispPorts = *maybe;
     } else {
         throw std::runtime_error(std::format(
             "Error connection to SCION daemon at '{}': {}",
@@ -221,7 +214,7 @@ void ScitraTun::run()
     }
 
     // Open dispatcher socket and start a corresponding coroutine
-    if (enabledDispatch) {
+    if (enableScmpDispatch) {
         if (auto res = openSocket(scion::scitra::DISPATCHER_PORT, true); scion::isError(res)) {
             throw std::runtime_error(std::format("Error opening socket at port {}: {}\n",
                 scion::scitra::DISPATCHER_PORT, scion::fmtError(res.error())));
@@ -406,24 +399,21 @@ std::shared_ptr<Flow> ScitraTun::getFlow(const FlowID& id, FlowType type)
 std::shared_ptr<Socket> ScitraTun::getSocket(std::uint16_t port)
 {
     std::shared_lock lock(socketMutex);
-    // if (port != DISPATCHER_PORT && dispPorts.first <= port && port <= dispPorts.second) {
-        // In "dispatched" port range, use application port directly
-        if (auto i = sockets.find(port); i != sockets.end()) {
-            return i->second;
+    if (port == DISPATCHER_PORT && !enableScmpDispatch) {
+        return nullptr;
+    }
+    if (auto i = sockets.find(port); i != sockets.end()) {
+        return i->second;
+    } else {
+        // Attempt to open a temporary socket
+        lock.unlock();
+        if (auto s = openSocket(port, false); s.has_value()) {
+            return *s;
         } else {
-            // Attempt to open a temporary socket
-            lock.unlock();
-            if (auto s = openSocket(port, false); s.has_value()) {
-                return *s;
-            } else {
-                spdlog::error("Can't open socket at port {}: {}", port, fmtError(s.error()));
-                return nullptr;
-            }
+            spdlog::error("Can't open socket at port {}: {}", port, fmtError(s.error()));
+            return nullptr;
         }
-    // } else if (auto dispatcher = sockets.find(DISPATCHER_PORT); dispatcher != sockets.end()) {
-    //     // Outside of "dispatched ports", fall back to dispatcher port
-    //     return dispatcher->second;
-    // }
+    }
     return nullptr;
 }
 
@@ -665,11 +655,10 @@ asio::awaitable<std::error_code> ScitraTun::translateScionToIP(std::shared_ptr<S
         const auto recvd = std::chrono::steady_clock::now();
 
         // Packet Validation: Local socket port must match inner L4 header
-        // destination port if not using the dispatcher socket.
-        if (pkt.l4Valid != PacketBuffer::L4Type::SCMP && pkt.l4DPort() != socket->port()) {
-            if (!enabledDispatch || socket->port() != DISPATCHER_PORT) {
-                continue;
-            }
+        // destination port. If the inner L4 header does not contain a port, the
+        // packet must have been received at the dispatcher port.
+        if (pkt.l4DPort(DISPATCHER_PORT) != socket->port()) {
+            continue;
         }
 
         // Packet Validation: AS-internal traffic source must match source

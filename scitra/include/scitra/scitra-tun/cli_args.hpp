@@ -39,7 +39,7 @@ struct Arguments
     int threads = 1;
     std::filesystem::path policy;
     std::filesystem::path logFile;
-    bool enabledDispatch = false;
+    bool enableScmpDispatch = false;
     bool stun = false;
     std::uint16_t stunPort = 3478;
     std::uint32_t stunTimeout = 30;

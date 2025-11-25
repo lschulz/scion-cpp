@@ -64,8 +64,8 @@ std::unique_ptr<Arguments> parseCommandLine(int argc, char* argv[])
         "Path to a JSON file containing path policies");
     app.add_option("-l,--log-file", args->logFile,
         "Path to log file. If not given logs to stderr");
-    app.add_flag("--dispatch", args->enabledDispatch,
-        "Assume the duties of the dispatcher and listen on UDP port 30041");
+    app.add_flag("--scmp", args->enableScmpDispatch,
+        "Accept SCMP packets at the endhost/dispatcher port (30041/UDP)");
     app.add_flag("--stun", args->stun, "Attempt NAT traversal");
     app.add_option("--stun-port", args->stunPort,
         "Port at which STUN servers are expected. If set to zero uses the same port as for SCION"

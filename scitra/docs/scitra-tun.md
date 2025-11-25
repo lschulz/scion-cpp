@@ -152,13 +152,6 @@ hosts on the SCION network from accessing services on your machine, a separate f
 placed at the TUN interface created by Scitra-TUN and optionally also between the public network
 interface and Scitra-TUN.
 
-Note that, if Scitra-TUN is started with the `--dispatch` option all SCION traffic arriving at
-underlay UDP port 30041 (known as the dispatcher or host port) is translated, even if the
-destination port in the inner transport header differs from 30041. This behavior bypasses firewall
-rules that filter by destination port that are placed between the SCION network and Scitra-TUN. To
-properly filter destination ports, the firewall rules must be applied after translation at the TUN
-interface.
-
 NAT
 ---
 

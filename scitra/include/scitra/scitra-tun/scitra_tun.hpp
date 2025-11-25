@@ -103,10 +103,8 @@ private:
     scion::daemon::CoGrpcDaemonClient daemon;
     // Local AS information.
     scion::daemon::AsInfo localAS;
-    // Ports that bypass the dispatcher in the local AS.
-    scion::daemon::PortRange dispPorts;
-    // Whether to accept packets at the dispatcher port.
-    const bool enabledDispatch;
+    // Whether to accept SCMP packets at the dispatcher port.
+    const bool enableScmpDispatch;
     // Ports whose underlay sockets are always open.
     const std::vector<std::uint16_t> staticPorts;
     // Configured number of queues in the TUN interface.
