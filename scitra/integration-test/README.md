@@ -9,6 +9,18 @@ Create network namespaces and veth pairs using the [setup.sh](./setup.sh) script
 sudo ./setup.sh
 ```
 
+**Note on Firewalls:** If you are running a firewall connections via the veth interfaces may be
+blocked. For the network to work, you must defined firewall rules that allow TCP connections to the
+SCION daemons and UDP traffic between the applications in all namespaces and border routers in all
+combinations. For firewalld a simple way to allow all traffic over the veth interfaces is to set the
+firewall zone to "trusted".
+```bash
+sudo firewall-cmd --zone=trusted --change-interface=veth0
+sudo firewall-cmd --zone=trusted --change-interface=veth1
+sudo firewall-cmd --zone=trusted --change-interface=veth2
+sudo firewall-cmd --zone=trusted --change-interface=veth3
+```
+
 #### Step 2 ####
 
 Create and run a local SCION network that connects to the namespaces created in
@@ -36,19 +48,17 @@ sudo ip netns exec host0 sudo -u $USER bash
 In namespace `host0`:
 ```bash
 # IPv4
-build/scitra/Debug/scitra-tun-d veth1 10.128.0.2 -d 10.128.0.1:30255 --scmp --tui
+scitra-tun veth1 10.128.0.2 -d 10.128.0.1:30255 --scmp --tui --log-file log0.txt
 # IPv6
-build/scitra/Debug/scitra-tun-d veth1 fc00:10fc:100::2 -a fd00::1 -d [fc00:10fc:100::1]:30255 \
-    --scmp --tui
+scitra-tun veth1 fc00:10fc:100::2 -a fd00::1 -d [fc00:10fc:100::1]:30255 --scmp --tui --log-file log0.txt
 ```
 
 In namespace `host1`:
 ```bash
 # IPv4
-build/scitra/Debug/scitra-tun-d veth3 10.128.1.2 -d 10.128.1.1:30255 --ports=32000 --scmp --tui
+scitra-tun veth3 10.128.1.2 -d 10.128.1.1:30255 --ports=32000 --scmp --tui --log-file log1.txt
 # IPv6
-build/scitra/Debug/scitra-tun-d veth3 fc00:10fc:200::2 -a fd00::2 -d [fc00:10fc:200::1]:30255 \
-    --ports=32000 --scmp --tui
+scitra-tun veth3 fc00:10fc:200::2 -a fd00::2 -d [fc00:10fc:200::1]:30255 --ports=32000 --scmp --tui --log-file log1.txt
 ```
 
 #### Step 4 ####
@@ -108,7 +118,7 @@ nc fc00:10fc:200::ffff:a80:102 32000 # -u for UDP
 
 Server on `host1`:
 ```bash
-iperf3 -s -p 32000
+iperf3 -s -B fc00:10fc:200::ffff:a80:102 -p 32000
 ```
 
 Client on `host0`:

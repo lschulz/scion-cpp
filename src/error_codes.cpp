@@ -197,7 +197,7 @@ static ScionErrorCondition scionErrorCondition;
 
 const std::error_category& scion_error_condition()
 {
-    return scionErrorCategory;
+    return scionErrorCondition;
 }
 
 std::error_condition make_error_condition(ErrorCondition code)

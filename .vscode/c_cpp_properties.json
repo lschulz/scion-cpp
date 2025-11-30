@@ -3,22 +3,23 @@
         {
             "name": "Linux",
             "includePath": [
-                "${workspaceFolder}/include",
-                "${workspaceFolder}/src",
+                "${workspaceFolder}/build/generated",
+                "${workspaceFolder}/build/generated/scion",
                 "${workspaceFolder}/deps/asio-grpc/src",
-                "${workspaceFolder}/deps/googletest/googletest/include",
+                "${workspaceFolder}/deps/CLI11/include",
                 "${workspaceFolder}/deps/googletest/googlemock/include",
+                "${workspaceFolder}/deps/googletest/googletest/include",
                 "${workspaceFolder}/deps/imtui/include",
                 "${workspaceFolder}/deps/imtui/third-party/imgui",
                 "${workspaceFolder}/deps/spdlog/include",
-                "${workspaceFolder}/build/generated",
-                "${workspaceFolder}/tests",
-                "${workspaceFolder}/examples/include",
                 "${workspaceFolder}/examples/c/include",
-                "${workspaceFolder}/interposer/src",
+                "${workspaceFolder}/examples/include",
+                "${workspaceFolder}/include",
                 "${workspaceFolder}/interposer/include",
+                "${workspaceFolder}/interposer/src",
                 "${workspaceFolder}/scitra/include",
-                "${workspaceFolder}/build/generated/scion"
+                "${workspaceFolder}/src",
+                "${workspaceFolder}/tests"
             ],
             "defines": [
                 "AGRPC_BOOST_ASIO"

@@ -107,14 +107,13 @@ Socket::recvPacket(PacketBuffer& pkt, asio::ip::udp::endpoint& from)
     co_return ScitraError::Ok;
 }
 
-asio::awaitable<std::error_code>
-Socket::sendPacket(PacketBuffer& pkt, const asio::ip::udp::endpoint& nextHop,
+std::error_code Socket::sendPacket(PacketBuffer& pkt, const asio::ip::udp::endpoint& nextHop,
     const std::chrono::steady_clock::time_point& t)
 {
     if (ENABLE_STUN) {
         if (t - m_lastUsed > NAT_TIMEOUT) {
-            if (auto ec = co_await requestStunMapping(nextHop); ec) {
-                co_return ec;
+            if (auto ec = requestStunMapping(nextHop); ec) {
+                return ec;
             }
         }
         egressNat(pkt);
@@ -122,18 +121,18 @@ Socket::sendPacket(PacketBuffer& pkt, const asio::ip::udp::endpoint& nextHop,
 
     auto buffer = pkt.emitPacket(true);
     if (!buffer.has_value()) {
-        co_return buffer.error();
+        return buffer.error();
     }
-    constexpr auto token = boost::asio::as_tuple(boost::asio::use_awaitable);
-    auto [ec, n] = co_await m_underlay.async_send_to(asio::buffer(*buffer), nextHop, token);
-    if (ec) co_return ec;
-    if (n < buffer->size()) co_return ScitraError::PartialWrite;
+    boost::system::error_code ec;
+    auto n = m_underlay.send_to(asio::buffer(*buffer), nextHop, 0, ec);
+    if (ec) return ec;
+    if (n < buffer->size()) return ScitraError::PartialWrite;
     m_lastUsed = t;
-    co_return ScitraError::Ok;
+    return ScitraError::Ok;
 }
 
 // Send a STUN binding request to `server`.
-asio::awaitable<std::error_code> Socket::requestStunMapping(asio::ip::udp::endpoint server)
+std::error_code Socket::requestStunMapping(asio::ip::udp::endpoint server)
 {
     hdr::STUN stun;
     stun.type = hdr::StunMsgType::BindingRequest;
@@ -150,21 +149,21 @@ asio::awaitable<std::error_code> Socket::requestStunMapping(asio::ip::udp::endpo
     std::array<std::byte, 20> buffer;
     WriteStream ws(std::span<std::byte>(buffer.data(), buffer.size()));
     if (!stun.serialize(ws, NullStreamError)) {
-        co_return ScitraError::LogicError;
+        return ScitraError::LogicError;
     }
 
     // Send request packet
     if (STUN_PORT) server.port(STUN_PORT);
-    constexpr auto token = boost::asio::as_tuple(boost::asio::use_awaitable);
-    auto [ec, n] = co_await m_underlay.async_send_to(asio::buffer(buffer), server, token);
-    if (ec) co_return ec;
-    if (n < buffer.size()) co_return ScitraError::PartialWrite;
+    boost::system::error_code ec;
+    auto n = m_underlay.send_to(asio::buffer(buffer), server, 0, ec);
+    if (ec) return ec;
+    if (n < buffer.size()) return ScitraError::PartialWrite;
 
     std::lock_guard stunLock(m_stun.mutex);
     m_stun.expectStunResponse = true;
     m_stun.expectedStunServer = server.address();
     m_stun.stunTx = stun.transaction;
-    co_return ScitraError::Ok;
+    return ScitraError::Ok;
 }
 
 void Socket::ingressNat(PacketBuffer& pkt, const asio::ip::udp::endpoint& from)

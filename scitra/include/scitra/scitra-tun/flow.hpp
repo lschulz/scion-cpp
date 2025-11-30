@@ -158,6 +158,7 @@ class Flow
 {
 private:
     const FlowType type;
+    const std::uint32_t queue;
     std::mutex mutex;
     FlowState state = FlowState::OPEN;
     FlowCounters counters = {};
@@ -170,11 +171,12 @@ private:
 public:
     static inline const auto FLOW_TIMEOUT = std::chrono::minutes(2);
 
-    explicit Flow(FlowType type)
-        : type(type)
+    Flow(FlowType type, std::uint32_t queue)
+        : type(type), queue(queue)
     {}
 
     FlowType getType() const { return type; }
+    std::uint32_t getQueue() const { return queue; }
 
     // Acquire a lock on the path.
     FlowProxy lock();

@@ -49,11 +49,6 @@
       "platform": "!windows"
     },
     {
-      "name": "liburing",
-      "version>=": "2.12",
-      "platform": "linux"
-    },
-    {
       "name": "vcpkg-cmake",
       "host": true
     },

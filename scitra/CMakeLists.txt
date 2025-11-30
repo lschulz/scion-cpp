@@ -25,14 +25,13 @@ target_link_libraries(scitra-tun PRIVATE
     scion-cpp
     CLI11::CLI11
     spdlog::spdlog
-    uring
     mnl
     imtui
     imtui-ncurses
 )
 target_compile_definitions(scitra-tun PRIVATE
-    BOOST_ASIO_HAS_IO_URING=1
     SCION_NO_DEBUG=1
+    PERF_DEBUG=$<IF:$<CONFIG:Release>,0,1>
 )
 set_target_properties(scitra-tun PROPERTIES
     OUTPUT_NAME "scitra-tun"

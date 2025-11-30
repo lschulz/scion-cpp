@@ -33,12 +33,10 @@
 #if _WIN32
 #include <Winsock2.h>
 #include <WS2tcpip.h>
-#define poll WSAPoll
 #else
 #include <arpa/inet.h>
 #include <getopt.h>
 #include <netdb.h>
-#include <poll.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #endif

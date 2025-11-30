@@ -18,7 +18,6 @@ Currently available are:
 - [CLI11](https://github.com/CLIUtils/CLI11) (included as submodule)
 
 For scitra-tun (Linux only):
-- liburing >= 2.5
 - libmnl >= 1.0.5
 - [ImTui](https://github.com/ggerganov/imtui) (included as submodule)
 - [spdlog](https://github.com/gabime/spdlog) (included as submodule)
@@ -46,7 +45,6 @@ sudo apt-get install \
   libprotobuf-dev \
   libre2-dev \
   libtomlplusplus-dev \
-  liburing-dev \
   ninja-build \
   protobuf-compiler \
   protobuf-compiler-grpc

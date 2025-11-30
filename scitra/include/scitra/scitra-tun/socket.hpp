@@ -103,7 +103,7 @@ public:
         m_underlay.close();
     }
 
-#ifndef NNPERF_DEBUG
+#if PERF_DEBUG == 1
     DebugTimestamp lastRx;
 #endif
 
@@ -113,12 +113,11 @@ public:
 
     // Send a packet to `nextHop`. Will send a STUN binding request if STUN is
     // enabled and no binding is known or if the binding might be outdated.
-    asio::awaitable<std::error_code>
-    sendPacket(PacketBuffer& pkt, const asio::ip::udp::endpoint& nextHop,
+    std::error_code sendPacket(PacketBuffer& pkt, const asio::ip::udp::endpoint& nextHop,
         const std::chrono::steady_clock::time_point& t);
 
 private:
-    asio::awaitable<std::error_code> requestStunMapping(asio::ip::udp::endpoint server);
+    std::error_code requestStunMapping(asio::ip::udp::endpoint server);
     void ingressNat(PacketBuffer& pkt, const asio::ip::udp::endpoint& from);
     void egressNat(PacketBuffer& pkt);
 };

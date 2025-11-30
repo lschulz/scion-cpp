@@ -1,3 +1,23 @@
+// Copyright (c) 2024-2025 Lars-Christian Schulz
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 #include "scitra/scitra-tun/scitra_tun.hpp"
 
 #include <imtui/imtui.h>
@@ -443,6 +463,11 @@ public:
 
         auto& style = ImGui::GetStyle();
         style.Colors[ImGuiCol_Button] = ImVec4(0.25f, 0.25f, 0.25f, 1.0f);
+
+        auto i = std::back_inserter(staticPorts);
+        std::format_to(i, "Ports:");
+        for (auto port : scitra.getStaticPorts())
+            std::format_to(i, " {}", port);
     }
 
     ScitraTui(const ScitraTui&) = delete;
@@ -506,6 +531,9 @@ private:
     ImTui::TScreen *screen = nullptr;
     Clock::time_point lastUpdate;
 
+    // Static information
+    std::string staticPorts;
+
     // Flows
     unsigned tcpFlows = 0;
     unsigned udpFlows = 0;
@@ -514,10 +542,10 @@ private:
     std::vector<std::unique_ptr<FlowListEntry>> flowData;
 
     // Debug Info
-#ifndef NPERF_DEBUG
+#if PERF_DEBUG == 1
     double egrProcessingTime = 0.0;
     double igrProcessingTime = 0.0;
-#endif // NPERF_DEBUG
+#endif // PERF_DEBUG
 
     // Layout
     static constexpr float minWidthSideBySideGraphs = 145.0f;
@@ -606,7 +634,7 @@ void ScitraTui::updateFlows(float elapsed)
 
 void ScitraTui::updateDebugInfo(float elapsed)
 {
-#ifndef NPERF_DEBUG
+#if PERF_DEBUG == 1
     auto dbg = scitra.getDebugInfo();
     egrProcessingTime = (double)dbg.egrNanoSec / dbg.egrSamples;
     igrProcessingTime = (double)dbg.igrNanoSec / dbg.igrSamples;
@@ -638,27 +666,28 @@ void ScitraTui::drawFrame(const ImVec2& window)
         scitra.getHostAddress(), scitra.getPublicIfaceName());
     ImGuiText(addr);
     ImGui::SameLine();
-    ImGui::SetCursorPosX(std::max<std::size_t>(addr.size() + 1, 42));
+    ImGui::SetCursorPosX(std::max<std::size_t>(addr.size() + 1, 45));
     ImGuiText(std::format("Mapped : {}", scitra.getMappedAddress()));
 
     // Status line 2
     ImGui::Text("Flows: %3u UDP %3u TCP %3u other", udpFlows, tcpFlows, otherFlows);
     ImGui::SameLine();
-    ImGui::SetCursorPosX(std::max<std::size_t>(addr.size() + 1, 42));
+    ImGui::SetCursorPosX(std::max<std::size_t>(addr.size() + 1, 45));
     ImGuiText(std::format("Bind to: {}%{}", scitra.getTunAddress(), scitra.getTunName()));
 
     // Status line 3
     ImGui::Text("Total TX: %8.3f pkt/s %8.3f Mbit/s", globalRate.txPPS, 1e-6 * globalRate.txBPS);
     ImGui::SameLine();
-    ImGui::SetCursorPosX(42);
+    ImGui::SetCursorPosX(45);
     ImGui::Text("Total RX: %8.3f pkt/s %8.3f Mbit/s", globalRate.rxPPS, 1e-6 * globalRate.rxBPS);
 
     // Status line 4
-#ifdef NPERF_DEBUG
-    ImGui::Text("Debug:");
-#else
-    ImGui::Text("Debug: TX = %8e ns RX = %8e ns", egrProcessingTime, igrProcessingTime);
+#if PERF_DEBUG == 1
+    ImGui::Text("Debug: TX = %10.4e ns RX = %10.4e ns", egrProcessingTime, igrProcessingTime);
+    ImGui::SameLine();
+    ImGui::SetCursorPosX(45);
 #endif
+    ImGuiText(staticPorts);
 
     // Flows
     ImGui::SetNextItemOpen(flowsOpen);

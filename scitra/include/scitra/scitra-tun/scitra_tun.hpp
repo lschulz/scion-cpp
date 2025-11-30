@@ -53,7 +53,7 @@ using namespace scion;
 using namespace scion::scitra;
 
 
-#ifndef NPERF_DEBUG
+#if PERF_DEBUG == 1
 // Performance profiling and debugging data.
 struct DbgPerformance
 {
@@ -62,7 +62,7 @@ struct DbgPerformance
     std::uint64_t egrNanoSec;
     std::uint64_t igrNanoSec;
 };
-#endif // NPERF_DEBUG
+#endif // PERF_DEBUG
 
 struct FlowInfo
 {
@@ -109,7 +109,7 @@ private:
     const std::vector<std::uint16_t> staticPorts;
     // Configured number of queues in the TUN interface.
     const std::uint32_t configQueues;
-    // Configured number of worker threads.
+    // Configured number of socket worker threads.
     const std::uint32_t configThreads;
 
     // Public underlay IP address used by SCION. Can be an IPv4 or IPv6 address.
@@ -143,12 +143,12 @@ private:
     std::unique_ptr<scion::PathMtuDiscoverer<>> pmtu;
 
     // Debug
-#ifndef NPERF_DEBUG
+#if PERF_DEBUG == 1
     mutable std::atomic<std::uint32_t> egrSamples;
     mutable std::atomic<std::uint32_t> igrSamples;
     mutable std::atomic<std::uint64_t> egrTicks;
     mutable std::atomic<std::uint64_t> igrTicks;
-#endif // NPERF_DEBUG
+#endif // PERF_DEBUG
 
 public:
     ScitraTun(const Arguments& args);
@@ -179,6 +179,7 @@ public:
     generic::IPAddress getTunAddress() const { return tunIP; }
     std::string_view getPublicIfaceName() const { return netDevice; }
     std::string_view getTunName() const { return tunDevice; }
+    std::span<const std::uint16_t> getStaticPorts() const { return staticPorts; }
 
     /// \brief Start refreshing paths to `dst` now. Returns immediately without
     /// blocking.
@@ -195,7 +196,7 @@ public:
     /// \brief Remove a flow immediately.
     void removeFlow(const FlowID& flowid);
 
-#ifndef NPERF_DEBUG
+#if PERF_DEBUG == 1
     DbgPerformance getDebugInfo() const
     {
         return {
@@ -205,7 +206,7 @@ public:
             igrTicks.exchange(0),
         };
     }
-#endif // NPERF_DEBUG
+#endif // PERF_DEBUG
 
     std::vector<FlowInfo> exportFlows(bool resetCounters) const;
 
@@ -223,7 +224,7 @@ private:
 
     asio::awaitable<void> signalHandler();
     asio::awaitable<std::error_code> tick();
-    asio::awaitable<std::error_code> translateIPtoScion(TunQueue& tun);
+    std::error_code translateIPtoScion(TunQueue& tun);
     asio::awaitable<std::error_code> translateScionToIP(std::shared_ptr<Socket> socket);
 
     std::shared_ptr<Flow> getFlow(const FlowID& id, FlowType type);

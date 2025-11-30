@@ -22,7 +22,7 @@
 
 #include <chrono>
 
-#ifndef NNPERF_DEBUG
+#if PERF_DEBUG == 1
 using DebugTimestamp = std::chrono::high_resolution_clock::time_point;
 #define DBG_TIME_BEGIN(temp) temp = std::chrono::high_resolution_clock::now()
 #define DBG_TIME_END(temp, dest, counter) do {\

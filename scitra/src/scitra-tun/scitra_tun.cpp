@@ -24,6 +24,8 @@
 
 #include <spdlog/spdlog.h>
 
+#include <random>
+#include <ranges>
 #include <signal.h>
 
 using namespace std::chrono_literals;
@@ -136,14 +138,14 @@ ScitraTun::ScitraTun(const Arguments& args)
     }
 
     // Create TUN device
-    if (auto tun = createTunQueue(ioCtx, tunDevice); tun.has_value()) {
+    if (auto tun = createTunQueue(tunDevice); tun.has_value()) {
         tunQueues.emplace_back(std::move(*tun));
     } else {
         throw std::runtime_error(std::format("Can't create TUN interface with name '{}': {}",
             args.tunDevice, tun.error().message()));
     }
     for (int i = 1; i < args.queues; ++i) {
-        if (auto tun = createTunQueue(ioCtx, tunDevice); tun.has_value()) {
+        if (auto tun = createTunQueue(tunDevice); tun.has_value()) {
             tunQueues.emplace_back(std::move(*tun));
         } else {
             throw std::runtime_error(
@@ -208,11 +210,6 @@ void ScitraTun::run()
     // Start timer
     asio::co_spawn(ioCtx, tick(), asio::detached);
 
-    // Start a coroutine for every queue of the TUN device
-    for (TunQueue& queue : tunQueues) {
-        asio::co_spawn(ioCtx, translateIPtoScion(queue), asio::detached);
-    }
-
     // Open dispatcher socket and start a corresponding coroutine
     if (enableScmpDispatch) {
         if (auto res = openSocket(scion::scitra::DISPATCHER_PORT, true); scion::isError(res)) {
@@ -231,8 +228,8 @@ void ScitraTun::run()
         }
     }
 
-    // Start worker threads after all queues and static sockets are ready.
-    threads.reserve(configThreads + 1);
+    // Start worker threads after all queues and static sockets are ready
+    threads.reserve(configThreads + configQueues + 1);
     for (std::uint32_t i = 0; i < configThreads; ++i) {
         threads.emplace_back([this] {
             sigset_t sigset;
@@ -241,12 +238,22 @@ void ScitraTun::run()
                 throw std::system_error(errno, std::generic_category());
             ioCtx.run();
         });
+        pthread_setname_np(threads.back().native_handle(), std::format("worker{}", i).c_str());
+    }
+
+    // Start a thread for every queue of the TUN device
+    for (auto [i, queue] : std::ranges::enumerate_view(tunQueues)) {
+        threads.emplace_back([this] (TunQueue& queue) {
+            translateIPtoScion(queue);
+        }, std::ref(queue));
+        pthread_setname_np(threads.back().native_handle(), std::format("tunQ{}", i).c_str());
     }
 
     // Run gRPC context on its own thread
     threads.emplace_back([this] {
         grpcIoCtx.run();
     });
+    pthread_setname_np(threads.back().native_handle(), "grpcIoCtx");
 }
 
 ScitraTun::~ScitraTun()
@@ -264,7 +271,7 @@ void ScitraTun::stop()
     for (auto& s: sockets)
         s.second->close();
     for (auto& queue : tunQueues)
-        queue.close();
+        queue.cancel();
     eventTimer.cancel();
     signals.cancel();
 }
@@ -388,9 +395,11 @@ Maybe<std::shared_ptr<Socket>> ScitraTun::openSocket(std::uint16_t port, bool pe
 std::shared_ptr<Flow> ScitraTun::getFlow(const FlowID& id, FlowType type)
 {
     std::lock_guard lock(flowMutex);
+    static std::mt19937 rng(std::random_device{}());
     auto flow = flows[id];
     if (!flow) {
-        flow = std::make_shared<Flow>(type);
+        std::uniform_int_distribution<std::uint32_t> dist(0, tunQueues.size());
+        flow = std::make_shared<Flow>(type, dist(rng));
         flows[id] = flow;
     }
     return flow;
@@ -555,16 +564,16 @@ asio::awaitable<std::error_code> ScitraTun::tick()
     co_return ErrorCode::Ok;
 }
 
-asio::awaitable<std::error_code> ScitraTun::translateIPtoScion(TunQueue& tun)
+std::error_code ScitraTun::translateIPtoScion(TunQueue& tun)
 {
     using std::uint8_t;
     using std::uint16_t;
     PacketBuffer pkt{std::pmr::vector<std::byte>(PACKET_BUFFER_SIZE)};
 
-    while (tun.isOpen()) {
-        auto ec = co_await tun.recvPacket(pkt);
+    while (!shouldExit) {
+        auto ec = tun.recvPacket(pkt); // blocking
         if (ec) {
-            if (ec == std::errc::bad_file_descriptor || ec == std::errc::operation_canceled) {
+            if (ec == ErrorCondition::Cancelled) {
                 break;
             } else if (ec != ErrorCondition::InvalidPacket) {
                 spdlog::error("Error reading from TUN queue: {}", fmtError(ec));
@@ -613,7 +622,7 @@ asio::awaitable<std::error_code> ScitraTun::translateIPtoScion(TunQueue& tun)
                 flow->lock().updateState(pkt, recvd).countEgress(1, pkt.payload().size());
                 auto nh = generic::toUnderlay<asio::ip::udp::endpoint>(nextHop);
                 if (!nh.has_value()) continue; // this should never happen
-                auto ec = co_await socket->sendPacket(pkt, *nh, recvd);
+                auto ec = socket->sendPacket(pkt, *nh, recvd); // blocking
                 if (ec) {
                     if (ec == std::errc::message_size) {
                         // MTU to next hop is lower than expected AS-intermal MTU. Fall back to
@@ -628,12 +637,12 @@ asio::awaitable<std::error_code> ScitraTun::translateIPtoScion(TunQueue& tun)
                 }
             }
         } else if (verdict == Verdict::Return) {
-            auto ec = co_await tun.sendPacket(pkt);
+            auto ec = tun.sendPacket(pkt);
             if (ec) spdlog::error("Error sending packet to TUN: {}", fmtError(ec));
         }
         DBG_TIME_END(tun.lastRx, egrTicks, egrSamples);
     }
-    co_return ScitraError::Cancelled;
+    return ScitraError::Cancelled;
 }
 
 asio::awaitable<std::error_code> ScitraTun::translateScionToIP(std::shared_ptr<Socket> socket)
@@ -692,8 +701,8 @@ asio::awaitable<std::error_code> ScitraTun::translateScionToIP(std::shared_ptr<S
             } else {
                 fl->lock().updateState(pkt, recvd).countIngress(1, pkt.payload().size());
             }
-            auto queue = socket->port() % tunQueues.size();
-            auto ec = co_await tunQueues[queue].sendPacket(pkt);
+            auto queue = fl->getQueue() % tunQueues.size();
+            auto ec = tunQueues[queue].sendPacket(pkt);
             if (ec) spdlog::error("Error sending packet to TUN (queue {}): {}",
                 queue, fmtError(ec));
         }

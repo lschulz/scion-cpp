@@ -29,6 +29,7 @@
 
 #include <iostream>
 #include <memory>
+#include <ranges>
 #include <signal.h>
 #include <system_error>
 
@@ -55,10 +56,10 @@ std::unique_ptr<Arguments> parseCommandLine(int argc, char* argv[])
     app.add_option("-p,--ports", args->ports,
         "One ore mote statically forwarded TCP/UDP ports.");
     app.add_option("-q,--queues", args->queues,
-        "Number of TUN queues to create (default 1)")
+        "Number of TUN queues and threads to create (default 1)")
         ->check(CLI::Range(1, 64));
     app.add_option("-t,--threads", args->threads,
-        "Number of worker threads to create (default 1)")
+        "Number of socket worker threads to create (default 1)")
         ->check(CLI::Range(1, 64));
     app.add_option("--policy", args->policy,
         "Path to a JSON file containing path policies");
@@ -76,6 +77,7 @@ std::unique_ptr<Arguments> parseCommandLine(int argc, char* argv[])
     app.add_flag("--tui", args->tui, "Start with TUI");
     try {
         app.parse(argc, argv);
+        std::ranges::sort(args->ports);
         return args;
     }
     catch (const CLI::ParseError& e) {
