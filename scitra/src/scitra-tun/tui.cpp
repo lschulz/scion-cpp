@@ -538,7 +538,7 @@ private:
     unsigned tcpFlows = 0;
     unsigned udpFlows = 0;
     unsigned otherFlows = 0;
-    FlowRate globalRate;
+    RollingBuffer<FlowRate, FLOW_RATE_HIST_LEN> globalRate;
     std::vector<std::unique_ptr<FlowListEntry>> flowData;
 
     // Debug Info
@@ -597,7 +597,7 @@ void ScitraTui::updateFlows(float elapsed)
     tcpFlows = 0;
     udpFlows = 0;
     otherFlows = 0;
-    globalRate = {};
+    FlowRate global = {};
     for (auto& flow : flows) {
         if (flow.tuple.proto == hdr::ScionProto::TCP)
             ++tcpFlows;
@@ -605,10 +605,10 @@ void ScitraTui::updateFlows(float elapsed)
             ++udpFlows;
         else
             ++otherFlows;
-        globalRate.txPPS += flow.counters.pktsEgress;
-        globalRate.txBPS += 8 * flow.counters.bytesEgress;
-        globalRate.rxPPS += flow.counters.pktsIngress;
-        globalRate.rxBPS += 8 * flow.counters.bytesIngress;
+        global.txPPS += flow.counters.pktsEgress;
+        global.txBPS += 8 * flow.counters.bytesEgress;
+        global.rxPPS += flow.counters.pktsIngress;
+        global.rxBPS += 8 * flow.counters.bytesIngress;
 
         auto i = std::ranges::find_if(flowData, [&flow] (auto& ptr) {
             return ptr && ptr->tuple == flow.tuple;
@@ -624,11 +624,12 @@ void ScitraTui::updateFlows(float elapsed)
     }
 
     const float invElapsed = 1.0f / elapsed;
-    globalRate.txPPS *= invElapsed;
-    globalRate.txBPS *= invElapsed;
-    globalRate.rxPPS *= invElapsed;
-    globalRate.rxBPS *= invElapsed;
+    global.txPPS *= invElapsed;
+    global.txBPS *= invElapsed;
+    global.rxPPS *= invElapsed;
+    global.rxBPS *= invElapsed;
     flowData = std::move(updated);
+    globalRate.push(global);
     sortFlows = true;
 }
 
@@ -676,10 +677,11 @@ void ScitraTui::drawFrame(const ImVec2& window)
     ImGuiText(std::format("Bind to: {}%{}", scitra.getTunAddress(), scitra.getTunName()));
 
     // Status line 3
-    ImGui::Text("Total TX: %8.3f pkt/s %8.3f Mbit/s", globalRate.txPPS, 1e-6 * globalRate.txBPS);
+    const auto& total = globalRate.last();
+    ImGui::Text("Total TX: %8.3f pkt/s %8.3f Mbit/s", total.txPPS, 1e-6 * total.txBPS);
     ImGui::SameLine();
     ImGui::SetCursorPosX(45);
-    ImGui::Text("Total RX: %8.3f pkt/s %8.3f Mbit/s", globalRate.rxPPS, 1e-6 * globalRate.rxBPS);
+    ImGui::Text("Total RX: %8.3f pkt/s %8.3f Mbit/s", total.rxPPS, 1e-6 * total.rxBPS);
 
     // Status line 4
 #if PERF_DEBUG == 1
@@ -739,11 +741,13 @@ void ScitraTui::drawFrame(const ImVec2& window)
                     ImGui::TableNextRow(ImGuiTableRowFlags_None, 1.0f);
 
                     ImGui::TableNextColumn();
-                    const int selFlags = ImGuiSelectableFlags_SpanAllColumns
-                        | ImGuiSelectableFlags_AllowItemOverlap;
+                    const int selFlags = ImGuiSelectableFlags_SpanAllColumns;
                     auto dst = std::format("{}", flow->tuple.dst.address());
                     if (ImGui::Selectable(dst.c_str(), selFlow == row, selFlags, ImVec2(0, 1.0f))) {
-                        selFlow = row;
+                        if (selFlow == row)
+                            selFlow = -1; // deselect on second click
+                        else
+                            selFlow = row;
                     }
 
                     ImGui::TableNextColumn();
@@ -781,8 +785,12 @@ void ScitraTui::drawFrame(const ImVec2& window)
         std::span<float, FLOW_RATE_HIST_LEN> tx(txAry.data(), txAry.size());
         std::span<float, FLOW_RATE_HIST_LEN> rx(rxAry.data(), rxAry.size());
         if (selFlow < 0 || (std::size_t)selFlow >= flowData.size()) {
-            std::ranges::fill(tx, 0.0f);
-            std::ranges::fill(rx, 0.0f);
+            globalRate.linearize(tx, [] (auto& x) {
+                return x.txBPS;
+            });
+            globalRate.linearize(rx, [] (auto& x) {
+                return x.rxBPS;
+            });
         } else {
             flowData[selFlow]->rate.linearize(tx, [] (auto& x) {
                 return x.txBPS;
