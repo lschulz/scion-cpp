@@ -478,7 +478,7 @@
             "environment": [
                 {
                     "name": "LD_PRELOAD",
-                    "value": "${workspaceFolder}/build/interposer/Debug/libinterposer.so"
+                    "value": "${workspaceFolder}/build/interposer/Debug/libscion-interposerd.so"
                 },
                 {
                     "name": "SCION_DAEMON_ADDRESS",
@@ -510,14 +510,14 @@
             "request": "launch",
             "program": "/usr/bin/iperf3",
             "args": [
-                "-c", "fc00::111", "-p32000", "--udp", "-l1200", "-t1", "-b10M"
+                "-c", "fc00::111", "-p32000", "--udp", "-l1150", "-t1", "-b10M"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [
                 {
                     "name": "LD_PRELOAD",
-                    "value": "${workspaceFolder}/build/interposer/Debug/libinterposer.so"
+                    "value": "${workspaceFolder}/build/interposer/Debug/libscion-interposerd.so"
                 },
                 {
                     "name": "SCION_DAEMON_ADDRESS",

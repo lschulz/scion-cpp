@@ -251,7 +251,8 @@ public:
         std::span<const std::byte> payload,
         MsgFlags flags = SMSG_NO_FLAGS)
     {
-        if (flags & ~SMSG_NO_FLAGS) return Error(ErrorCode::InvalidArgument);
+        if (flags & ~(SMSG_CONFIRM | SMSG_DONTWAIT | SMSG_NOSIGNAL))
+            return Error(ErrorCode::InvalidArgument);
         auto ec = packager.pack(
             headers, &to, path, ext::NoExtensions, hdr::SCMP(message), payload);
         if (ec) return Error(ec);
@@ -269,7 +270,8 @@ public:
         std::span<const std::byte> payload,
         MsgFlags flags = SMSG_NO_FLAGS)
     {
-        if (flags & ~SMSG_NO_FLAGS) return Error(ErrorCode::InvalidArgument);
+        if (flags & ~(SMSG_CONFIRM | SMSG_DONTWAIT | SMSG_NOSIGNAL))
+            return Error(ErrorCode::InvalidArgument);
         auto ec = packager.pack(
             headers, &to, path, std::forward<ExtRange>(extensions), hdr::SCMP(message), payload);
         if (ec) return Error(ec);

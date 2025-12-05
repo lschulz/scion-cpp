@@ -54,6 +54,23 @@ enum MsgFlags
     /// MSG_WAITALL.
     SMSG_WAITALL = MSG_WAITALL,
 
+#ifdef _WIN32
+    SMSG_CONFIRM = 0,
+#else
+    /// \brief Confirm to link layer that forward progress happened. Only useful
+    /// for UDP sockets and not used in Windows.
+    SMSG_CONFIRM = MSG_CONFIRM,
+#endif
+
+#ifdef _WIN32
+    // There are no signals in Windows.
+    SMSG_NOSIGNAL = 0,
+#else
+    /// \brief Do not generate SIGPIPE on stream oriented sockets when the
+    /// remote end breaks the connection.
+    SMSG_NOSIGNAL = MSG_NOSIGNAL,
+#endif
+
     /// \brief Return immediately if an SCMP message has been received instead
     /// of waiting for more data.
     SMSG_RECV_SCMP = 0x10'0000,

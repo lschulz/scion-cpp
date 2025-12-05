@@ -264,7 +264,7 @@ int testConnection(boost::asio::io_context& ioCtx, Socket& s)
         std::vector<char> buf(2028);
         static const std::vector<char> msg1 = {};
         static const std::vector<char> msg2 = {'T', 'E', 'S', 'T'};
-        std::vector<char> msg3(1280);
+        std::vector<char> msg3(1150);
         generate(msg3, [] () -> char {
             return (char)std::rand();
         });

@@ -100,7 +100,8 @@ public:
         std::span<const std::byte> payload,
         MsgFlags flags = SMSG_NO_FLAGS)
     {
-        if (flags & ~SMSG_NO_FLAGS) return Error(ErrorCode::InvalidArgument);
+        if (flags & ~(SMSG_CONFIRM | SMSG_DONTWAIT | SMSG_NOSIGNAL))
+            return Error(ErrorCode::InvalidArgument);
         auto ec = packager.pack(
             headers, nullptr, path, ext::NoExtensions, hdr::UDP{}, payload);
         if (ec) return Error(ec);
@@ -116,7 +117,8 @@ public:
         std::span<const std::byte> payload,
         MsgFlags flags = SMSG_NO_FLAGS)
     {
-        if (flags & ~SMSG_NO_FLAGS) return Error(ErrorCode::InvalidArgument);
+        if (flags & ~(SMSG_CONFIRM | SMSG_DONTWAIT | SMSG_NOSIGNAL))
+            return Error(ErrorCode::InvalidArgument);
         auto ec = packager.pack(
             headers, nullptr, path, std::forward<ExtRange>(extensions), hdr::UDP{}, payload);
         if (ec) return Error(ec);
@@ -132,7 +134,8 @@ public:
         std::span<const std::byte> payload,
         MsgFlags flags = SMSG_NO_FLAGS)
     {
-        if (flags & ~SMSG_NO_FLAGS) return Error(ErrorCode::InvalidArgument);
+        if (flags & ~(SMSG_CONFIRM | SMSG_DONTWAIT | SMSG_NOSIGNAL))
+            return Error(ErrorCode::InvalidArgument);
         auto ec = packager.pack(
             headers, &to, path, ext::NoExtensions, hdr::UDP{}, payload);
         if (ec) return Error(ec);
@@ -149,7 +152,8 @@ public:
         std::span<const std::byte> payload,
         MsgFlags flags = SMSG_NO_FLAGS)
     {
-        if (flags & ~SMSG_NO_FLAGS) return Error(ErrorCode::InvalidArgument);
+        if (flags & ~(SMSG_CONFIRM | SMSG_DONTWAIT | SMSG_NOSIGNAL))
+            return Error(ErrorCode::InvalidArgument);
         auto ec = packager.pack(
             headers, &to, path, std::forward<ExtRange>(extensions), hdr::UDP{}, payload);
         if (ec) return Error(ec);
@@ -163,7 +167,8 @@ public:
         std::span<const std::byte> payload,
         MsgFlags flags = SMSG_NO_FLAGS)
     {
-        if (flags & ~SMSG_NO_FLAGS) return Error(ErrorCode::InvalidArgument);
+        if (flags & ~(SMSG_CONFIRM | SMSG_DONTWAIT | SMSG_NOSIGNAL))
+            return Error(ErrorCode::InvalidArgument);
         hdr::UDP udp;
         udp.sport = packager.localEp().port();
         udp.dport = packager.remoteEp().port();
@@ -180,7 +185,8 @@ public:
         std::span<const std::byte> payload,
         MsgFlags flags = SMSG_NO_FLAGS)
     {
-        if (flags & ~SMSG_NO_FLAGS) return Error(ErrorCode::InvalidArgument);
+        if (flags & ~(SMSG_CONFIRM | SMSG_DONTWAIT | SMSG_NOSIGNAL))
+            return Error(ErrorCode::InvalidArgument);
         hdr::UDP udp;
         udp.sport = packager.localEp().port();
         udp.dport = to.port();

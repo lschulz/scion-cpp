@@ -30,7 +30,7 @@ class UdpTestTarget(unittest.TestCase):
         super().__init__(methodName)
         self.command = Path(build_dir) / "interposer/integration/Debug/" / "interposer-target"
         self.env = {
-            "LD_PRELOAD": Path(build_dir) / "interposer/Debug/libinterposer.so",
+            "LD_PRELOAD": Path(build_dir) / "interposer/Debug/libscion-interposerd.so",
             "SCION_CONFIG": Path(__file__).parent / "config/scion_interposer.toml",
         }
 
@@ -70,7 +70,7 @@ class UdpTestTarget(unittest.TestCase):
             "1-ff00:0:111,127.0.0.1", "31700",
             "-b", "::ffff:127.0.0.1", "-p", "32000"
         ], env={
-            "SCION_DAEMON_ADDRESS": "127.0.0.19:30255",
+            "SCION_DAEMON_ADDRESS": "127.0.0.27:30255",
             **self.env
         }, stdout=PIPE, stderr=DEVNULL)
         if res.returncode:
