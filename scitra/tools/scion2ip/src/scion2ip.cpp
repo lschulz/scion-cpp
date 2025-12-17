@@ -36,6 +36,8 @@ using std::uint32_t;
 using std::uint64_t;
 
 
+extern const char* VERSION_LINE;
+
 struct Arguments
 {
     std::string address;
@@ -111,6 +113,7 @@ int main(int argc, char* argv[])
         ->check(CLI::Range(24));
     app.add_flag("-v,--verbose", args.verbose,
         "Print extracted local prefix and subnet in addition to translated address");
+    app.set_version_flag("-V,--version", VERSION_LINE);
     CLI11_PARSE(app, argc, argv);
 
     if (args.prefix) {

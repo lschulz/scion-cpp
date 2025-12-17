@@ -5,6 +5,17 @@ cmake_minimum_required(VERSION 3.28)
 # =========
 
 if (LINUX)
+find_package(PkgConfig)
+pkg_check_modules(libcap REQUIRED IMPORTED_TARGET libcap)
+pkg_check_modules(libpsx REQUIRED IMPORTED_TARGET libpsx)
+
+set(scitra-tun_VERSION_MAJOR 0)
+set(scitra-tun_VERSION_MINOR 0)
+set(scitra-tun_VERSION_PATCH 1)
+set(scitra-tun_VERSION
+    "${scitra-tun_VERSION_MAJOR}.${scitra-tun_VERSION_MINOR}.${scitra-tun_VERSION_PATCH}${VERSION_TAG}")
+configure_file(src/scitra-tun/version.cpp.in version.cpp)
+
 add_executable(scitra-tun)
 target_sources(scitra-tun PRIVATE
     "src/packet.cpp"
@@ -16,6 +27,7 @@ target_sources(scitra-tun PRIVATE
     "src/scitra-tun/socket.cpp"
     "src/scitra-tun/sys_net.cpp"
     "src/scitra-tun/tui.cpp"
+    "${CMAKE_CURRENT_BINARY_DIR}/version.cpp"
 )
 target_include_directories(scitra-tun PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
@@ -28,6 +40,8 @@ target_link_libraries(scitra-tun PRIVATE
     mnl
     imtui
     imtui-ncurses
+    PkgConfig::libcap
+    PkgConfig::libpsx
 )
 target_compile_definitions(scitra-tun PRIVATE
     SCION_NO_DEBUG=1
@@ -37,8 +51,36 @@ set_target_properties(scitra-tun PROPERTIES
     OUTPUT_NAME "scitra-tun"
     DEBUG_POSTFIX "-d"
 )
-install(TARGETS scitra-tun RUNTIME)
-
+install(TARGETS scitra-tun
+    COMPONENT SCITRA_TUN
+    RUNTIME
+)
+install(FILES
+    "${CMAKE_CURRENT_SOURCE_DIR}/install/scitra-tun/scitra-tun.conf"
+    "${CMAKE_CURRENT_SOURCE_DIR}/install/scitra-tun/scitra-policy.json"
+    COMPONENT SCITRA_TUN
+    # Only install to an absolute path if CPACK_SET_DESTDIR is requested explicitly.
+    DESTINATION $<IF:$<BOOL:${CPACK_SET_DESTDIR}>,/etc/scion/,${CMAKE_INSTALL_SYSCONFDIR}/scion/>
+)
+install(FILES
+    "${CMAKE_CURRENT_SOURCE_DIR}/install/scitra-tun/debian/config-dns"
+    "${CMAKE_CURRENT_SOURCE_DIR}/install/scitra-tun/debian/config-routes"
+    COMPONENT SCITRA_TUN
+    PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ WORLD_READ
+    DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/scitra-tun/"
+)
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/install/scitra-tun/debian/scitra-tun.service"
+    COMPONENT SCITRA_TUN
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/systemd/system/"
+)
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/man/scitra-tun.8.gz"
+    COMPONENT SCITRA_TUN
+    DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/man/man8/"
+)
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/man/scitra-policy.json.5.gz"
+    COMPONENT SCITRA_TUN
+    DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/man/man5/"
+)
 endif(LINUX)
 
 # ==========

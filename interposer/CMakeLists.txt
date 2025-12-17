@@ -32,7 +32,7 @@ target_include_directories(interposer PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
 )
-target_link_libraries(interposer PRIVATE scion-cpp scion-c ${RE2})
+target_link_libraries(interposer PRIVATE scion-cpp scion-c-static ${RE2})
 target_compile_definitions(interposer PRIVATE
     "$<$<CONFIG:DEBUG>:LOG_CALLS=1>"
 )
@@ -43,11 +43,24 @@ endif()
 
 set_target_properties(interposer PROPERTIES
     OUTPUT_NAME "scion-interposer"
+    PREFIX ""
     DEBUG_POSTFIX "d"
     VERSION "0.0.1"
     SOVERSION "0"
 )
-install(TARGETS interposer RUNTIME)
+install(TARGETS interposer
+    COMPONENT INTERPOSER
+    RUNTIME
+)
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/install/interposer.toml"
+    COMPONENT INTERPOSER
+    # Only install to an absolute path if CPACK_SET_DESTDIR is requested explicitly.
+    DESTINATION $<IF:$<BOOL:${CPACK_SET_DESTDIR}>,/etc/scion/,${CMAKE_INSTALL_SYSCONFDIR}/scion/>
+)
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/man/scion-interposer.7.gz"
+    COMPONENT INTERPOSER
+    DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/man/man7/"
+)
 
 # =====================
 # Default Path Selector

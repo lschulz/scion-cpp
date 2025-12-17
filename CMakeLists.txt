@@ -1,6 +1,13 @@
 cmake_minimum_required(VERSION 3.28)
 
-project(scion-cpp C CXX)
+project(scion-cpp
+    LANGUAGES C CXX
+    VERSION 0.0.1
+    HOMEPAGE_URL "https://github.com/lschulz/scion-cpp"
+)
+
+set(MARCH "native" CACHE STRING "GCC/Clang: Target machine type. Set to an empty string to not set -march.")
+set(RELEASE NO CACHE BOOL "Build a release version")
 
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -8,12 +15,14 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-add_compile_options(/W3)
-add_compile_options(/arch:AVX2)
+    add_compile_options(/W3)
+    add_compile_options(/arch:AVX2)
 else()
-add_compile_options(-Wall -Wextra -Wpedantic -Wno-unused-parameter)
-add_compile_options(-fPIC)
-add_compile_options(-march=native)
+    add_compile_options(-Wall -Wextra -Wpedantic -Wno-unused-parameter)
+    add_compile_options(-fPIC)
+if (MARCH)
+    add_compile_options(-march=${MARCH})
+endif()
 endif()
 
 if (WIN32)
@@ -24,6 +33,27 @@ add_compile_definitions(
 endif()
 
 include(GNUInstallDirs)
+
+if (RELEASE)
+    set(VERSION_TAG "")
+else()
+    # If not building for a release, add the Git commit hash to version strings.
+    # The commit hash is only updated when the project is reconfigured.
+    find_package(Git)
+    if (GIT_EXECUTABLE)
+        execute_process(
+            COMMAND "${GIT_EXECUTABLE}" describe --abbrev=10 --always --match "" --dirty
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+            OUTPUT_VARIABLE GIT_COMMIT_HASH
+            RESULT_VARIABLE GIT_RESULT
+            OUTPUT_STRIP_TRAILING_WHITESPACE)
+    endif()
+    if (NOT GIT_RESULT)
+        set(VERSION_TAG "-${GIT_COMMIT_HASH}")
+    else()
+        set(VERSION_TAG "-dirty")
+    endif()
+endif()
 
 # =====
 # Boost
@@ -83,8 +113,8 @@ endif()
 add_subdirectory(deps/asio-grpc)
 
 # Install a private copy of asio-grpc
-install(
-    DIRECTORY "deps/asio-grpc/src/agrpc"
+install(DIRECTORY "deps/asio-grpc/src/agrpc"
+    COMPONENT SCION_CPP_DEV
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/scion"
     FILES_MATCHING PATTERN "*.hpp"
 )
@@ -148,7 +178,7 @@ asio_grpc_protobuf_generate(
 # Main Library
 # ============
 
-add_library(scion-cpp)
+add_library(scion-cpp STATIC)
 target_sources(scion-cpp
     PRIVATE
         "src/addr/endpoint.cpp"
@@ -246,16 +276,38 @@ set_target_properties(scion-cpp PROPERTIES
     SOVERSION "0"
 )
 install(TARGETS scion-cpp
+    COMPONENT SCION_CPP_DEV
     FILE_SET public_headers
     ARCHIVE
-    LIBRARY
 )
 
 # ===========
 # C Interface
 # ===========
 
-add_library(scion-c)
+add_library(scion-c-static STATIC)
+target_sources(scion-c-static
+    PRIVATE
+        "src/scion_c/scion.cpp"
+        "src/scion_c/scion.c"
+    PUBLIC FILE_SET public_headers TYPE HEADERS
+    BASE_DIRS
+        "include"
+    FILES
+        "include/scion/scion.h"
+)
+target_link_libraries(scion-c-static PRIVATE scion-cpp)
+set_target_properties(scion-c-static PROPERTIES
+    OUTPUT_NAME "scionc"
+    DEBUG_POSTFIX "d"
+)
+install(TARGETS scion-c-static
+    COMPONENT SCIONC_DEV
+    FILE_SET public_headers
+    ARCHIVE
+)
+
+add_library(scion-c SHARED)
 target_sources(scion-c
     PRIVATE
         "src/scion_c/scion.cpp"
@@ -274,9 +326,8 @@ set_target_properties(scion-c PROPERTIES
     SOVERSION "0"
 )
 install(TARGETS scion-c
-    FILE_SET public_headers
-    ARCHIVE
-    LIBRARY
+    COMPONENT SCIONC
+    RUNTIME
 )
 
 # ==========
@@ -352,3 +403,9 @@ add_subdirectory(scitra)
 # ========
 
 add_subdirectory(examples)
+
+# =========
+# Packaging
+# =========
+
+include(cmake/packaging_deb.cmake)

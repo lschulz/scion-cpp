@@ -478,7 +478,7 @@
             "environment": [
                 {
                     "name": "LD_PRELOAD",
-                    "value": "${workspaceFolder}/build/interposer/Debug/libscion-interposerd.so"
+                    "value": "${workspaceFolder}/build/interposer/Debug/scion-interposerd.so"
                 },
                 {
                     "name": "SCION_DAEMON_ADDRESS",
@@ -517,7 +517,7 @@
             "environment": [
                 {
                     "name": "LD_PRELOAD",
-                    "value": "${workspaceFolder}/build/interposer/Debug/libscion-interposerd.so"
+                    "value": "${workspaceFolder}/build/interposer/Debug/scion-interposerd.so"
                 },
                 {
                     "name": "SCION_DAEMON_ADDRESS",

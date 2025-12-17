@@ -1,0 +1,44 @@
+#!/bin/sh
+
+# If enabled, this script configures DNS over SCION via Scitra-TUN.
+
+# Set to 1 to enable DNS server override
+ENABLE=0
+
+# Name of the TUN interface created by Scitra-TUN
+SCITRA_INTERFACE=scion
+
+# SCION-mapped IPv6 address of a SCION DNS server
+SCION_DNS_SERVER=fc00:10fc::ffff:1.1.1.1
+
+# DNS search domain(s) that the SCION DNS server is queried for
+DNS_DOMAIN="scion scion.host"
+
+case "$1" in
+    start)
+        if [ $ENABLE -eq 1 ]; then
+            resolvectl dns $SCITRA_INTERFACE $SCION_DNS_SERVER
+            resolvectl domain $SCITRA_INTERFACE $DNS_DOMAIN
+# If resolvectl is not available, try resolvconf instead
+#           resolvconf -a $SCITRA_INTERFACE -x \
+# <<EOF
+# nameserver $SCION_DNS_SERVER
+# EOF
+        fi
+        exit 0
+    ;;
+
+    stop)
+        if [ $ENABLE -eq 1 ]; then
+            resolvectl revert $SCITRA_INTERFACE
+# If resolvectl is not available, try resolvconf instead
+#           resolvconf -d $SCITRA_INTERFACE
+        fi
+        exit 0
+    ;;
+
+    *)
+        echo "unknown argument '$1'" >&2
+        exit 1
+    ;;
+esac

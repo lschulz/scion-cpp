@@ -13,12 +13,14 @@ Currently available are:
 - gRPC >= 1.51.1
 - c-ares >= 1.27.0
 - ncurses for the examples on platforms other than Windows
+- pandoc for generating man pages
 - [asio-grpc](https://github.com/Tradias/asio-grpc) (included as submodule)
 - [googletest](https://github.com/google/googletest) (included as submodule)
 - [CLI11](https://github.com/CLIUtils/CLI11) (included as submodule)
 
 For scitra-tun (Linux only):
 - libmnl >= 1.0.5
+- libcap >= 3.1.3
 - [ImTui](https://github.com/ggerganov/imtui) (included as submodule)
 - [spdlog](https://github.com/gabime/spdlog) (included as submodule)
 
@@ -26,19 +28,21 @@ For interposer (Linux only):
 - [re2](https://github.com/google/re2)
 - [toml++](https://marzer.github.io/tomlplusplus/)
 
-Dependencies can be built and installed with vcpkg:
+Most dependencies can be built and installed with vcpkg:
 ```bash
 vcpkg install
 ```
+In Linux, `libmnl` and `libcap` must be installed using the system's package manager.
 
-Alternatively, all required build tools and dependencies can be installed with
-apt in Ubuntu 24.04.
+All required build tools and dependencies can also be installed with apt (Ubuntu 24.04).
 ```bash
 sudo apt-get install \
   build-essential \
   cmake \
   libboost-dev \
   libboost-json-dev \
+  libc-ares-dev \
+  libcap-dev \
   libgrpc++-dev \
   libmnl-dev \
   libncurses-dev \
@@ -46,6 +50,7 @@ sudo apt-get install \
   libre2-dev \
   libtomlplusplus-dev \
   ninja-build \
+  pandoc \
   protobuf-compiler \
   protobuf-compiler-grpc
 ```
@@ -83,7 +88,26 @@ interposer.
 The install location is determined by `CMAKE_INSTALL_PREFIX` set during the cmake configuration
 step.
 ```bash
-cmake --build build --config Release -DCMAKE_INSTALL_PREFIX=~/example
+cmake -G 'Ninja Multi-Config' -B build -DCMAKE_INSTALL_PREFIX=example
+```
+
+### Build Debian Packages with CPack
+
+When building DEB packages `CPACK_SET_DESTDIR` must be set during the configuration step to
+correctly install configuration files in /etc/scion. If `CPACK_SET_DESTDIR` is not set, the DEB
+packages will incorrectly install configuration files in /usr/etc/scion. `CPACK_SET_DESTDIR` is not
+set by default because it also results in the generated build-system's install target to install
+configuration files to /etc/scion ignoring `CMAKE_INSTALL_PREFIX`.
+
+Background: In order to install to /etc/scion an absolute path is given to `install()`, using
+a relative path or `CMAKE_INSTALL_SYSCONFDIR` results in a path prefixed with /usr. Using an
+absolute path is not a perfect solution however, since absolute paths only work for the
+DEB packages not necessarily for other CPack generators or manual installation.
+
+```bash
+mkdir build
+cmake -G 'Ninja Multi-Config' -B build -DCPACK_SET_DESTDIR=ON -DCMAKE_INSTALL_PREFIX=/
+make deb
 ```
 
 ### Unit Tests

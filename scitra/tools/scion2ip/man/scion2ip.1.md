@@ -1,15 +1,16 @@
-scion2ip
-========
+% scion2ip(1) Version 0.0.1 | Scitra Manual
 
-Converts between SCION addresses and SCION-mapped IPv6 addresses.
+## NAME ##
 
-### Synopsis ###
+scion2ip - converts between SCION addresses and SCION-mapped IPv6 addresses
 
-```
-scion2ip [-hv] [-p local_prefix] [-s subnet] [-l subnet_bits] {address}
-```
+## SYNOPSIS ##
 
-### Description ###
+| **scion2ip** \[**-l**|**--subnet-bits** subnet_bits\] \[**-p**|**--prefix** prefix\]
+    \[**-s**|**--subnet** subnet\]  \[scion_address\]
+| **scion2ip** \[**-l**|**--subnet-bits** subnet_bits\] \[**-v**|**--verbose**\] \[ip_address\]
+
+## DESCRIPTION ##
 
 scion2ip attempts to convert SCION addresses given on the command line to SCION-mapped IPv6
 addresses and SCION-mapped IPv6 addresses to their full SCION equivalent.
@@ -27,22 +28,23 @@ SCION-mapped IPv6 addresses are given in the usual IPv6 address format. By defau
 the SCION address in the format `ISD-ASN,IP`. If `IP` is an IPv6 address and `-v` is specified, the
 local routing prefix and subnet are printed on the same line after the SCION address.
 
-### Options ###
+## OPTIONS ##
 
-`-h,---help` Show command syntax.
+`-h, ---help` Show command syntax.
 
-`-l,--subnet-bits` Length of the subnet address for SCION-IPv6 host addresses. Must be in [0, 24].
-    The default is 8.
+`-l, --subnet-bits` _subnet_bits_ Length of the subnet address for SCION-IPv6 host addresses.
+    Must be in [0, 24]. The default is 8.
 
-`-p,--prefix` Sets the IPv6 routing prefix withing the AS. Ignored if the host part of the address
-    is IPv4.
+`-p, --prefix` _prefix_ Sets the IPv6 routing prefix withing the AS. Ignored if the host part of
+    the address is IPv4.
 
-`-s,--subnet` Sets the subnet routing prefix. Ignored if the host part of the address is IPv4.
+`-s, --subnet` _subnet_ Sets the subnet routing prefix. Ignored if the host part of the address is
+    IPv4.
 
-`-v,--verbose` Print extracted local prefix and subnet in addition to translated address when
+`-v, --verbose` Print extracted local prefix and subnet in addition to translated address when
     converting from SCION-mapped IPv6 to SCION.
 
-### Examples ###
+## EXAMPLES ##
 
 ```bash
 $ scion2ip 1-64512,10.0.0.1
@@ -66,3 +68,11 @@ $ scion2ip fc00:1800:0:ff01::1
 $ scion2ip fc00:1800:0:ff01::1 -v
 1-2:0:0,fc00:1800:0:ff01::1 0xff 0x1
 ```
+
+## AUTHOR ##
+
+Lars-Christian Schulz <lschulz@ovgu.de>
+
+## SEE ALSO ##
+
+scitra-tun(8)

@@ -212,7 +212,7 @@ static void parseInterposerOptions(std::string_view path, const toml::table& tab
 
 static void parseScionOptions(const toml::table& tab, Options& opts)
 {
-    if (auto daemon = tab.get_as<bool>("address_mode"); daemon) {
+    if (auto daemon = tab.get_as<bool>("connect_to_daemon"); daemon) {
         opts.connectToDaemon = daemon;
     }
     if (auto str = tab.get_as<std::string>("daemon_address"); str) {

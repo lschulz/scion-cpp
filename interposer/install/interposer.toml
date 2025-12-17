@@ -1,0 +1,9 @@
+# Global SCION Interposer configuration
+
+[default]
+log_level = "INFO"
+address_mode = "ADDRESS_MAPPING"
+
+[default.scion]
+connect_to_daemon = true
+daemon_address = "127.0.0.1:30255"

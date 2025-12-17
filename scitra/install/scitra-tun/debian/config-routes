@@ -1,0 +1,55 @@
+#!/bin/sh
+
+# This template script adjusts the IPv6 routing tables for Scitra-TUN. It is
+# only necessary when SCION is used with an IPv6 underlay. To use the template,
+# replace the placeholder values below and set ENABLE=1. Read the Scitra-TUN
+# manual for more information on SCION IPv6 routing.
+
+# Set to 1 to enable IPv6 route modifications
+ENABLE=0
+
+# Index of an unused routing table
+TABLE=1
+
+# Network interfaced used with SCION/Scitra
+INTERFACE=eth0
+
+# SCION-mapped IPv6 address of the local host
+ADDRESS=fc00:10fc:100::2
+
+# Prefix of ADDRESS that identifies the local subnet
+SCION_SUBNET=fc00:10fc:100::/64
+
+# Gateway router through which SCION border routers are accessible
+GATEWAY=fc00:10fc:100::1
+
+case "$1" in
+    start)
+        if [ $ENABLE -eq 1 ]; then
+            ip -6 route add fc00::/8 via $GATEWAY dev $INTERFACE table $TABLE
+            ip -6 rule add from $ADDRESS/128 table 1
+            ip -6 route del $SCION_SUBNET dev $INTERFACE table main
+            ip -6 route add $SCION_SUBNET dev $INTERFACE table $TABLE
+            ip -6 route add $GATEWAY/128 dev $INTERFACE table main
+            ip -6 route flush cache
+        fi
+        exit 0
+    ;;
+
+    stop)
+        if [ $ENABLE -eq 1 ]; then
+            ip -6 route del $GATEWAY/128 dev $INTERFACE table main
+            ip -6 route del $SCION_SUBNET dev $INTERFACE table $TABLE
+            ip -6 route add $SCION_SUBNET dev $INTERFACE table main
+            ip -6 rule del from $ADDRESS/128 table 1
+            ip -6 route del fc00::/8 via $GATEWAY dev $INTERFACE table $TABLE
+            ip -6 route flush cache
+        fi
+        exit 0
+    ;;
+
+    *)
+        echo "unknown argument '$1'" >&2
+        exit 1
+    ;;
+esac

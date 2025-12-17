@@ -29,7 +29,7 @@ class InterposedResolver(unittest.TestCase):
         super().__init__(methodName)
         self.command = Path(build_dir) / "interposer/integration/Debug/" / "interposer-resolver"
         self.env = {
-            "LD_PRELOAD": Path(build_dir) / "interposer/Debug/libscion-interposerd.so",
+            "LD_PRELOAD": Path(build_dir) / "interposer/Debug/scion-interposerd.so",
             "SCION_CONFIG": Path(__file__).parent / "config/scion_interposer.toml",
         }
 

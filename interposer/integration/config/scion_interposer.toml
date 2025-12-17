@@ -1,5 +1,3 @@
-# Global SCION Interposer Configuration
-
 [default]
 log_level = "INFO"
 address_mode = "ADDRESS_MAPPING"
