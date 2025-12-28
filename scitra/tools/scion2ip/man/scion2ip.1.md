@@ -44,6 +44,8 @@ local routing prefix and subnet are printed on the same line after the SCION add
 `-v, --verbose` Print extracted local prefix and subnet in addition to translated address when
     converting from SCION-mapped IPv6 to SCION.
 
+`-V, --version` Display program version and exit.
+
 ## EXAMPLES ##
 
 ```bash

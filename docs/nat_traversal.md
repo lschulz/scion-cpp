@@ -8,7 +8,7 @@ address. SCION-CPP includes support for STUN in order to work around NAT-related
 Background
 ----------
 
-#### The UDP/IP Underlay ####
+### The UDP/IP Underlay ###
 SCION traffic is usually transmitted over an UDP/IP underlay. UDP packets exchanged between end
 hosts or between a host and a border router contain the SCION header in their payload.
 Consequentially, a typical SCION packet contains two sets of IP addresses, one for the underlay and
@@ -19,7 +19,7 @@ header stay the same end to end. SCION border routers that deliver a packet to t
 own AS copy the IP address from the SCION header and the destination port from the inner transport
 header to the underlay in order to deliver the packet to its final destination.
 
-#### SCION Host behind NAT Problem ####
+### SCION Host behind NAT Problem ###
 An unfortunate problem occurs when there is NAT (Source NAT) between the host and the border router.
 The NAT will modify the source address (the host's private IP) and replace it with a public IP (the
 mapped IP). The underlay UDP port will also be modified to distinguish multiple private IPs sharing
@@ -30,7 +30,7 @@ SCION, the SCION host address and port are still the original private IP and por
 packet reaches the final border router, this router will incorrectly attempt to deliver to packet to
 the private IP instead of the mapped IP.
 
-#### Possible Solution ####
+### Possible Solution ###
 The connection through the NAT is almost working. The only issue is that the NAT did not also
 rewrite the SCION source address. Since it would be difficult to replace all NATs with SCION-aware
 NAT, we have to do the NAT translation already on the sending host. By writing the mapped IP and
@@ -39,7 +39,7 @@ the first border router. In order to find the mapped IP and port on the sending 
 a request to the border router to tell us what the source address of the request packet is. The
 protocol used for discovering the address mapping is STUN.
 
-#### STUN ####
+### STUN ###
 The Session Traversal Utilities for NAT (STUN) are defined in [RFC 5389][1]. We're only using a
 small subset of the protocol, namely binding requests and responses that tell us what public IP
 address and port the border router is seeing.
@@ -70,7 +70,7 @@ The helper function `getStunMapping()` automates address discovery with STUN for
 sockets. It sends a STUN request and blocks until a response is received. The request is
 automatically resent after a timeout until a maximum number of tries is reached.
 
-#### Selecting a STUN Server ####
+### Selecting a STUN Server ###
 It is the application's responsibility to discover whether STUN is required, if the AS provides a
 STUN server and at what address. If there is STUN server, the recommended address in order of
 preference is:
@@ -82,12 +82,3 @@ If the AS has more than one border router, the mapped address may differ dependi
 is used. Since SCION-CPP sockets store only a single mapped address for all border routers, it may
 be necessary to update the mapped IP and port when switching to a different border router. In
 practice such a setup should be rare, however.
-
-Examples
---------
-
-The following examples support STUN and NAT traversal:
-- `examples/echo_udp`
-- `examples/echo_udp_async`
-- `examples/c/echo_udp`
-- `examples/c/echo_udp_async`

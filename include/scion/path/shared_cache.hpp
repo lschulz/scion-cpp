@@ -41,7 +41,7 @@ public:
         : inner(opts)
     {}
 
-    /// \copydoc PathCache::lookup(IsdAsn, IsdAsn, PathProvider)
+    /// \copydoc PathCache::lookup(IsdAsn, IsdAsn, PathProvider, bool)
     template <typename PathProvider>
     requires std::invocable<PathProvider, SharedPathCache&, IsdAsn, IsdAsn>
     Maybe<std::vector<PathPtr>> lookup(IsdAsn src, IsdAsn dst, PathProvider queryPaths)
@@ -82,7 +82,7 @@ public:
         return ErrorCode::Ok;
     }
 
-    /// \copydoc PathCache::prefetch(IsdAsn, IsdAsn, PathProvider, bool)
+    /// \copydoc PathCache::prefetch(IsdAsn, IsdAsn, PathProvider)
     template <typename PathProvider>
     requires std::invocable<PathProvider, SharedPathCache&, IsdAsn, IsdAsn>
     std::error_code prefetch(IsdAsn src, IsdAsn dst, PathProvider queryPaths, bool refresh = false)

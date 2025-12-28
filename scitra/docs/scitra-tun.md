@@ -187,8 +187,26 @@ Start Scitra-TUN with the flag `--tui`. to see the interface depicted above. Pre
 text. When using the TUI, it is recommended to redirect log output to a file by either redirecting
 stderr or specifying a file name with the `-l/--log-file` option.
 
+Expected Throughput
+-------------------
+
+Throughput measured with `iperf3 -omit 5 -t 10 -P 8` on Ubuntu 24.04 with default settings
+
+Hardware: AMD Ryzen 7 3700X (sender), Intel Core i7-12700K (receiver), ConnectX-7 25 Gbit/s NICs
+
+| Gbit/s | T = 1 | T = 2 | T = 3 | T = 4 | T = 8 |
+|--------|-------|-------|-------|-------|-------|
+| Q = 1  |  1.49 |       |       |       |       |
+| Q = 2  |  1.45 |  2.59 |       |       |       |
+| Q = 3  |       |       |  2.81 |       |       |
+| Q = 4  |       |  2.91 |       |  2.50 |       |
+| Q = 8  |  2.18 |  3.01 |       |  2.62 |  1.50 |
+
+T = threads in ASIO thread pool (--threads), Q = TUN queues and threads (--queues)
+
 TODO
 ----
 
-Read error queues of UDP sockets to forward errors to the TUN interface and use discovered MTU from
-EMSGSIZE errors.
+- Process packets in batches with batched read/write syscalls
+- Read error queues of UDP sockets to forward errors to the TUN interface and use discovered MTU
+  from EMSGSIZE errors.

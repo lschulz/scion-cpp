@@ -74,6 +74,8 @@ IPv6 subnets with the same ISD-ASN and set up IPv6 routes between them.
 `--tui` Start with text/terminal user interface. If the TUI is enabled, log output should be
     redirected to a file (see -l, --log-file).
 
+`-v, --version` Display program version and exit.
+
 ## OPTION FILE ##
 
 Command line options may be read from a file in ini or TOML syntax given by the `--conf` option.

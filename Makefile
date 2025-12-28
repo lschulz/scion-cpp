@@ -62,6 +62,13 @@ clean-test-data: $(TEST_DATA)
 $(TEST_DATA): %.bin: %.py
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) $<
 
+# Doxygen
+
+.PHONY: docs
+docs:
+	@mkdir -p "$(BUILD_DIR)/docs"
+	doxygen
+
 # Manual Pages
 
 .PHONY: man clean-man
