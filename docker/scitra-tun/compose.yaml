@@ -1,0 +1,18 @@
+services:
+  scitra-tun:
+    image: scitra-tun:latest
+    build: ./scitra-tun
+
+    # Share network stack with the host
+    network_mode: host
+
+    # Run container with root permissions to allow access to routing tables on
+    # host. scitra-tun drops most capabilities after initialization.
+    privileged: true
+
+    # SCION daemon must run on host
+    environment:
+      SCION_DAEMON_ADDRESS: 127.0.0.1:30255
+
+    # Arguments passed to scitra-tun
+    command: lo 127.0.0.1

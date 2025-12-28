@@ -7,8 +7,12 @@ BUILD_DIR := $(SRC_ROOT)/build
 PKG_DIR := $(SRC_ROOT)/out
 PYTHONPATH := $(PYTHONPATH):$(SRC_ROOT)/python
 
+DOCKER_TAG := 0.0.1
+HOST_UID := $(shell id -u):$(shell id -g)
+
 TEST_DATA=$(addsuffix .bin,$(basename $(shell find tests scitra/tests -name '*.py')))
 MAN_PAGES=$(addsuffix .gz,$(basename $(shell find scitra interposer -name '*.*.md')))
+
 
 # Build library and examples
 
@@ -75,3 +79,12 @@ clean-man: $(MAN_PAGES)
 deb: release man
 	@mkdir -p "$(PKG_DIR)"
 	cd "$(PKG_DIR)" && cpack -G DEB --config "$(BUILD_DIR)/CPackConfig.cmake"
+
+# Docker build
+
+.PHONY: deb-docker
+deb-docker: man
+	@mkdir -p "$(PKG_DIR)"
+	docker build -t scion-cpp-builder:$(DOCKER_TAG) "$(SRC_ROOT)/docker/package"
+	docker run -e HOST_UID=$(HOST_UID) -v "$(SRC_ROOT)":/scion-cpp:ro -v "$(PKG_DIR)":/out --rm \
+		scion-cpp-builder:$(DOCKER_TAG)
