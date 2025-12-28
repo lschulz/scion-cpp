@@ -145,7 +145,7 @@ void plotBars(const std::span<const float>& data, const char* title, int height)
     const size_t dataSize = data.size();
     const int graphHeight = height - 2;
     if (graphHeight < 0) return;
-    const int lineWidth = dataSize + 8;
+    const int lineWidth = (int)dataSize + 8;
     if (lineWidth > MAX_LINE_LENGTH) return;
 
     auto max = std::ranges::max(data);
@@ -175,21 +175,21 @@ void plotBars(const std::span<const float>& data, const char* title, int height)
             multi = 1e9f;
         }
     }
-    auto step = (multi * max) / graphHeight;
+    auto step = (multi * max) / (float)graphHeight;
 
     ImGui::BeginGroup();
 
     // Title
     auto t = ImGui::CalcTextSize(title).x;
-    auto indent = 4 + (int)(0.5f * (lineWidth - t));
+    auto indent = 4 + (int)(0.5f * ((float)lineWidth - t));
     auto cur = std::format_to_n(line, sizeof(line), "{:>7} {:>{}}", prefix, title, indent).out;
     ImGui::TextUnformatted(line, cur);
 
     // Graph
     for (int y = graphHeight; y > 0; --y) {
-        cur = std::format_to_n(line, sizeof(line), "{:7.2f} ", y * step).out;
+        cur = std::format_to_n(line, sizeof(line), "{:7.2f} ", (float)y * step).out;
         for (size_t i = 0; i < dataSize && cur < eol; ++i) {
-            if (multi * data[i] > y * step)
+            if (multi * data[i] > (float)y * step)
                 *cur++ = '|';
             else if (y == 1 && data[i] > 0)
                 *cur++ = ':';
@@ -486,7 +486,7 @@ public:
         using namespace std::chrono;
         while (scitra.running()) {
             auto now = Clock::now();
-            auto elapsed = 1e-6f * duration_cast<microseconds>(now - lastUpdate).count();
+            auto elapsed = 1e-6f * (float)duration_cast<microseconds>(now - lastUpdate).count();
             auto diff = elapsed - (updateInterval[selInterval] - updateIntervalCorrection);
             if (diff > 0.0f) {
                 updateFlows(elapsed);
@@ -605,10 +605,10 @@ void ScitraTui::updateFlows(float elapsed)
             ++udpFlows;
         else
             ++otherFlows;
-        global.txPPS += flow.counters.pktsEgress;
-        global.txBPS += 8 * flow.counters.bytesEgress;
-        global.rxPPS += flow.counters.pktsIngress;
-        global.rxBPS += 8 * flow.counters.bytesIngress;
+        global.txPPS += (float)flow.counters.pktsEgress;
+        global.txBPS += 8.0f * (float)flow.counters.bytesEgress;
+        global.rxPPS += (float)flow.counters.pktsIngress;
+        global.rxBPS += 8.0f * (float)flow.counters.bytesIngress;
 
         auto i = std::ranges::find_if(flowData, [&flow] (auto& ptr) {
             return ptr && ptr->tuple == flow.tuple;
@@ -616,7 +616,7 @@ void ScitraTui::updateFlows(float elapsed)
         if (i != flowData.end()) {
             (*i)->update(flow, elapsed);
             if (i->get() == selected)
-                selFlow = updated.size();
+                selFlow = (int)updated.size();
             updated.push_back(std::move(*i));
         } else {
             updated.emplace_back(std::make_unique<FlowListEntry>(flow, elapsed));
@@ -667,13 +667,13 @@ void ScitraTui::drawFrame(const ImVec2& window)
         scitra.getHostAddress(), scitra.getPublicIfaceName());
     ImGuiText(addr);
     ImGui::SameLine();
-    ImGui::SetCursorPosX(std::max<std::size_t>(addr.size() + 1, 45));
+    ImGui::SetCursorPosX((float)std::max<std::size_t>(addr.size() + 1, 45));
     ImGuiText(std::format("Mapped : {}", scitra.getMappedAddress()));
 
     // Status line 2
     ImGui::Text("Flows: %3u UDP %3u TCP %3u other", udpFlows, tcpFlows, otherFlows);
     ImGui::SameLine();
-    ImGui::SetCursorPosX(std::max<std::size_t>(addr.size() + 1, 45));
+    ImGui::SetCursorPosX((float)std::max<std::size_t>(addr.size() + 1, 45));
     ImGuiText(std::format("Bind to: {}%{}", scitra.getTunAddress(), scitra.getTunName()));
 
     // Status line 3
@@ -699,7 +699,7 @@ void ScitraTui::drawFrame(const ImVec2& window)
             | ImGuiTableFlags_Sortable;
         ImVec2 tabSize(
             std::min(std::max(0.0f, window.x - propertiesWidth), 120.0f),
-            window.y - staticHeight - totalGraphHeight);
+            window.y - staticHeight - (float)totalGraphHeight);
         if (ImGui::BeginTable("flows", 9, tabFlags, tabSize)) {
             ImGui::TableSetupScrollFreeze(0, 1);
             ImGui::TableSetupColumn("Destination", 0, 30, FlowColID_Destination);
@@ -733,7 +733,7 @@ void ScitraTui::drawFrame(const ImVec2& window)
             }
 
             ImGuiListClipper clipper;
-            clipper.Begin(flowData.size());
+            clipper.Begin((int)flowData.size());
             while (clipper.Step()) {
                 for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; ++row) {
                     const auto& flow = flowData[row];
@@ -834,7 +834,7 @@ void ScitraTui::drawFrame(const ImVec2& window)
                         return ptr->digest();
                     });
                     if (i != pathSel.paths.end()) {
-                        pathSel.selection = std::distance(pathSel.paths.begin(), i);
+                        pathSel.selection = (int)std::distance(pathSel.paths.begin(), i);
                     }
                 }
                 pathSel.state = PathSelWnd::OPEN;
@@ -902,9 +902,9 @@ void ScitraTui::drawFrame(const ImVec2& window)
                 auto size = ImGui::GetContentRegionAvail();
                 size.y -= 2;
                 ImGui::BeginChild("ScrollablePaths", size);
-                auto begin = (std::size_t)(pathSel.page * pathPageSize);
-                auto end = std::min<std::size_t>(begin + pathPageSize, pathSel.paths.size());
-                for (std::size_t i = begin; i < end; ++i) {
+                auto begin = (int)(pathSel.page * pathPageSize);
+                auto end = std::min(begin + pathPageSize, (int)pathSel.paths.size());
+                for (int i = begin; i < end; ++i) {
                     ImGui::RadioButton(std::format("Path {}: ", i).c_str(), &pathSel.selection, i);
                     if (pathSel.paths[i]->broken()) {
                         ImGui::SameLine();
@@ -1071,7 +1071,7 @@ void ScitraTui::propertyWindow(const ImVec2& tabSize)
                     ImGui::TableNextColumn();
                     float expiry = std::numeric_limits<float>::infinity();
                     if (!flow->path->empty()) {
-                        expiry = 1e-3f * duration_cast<milliseconds>(
+                        expiry = 1e-3f * (float)duration_cast<milliseconds>(
                             flow->path->expiry() - utc_clock::now()).count();
                     }
                     ImGui::Text("%.1f s", expiry);
@@ -1099,7 +1099,7 @@ void ScitraTui::propertyWindow(const ImVec2& tabSize)
                 ImGui::TableNextColumn();
                 ImGui::Text("Idle");
                 ImGui::TableNextColumn();
-                float idle = 1e-3f * duration_cast<milliseconds>(
+                float idle = 1e-3f * (float)duration_cast<milliseconds>(
                     steady_clock::now() - flow->lastUsed).count();
                 ImGui::Text("%.1f s", idle);
 

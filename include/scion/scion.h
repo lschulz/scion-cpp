@@ -85,6 +85,12 @@
 #include <type_traits>
 #endif
 
+#ifdef _WIN32
+#define DLLEXPORT __declspec(dllexport)
+#else
+#define DLLEXPORT
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -150,6 +156,7 @@ typedef enum scion_error_t
 } scion_error;
 
 /// \brief Get a short description of an error code.
+DLLEXPORT
 const char* scion_error_string(scion_error err);
 
 /// \brief Type of the AS-internal host address part of a SCION address.
@@ -203,10 +210,12 @@ typedef struct scion_timer_t scion_timer;
 /// \brief Returns the current UTC time in nanoseconds since the UNIX epoch.
 /// This clock follows time adjustments of the host clock, if a steady clock is
 /// needed use `scion_time_steady()`.
+DLLEXPORT
 uint64_t scion_time_utc(void);
 
 /// \brief Retruns the number of nanoseconds elapsed since sum undefined epoch.
 /// This clock is monotonically increasing.
+DLLEXPORT
 uint64_t scion_time_steady(void);
 
 ///@}
@@ -417,14 +426,17 @@ struct scion_context_opts
 /// \brief Create a host context with the options given by a scion_context_opts
 /// struct. pctx and opts must not be NULL. The options struct is no longer
 /// required after the function returns and can be safely deallocated.
+DLLEXPORT
 scion_error scion_create_host_context(scion_context** pctx, const struct scion_context_opts* opts);
 
 /// \brief Delete a host context. Deleting NULL has no effect.
+DLLEXPORT
 void scion_delete_host_context(scion_context* ctx);
 
 /// \brief Set a global callback for SCMP messages received on any socket.
 /// Set to callback to NULL to disable it again.
 /// \returns The previously stored value of user_ptr.
+DLLEXPORT
 void* scion_set_scmp_handler(
     scion_context* ctx, scion_scmp_handler handler, void* user_ptr);
 
@@ -433,37 +445,44 @@ void* scion_set_scmp_handler(
 /// `scion_path_mtu(path)`.
 /// \returns 0 if no PMTU is known or the arguments are invalid. Otherwise, the
 /// PMTU in bytes.
+DLLEXPORT
 uint16_t scion_discovered_pmtu(scion_context* ctx, scion_path* path, const struct scion_addr* dest);
 
 /// \brief Returns the dynamically discovered PMTU between the local host and
 /// `dest` via `path`.
 /// \returns 0 if no PMTU is known or the arguments are invalid. Otherwise, the
 /// PMTU in bytes.
+DLLEXPORT
 uint16_t scion_discovered_pmtu_raw(
     scion_context* ctx, scion_raw_path* path, const struct scion_addr* dest);
 
 /// \brief Execute callbacks for operations that have completed.
 /// \returns The number of callbacks that have been executed.
+DLLEXPORT
 size_t scion_poll(scion_context* ctx);
 
 /// \brief Run the ASIO event loop until no more work remains.
 /// \returns The number of callbacks that have been executed.
+DLLEXPORT
 size_t scion_run(scion_context* ctx);
 
 /// \brief Run the ASIO event loop until no more work remains or the timeout
 /// elapses.
 /// \param timeout Timeout in milliseconds.
 /// \returns The number of callbacks that have been executed.
+DLLEXPORT
 size_t scion_run_for(scion_context* ctx, uint32_t timeout);
 
 /// \brief Signal all running event loops to stop and returns as soon as
 /// possible.
+DLLEXPORT
 void scion_stop(scion_context* ctx);
 
 /// \brief Must be called after all invocations of scion_poll(), scion_run(),
 /// scion_run_for() have returned before any of these functions is called again.
 /// Must not be called while scion_poll(), scion_run(), or scion_run_for() are
 /// still running. See boost::asio::io_context::restart for more information.
+DLLEXPORT
 void scion_restart(scion_context* ctx);
 
 ///@}
@@ -476,9 +495,11 @@ void scion_restart(scion_context* ctx);
 ///@{
 
 /// \brief Test whether two addresses are equal.
+DLLEXPORT
 bool scion_addr_are_equal(const struct scion_addr* a, const struct scion_addr* b);
 
 /// \brief Test whether two sockaddr_scion are equal.
+DLLEXPORT
 bool scion_sockaddr_are_equal(const struct sockaddr_scion* a, const struct sockaddr_scion* b);
 
 /// \brief Returns the AS-internal host address from `saddr` in the buffer
@@ -487,6 +508,7 @@ bool scion_sockaddr_are_equal(const struct sockaddr_scion* a, const struct socka
 /// \returns If the buffer is too small to hold the host socket address,
 /// SCION_BUFFER_TOO_SMALL is returned. If `saddr` is invalid,
 /// SCION_INVALID_ARGUMENT is returned.
+DLLEXPORT
 scion_error scion_sockaddr_get_host(
     const struct sockaddr_scion* saddr, struct sockaddr* host, socklen_t host_len);
 
@@ -497,13 +519,16 @@ scion_error scion_sockaddr_get_host(
 /// \param[out] host_len Receives the length of the host address.
 /// \param[out] port Receives the numerical port or zero if the address did not
 /// contain a port.
+DLLEXPORT
 scion_error scion_split_host_port(
     const char* addr, const char** host, size_t* host_len, uint16_t* port);
 
 /// \brief Parses a SCION host address without a port.
+DLLEXPORT
 scion_error scion_parse_host(const char* host, struct scion_addr* addr);
 
 /// \brief Parses a SCION address with a port.
+DLLEXPORT
 scion_error scion_parse_ep(const char* endpoint, struct sockaddr_scion* sockaddr);
 
 /// \brief Formats a SCION address as a null-terminated string to the buffer
@@ -515,6 +540,7 @@ scion_error scion_parse_ep(const char* endpoint, struct sockaddr_scion* sockaddr
 /// this case, `buffer_len` will contain a value greater than was supplied and
 /// SCION_BUFFER_TOO_SMALL is returned. As long as the buffer has a non-zero
 /// size, the returned string is guaranteed to be null-terminated.
+DLLEXPORT
 scion_error scion_print_host(const struct scion_addr* addr, char* buffer, size_t* buffer_len);
 
 /// \brief Formats a SCION socket address as a null-terminated string to the
@@ -526,6 +552,7 @@ scion_error scion_print_host(const struct scion_addr* addr, char* buffer, size_t
 /// this case, `buffer_len` will contain a value greater than was supplied and
 /// SCION_BUFFER_TOO_SMALL is returned. As long as the buffer has a non-zero
 /// size, the returned string is guaranteed to be null-terminated.
+DLLEXPORT
 scion_error scion_print_ep(const struct sockaddr_scion* addr, char* buffer, size_t* buffer_len);
 
 ///@}
@@ -545,6 +572,7 @@ scion_error scion_print_ep(const struct sockaddr_scion* addr, char* buffer, size
 ///
 /// The address resolution proceeds according to the steps outlined in
 /// scion::Resolver.
+DLLEXPORT
 scion_error scion_resolve_name(scion_context* ctx,
     const char* name, struct sockaddr_scion* res, size_t* res_len);
 
@@ -559,6 +587,7 @@ struct scion_async_resolve_handler
 /// is invoked with the given context pointer. The output buffers `res` and
 /// `res_len` must remain valid during the entire duration of the asynchronous
 /// operation.
+DLLEXPORT
 void scion_resolve_name_async(scion_context* ctx,
     const char* name, struct sockaddr_scion* res, size_t* res_len,
     struct scion_async_resolve_handler handler);
@@ -587,30 +616,37 @@ struct scion_hop
 /// paths which may be larger than the value passed originally. If the provided
 /// buffer is too small, the result is truncated and SCION_BUFFER_TOO_SMALL is
 /// returned.
+DLLEXPORT
 scion_error scion_query_paths(
     scion_context* ctx, uint64_t dst, scion_path** paths, size_t* paths_len);
 
 /// \brief Releases paths in the array pointed to by `paths`. `path_len` is the
 /// number of paths in the array. Array entries that are NULL are ignored.
 /// after the function returns all entries in `paths` are NULL.
+DLLEXPORT
 void scion_release_paths(scion_path** paths, size_t paths_len);
 
 /// \brief Gets the first AS along the path (the source).
 /// \returns ISD-ASN in host byte order.
+DLLEXPORT
 uint64_t scion_path_first_as(scion_path* path);
 
 /// \brief Gets the last AS along the path (the destination).
 /// \returns ISD-ASN in host byte order.
+DLLEXPORT
 uint64_t scion_path_last_as(scion_path* path);
 
 /// \brief Gets the path type.
+DLLEXPORT
 scion_ptype scion_path_type(scion_path* path);
 
 /// \brief Returns the expiration time of the path in nanoseconds since the
 /// Unix epoch. The time is given in UTC.
+DLLEXPORT
 uint64_t scion_path_expiry(scion_path* path);
 
 /// \brief Returns the path's MTU as reported by the control plane.
+DLLEXPORT
 uint16_t scion_path_mtu(scion_path* path);
 
 /// \brief Reports the status of the path's broken flag. A value of zero means
@@ -619,11 +655,13 @@ uint16_t scion_path_mtu(scion_path* path);
 /// or internal connectivity down SCMP message. Non-zero timestamps can be
 /// compared to the current time as returned by `scion_time_steady()` to
 /// determine how long ago the path was last tried.
+DLLEXPORT
 uint64_t scion_path_broken(scion_path* path);
 
 /// \brief Change the value of the path's broken flag. A value of zero indicates
 /// the path is working. A non-zero value should be the timestamp as returned by
 /// `scion_time_steady()` when the path was discovered to be broken.
+DLLEXPORT
 void scion_path_set_broken(scion_path* path, uint64_t broken);
 
 /// \brief Returns ISD-ASN and interface metadata for each hop on the path.
@@ -635,15 +673,18 @@ void scion_path_set_broken(scion_path* path, uint64_t broken);
 /// written. If the buffer did not provide adequate space, the result is
 /// truncated, `hops_len` is set to the full length of the result and
 /// SCION_BUFFER_TOO_SMALL is returned.
+DLLEXPORT
 scion_error scion_path_meta_hops(
     scion_path* path, struct scion_hop* hops, size_t* hops_len);
 
 /// \brief Returns the length of the path in inter-AS hops (i.e., the number of
 /// visited ASes - 1). This value is derived from the raw data plane path and
 /// does not necessarily match the hop count given by metadata.
+DLLEXPORT
 uint32_t scion_path_hop_count(scion_path* path);
 
 /// \brief Returns the path digest in `digest`.
+DLLEXPORT
 void scion_path_digest(scion_path* path, struct scion_digest* digest);
 
 /// \brief Returns the underlay next hop address in the buffer pointed to by
@@ -654,12 +695,14 @@ void scion_path_digest(scion_path* path, struct scion_digest* digest);
 /// \returns If the buffer is too small, the address is truncated and
 /// SCION_BUFFER_TOO_SMALL is returned. If the path does not have a next hop
 /// address because it is empty, SCION_PATH_IS_EMPTY is returned.
+DLLEXPORT
 scion_error scion_path_next_hop(
     scion_path* path, struct sockaddr* next_hop, socklen_t* next_hop_len);
 
 /// \brief Returns a pointer to an internal buffer holding the encoded data
 /// plane representation of the path in `encoded`. `encoded_len` is set to the
 /// size of the data plane path in bytes.
+DLLEXPORT
 void scion_path_encoded(scion_path* path, const uint8_t** encoded, size_t* encoded_len);
 
 /// \brief Formats a SCION path as a null-terminated string to the buffer
@@ -671,6 +714,7 @@ void scion_path_encoded(scion_path* path, const uint8_t** encoded, size_t* encod
 /// this case, `buffer_len` will contain a value greater than was supplied and
 /// SCION_BUFFER_TOO_SMALL is returned. As long as the buffer has a non-zero
 /// size, the returned string is guaranteed to be null-terminated.
+DLLEXPORT
 scion_error scion_path_print(scion_path* path, char* buffer, size_t* buffer_len);
 
 ///@}
@@ -683,32 +727,41 @@ scion_error scion_path_print(scion_path* path, char* buffer, size_t* buffer_len)
 ///@{
 
 /// \brief Allocates storage for a raw path.
+DLLEXPORT
 scion_raw_path* scion_raw_path_allocate(void);
 
 /// \brief Frees memory allocated by scion_raw_path(). Freeing a NULL pointer
 /// has no effect.
+DLLEXPORT
 void scion_raw_path_free(scion_raw_path* path);
 
 /// \copydoc scion_path_encoded()
+DLLEXPORT
 void scion_raw_path_encoded(scion_raw_path* path, const uint8_t** encoded, size_t* encoded_len);
 
 /// \copydoc scion_path_first_as()
+DLLEXPORT
 uint64_t scion_raw_path_first_as(scion_raw_path* path);
 
 /// \copydoc scion_path_last_as()
+DLLEXPORT
 uint64_t scion_raw_path_last_as(scion_raw_path* path);
 
 /// \copydoc scion_path_type()
+DLLEXPORT
 scion_ptype scion_raw_path_type(scion_raw_path* path);
 
 /// \copydoc scion_path_digest()
+DLLEXPORT
 void scion_raw_path_digest(scion_raw_path* path, struct scion_digest* digest);
 
 /// \brief Turn this path into its reverse without fully decoding it. Supported
 /// path types are Empty and SCION paths.
+DLLEXPORT
 scion_error scion_raw_path_reverse(scion_raw_path* path);
 
 /// \copydoc scion_path_print()
+DLLEXPORT
 scion_error scion_raw_path_print(scion_raw_path* path, char* buffer, size_t* buffer_len);
 
 ///@}
@@ -721,10 +774,12 @@ scion_error scion_raw_path_print(scion_raw_path* path, char* buffer, size_t* buf
 ///@{
 
 /// \brief Allocates storage for assembling SCION headers.
+DLLEXPORT
 scion_hdr_cache* scion_hdr_cache_allocate(void);
 
 /// \brief Frees memory allocted by scion_hdr_cache_allocate(). Freeing a NULL
 /// pointer has no effect.
+DLLEXPORT
 void scion_hdr_cache_free(scion_hdr_cache* headers);
 
 ///@}
@@ -743,14 +798,17 @@ void scion_hdr_cache_free(scion_hdr_cache* headers);
 /// After a socket has been created it is not open yet. Before calling any of
 /// the send or receive functions, the socket must be opened by calling
 /// scion_bind().
+DLLEXPORT
 scion_error scion_socket_create(scion_context* ctx, scion_socket** socket, int socket_type);
 
 /// \brief Closes a socket and releases all associated memory. Closeing a NULL
 /// handle has no effect.
+DLLEXPORT
 void scion_close(scion_socket* socket);
 
 /// \brief Binds a socket to the socket address pointed to by `addr`. `addr_len`
 /// should be set to the length of the buffer pointed to by `addr`.
+DLLEXPORT
 scion_error scion_bind(scion_socket* socket, const struct sockaddr* addr, socklen_t addr_len);
 
 /// \brief Connects to a remote endpoint.
@@ -759,10 +817,12 @@ scion_error scion_bind(scion_socket* socket, const struct sockaddr* addr, sockle
 /// operations. After the socket is connected no other packets than those from
 /// the connected address are received. Call with an unspecified address to
 /// again receive from all remote addresses.
+DLLEXPORT
 scion_error scion_connect(scion_socket* socket, const struct sockaddr_scion* addr);
 
 /// \brief Returns whether the socket is open, i.e., scion_bind() has returned
 /// successfully.
+DLLEXPORT
 bool scion_is_open(scion_socket* socket);
 
 #if _WIN32
@@ -775,6 +835,7 @@ typedef int scion_native_handle;
 ///
 /// The native handle can be used to with an I/O multiplexing function such as
 /// `poll()` or `epoll()`.
+DLLEXPORT
 scion_native_handle scion_underlay_handle(scion_socket* socket);
 
 /// \brief Switch the underlying socket between blocking and non-blocking I/O
@@ -782,16 +843,20 @@ scion_native_handle scion_underlay_handle(scion_socket* socket);
 /// to blocking mode. Using any of the asynchronous function on the socket can
 /// switch the socket into non-blocking mode automatically, so manually
 /// switching to non-blocking is only useful when using the synchronous API.
+DLLEXPORT
 scion_error scion_set_nonblocking(scion_socket* socket, bool nonblocking);
 
 /// \brief Returns the current address to which the socket is bound in `addr`.
+DLLEXPORT
 void scion_getsockname(scion_socket* socket, struct sockaddr_scion* addr);
 
 /// \brief Returns the local address after SNAT. Differs from
 /// scion_getsockname() if and only if NAT traversal is active.
+DLLEXPORT
 void scion_getmapped(scion_socket* socket, struct sockaddr_scion* addr);
 
 /// \brief Returns the currently connected remote address in `addr`.
+DLLEXPORT
 void scion_getpeername(scion_socket* socket, struct sockaddr_scion* addr);
 
 /// \brief SCION packet parameters.
@@ -837,11 +902,13 @@ struct scion_packet
 /// header size on successful return.
 /// \returns Returns an error if argument validation fails. Does not return I/O
 /// errors as this function does not perform socket I/O.
+DLLEXPORT
 scion_error scion_measure(
     scion_socket* socket, const struct scion_packet* args, size_t* hdr_size);
 
 /// \brief Send a STUN binding request to the given router and prepare the
 /// the scion_recv* functions to expect a STUN response.
+DLLEXPORT
 scion_error scion_request_stun_mapping(scion_socket* socket, struct sockaddr* router,
     socklen_t router_len);
 
@@ -863,6 +930,7 @@ scion_error scion_request_stun_mapping(scion_socket* socket, struct sockaddr* ro
 /// `args->addr` to NULL). If no destination is supplied, but the socket is not
 /// connected, the error SCION_INVALID_ARGUMENT is returned. Path and underlay
 /// address are mandatory arguments and must not be NULL.
+DLLEXPORT
 scion_error scion_send(
     scion_socket* socket, scion_hdr_cache* headers, const void* buf, size_t* n,
     const struct scion_packet* args);
@@ -871,6 +939,7 @@ scion_error scion_send(
 /// call to scion_send() or scion_send_async(). It is the programmers
 /// responsibility to ensure that the headers passed in are valid and actually
 /// match the desired destination and path.
+DLLEXPORT
 scion_error scion_send_cached(
     scion_socket* socket, scion_hdr_cache* headers, const void* buf, size_t* n,
     struct scion_packet* args);
@@ -878,6 +947,7 @@ scion_error scion_send_cached(
 /// \brief Receive packets until a STUN response matching the last request
 /// made with scion_request_stun_mapping() or scion_request_stun_mapping_async()
 /// is found.
+DLLEXPORT
 scion_error scion_recv_stun_response(scion_socket* socket);
 
 /// \brief Receive messages from a socket.
@@ -898,6 +968,7 @@ scion_error scion_recv_stun_response(scion_socket* socket);
 /// received on is to be returned, a scion_raw_path must have been associated
 /// with the scion_packet struct. If the path is NULL, no path information is
 /// returned.
+DLLEXPORT
 void* scion_recv(
     scion_socket* socket, void* buf, size_t* n, struct scion_packet* args, scion_error* err);
 
@@ -913,6 +984,7 @@ struct scion_async_send_handler
 /// \brief Same as scion_request_stun_mapping(), but returns immediately without
 /// waiting for the send operation to complete. On completion, `handler` is
 /// called with any potential error code.
+DLLEXPORT
 void scion_request_stun_mapping_async(scion_socket* socket, struct sockaddr* router,
     socklen_t router_len, struct scion_async_send_handler handler);
 
@@ -922,6 +994,7 @@ void scion_request_stun_mapping_async(scion_socket* socket, struct sockaddr* rou
 ///
 /// The buffers supplied when initiating the asynchronous operation must remain
 /// valid until the completion handler is called.
+DLLEXPORT
 void scion_send_async(
     scion_socket* socket, scion_hdr_cache* headers, const void* buf, size_t n,
     const struct scion_packet* args, struct scion_async_send_handler handler);
@@ -932,6 +1005,7 @@ void scion_send_async(
 ///
 /// The buffers supplied when initiating the asynchronous operation must remain
 /// valid until the completion handler is called.
+DLLEXPORT
 void scion_send_cached_async(
     scion_socket* socket, scion_hdr_cache* headers, const void* buf, size_t n,
     struct scion_packet* args, struct scion_async_send_handler handler);
@@ -948,6 +1022,7 @@ struct scion_async_recv_handler
 /// \brief Same as scion_recv_stun_response(), but returns immediately without
 /// waiting for messages to be received. When the asynchronous operation
 /// completes, `handler` is called with any potential error code.
+DLLEXPORT
 void scion_recv_stun_response_async(scion_socket* socket,
     struct scion_async_recv_handler handler);
 
@@ -958,11 +1033,13 @@ void scion_recv_stun_response_async(scion_socket* socket,
 ///
 /// The buffers supplied when initiating the asynchronous operation must remain
 /// valid until the completion handler is called.
+DLLEXPORT
 void scion_recv_async(scion_socket* socket, void* buf, size_t n, struct scion_packet* args,
     struct scion_async_recv_handler handler);
 
 /// \brief Cancel all asynchronous operations associated with the socket. Calls
 /// `cancel()` on the underlying ASIO socket.
+DLLEXPORT
 scion_error scion_cancel(scion_socket* socket);
 
 ///@}
@@ -976,16 +1053,19 @@ scion_error scion_cancel(scion_socket* socket);
 
 /// \brief Allocates a timer. Before the timer can be waited on it's timeout
 /// must be set with scion_timer_set_timeout().
+DLLEXPORT
 scion_timer* scion_timer_allocate(scion_context* ctx);
 
 /// \brief Frees a timer allocated by scion_timer_allocate(). Freeing a NULL
 // handle has no effect.
+DLLEXPORT
 void scion_timer_free(scion_timer* timer);
 
 /// \brief Sets the timers expiration time relative to now. After the timer has
 /// expired or was cancelled a new timeout should be set by calling this
 /// function again.
 /// \param timeout Timeout in milliseconds.
+DLLEXPORT
 void scion_timer_set_timeout(scion_timer* timer, uint32_t timeout);
 
 /// \brief Cancels all asynchronous operations waiting on the timer. The
@@ -994,9 +1074,11 @@ void scion_timer_set_timeout(scion_timer* timer, uint32_t timeout);
 /// cancelled, it is still going to execute with it's normal error code. See
 /// `boost::asio::basic_waitable_timer::cancel()`for more information.
 /// \returns The number of operations that were cancelled.
+DLLEXPORT
 size_t scion_timer_cancel(scion_timer* timer);
 
 /// \brief Blocks until the timer expires.
+DLLEXPORT
 scion_error scion_timer_wait(scion_timer* timer);
 
 struct scion_wait_handler
@@ -1007,6 +1089,7 @@ struct scion_wait_handler
 
 /// \brief Initiate an asynchronous wait against the timer and returns
 /// immediately. `handler` is invoked when the timer expires or is cancelled.
+DLLEXPORT
 void scion_timer_wait_async(scion_timer* timer, struct scion_wait_handler handler);
 
 ///@}

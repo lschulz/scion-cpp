@@ -936,7 +936,7 @@ int recvmmsg(int sockfd, struct mmsghdr* msgvec,
 {
     initialize();
     errno = 0;
-    ssize_t result = -1;
+    int result = -1;
     if (tl_recursive || __atomic_load_n(&g_disable, __ATOMIC_SEQ_CST)) {
         result = libc_recvmmsg(sockfd, msgvec, vlen, flags, timeout);
     } else {
@@ -945,8 +945,8 @@ int recvmmsg(int sockfd, struct mmsghdr* msgvec,
         tl_recursive = false;
     }
 #if LOG_CALLS
-    interposer_log(LEVEL_TRACE, "recvmmsg(%d, %p, %u, %u, %p) = %zd [%s]",
-        sockfd, (void*)msgvec, vlen, flags, timeout, (void*)result, strerror(errno));
+    interposer_log(LEVEL_TRACE, "recvmmsg(%d, %p, %u, %u, %p) = %d [%s]",
+        sockfd, (void*)msgvec, vlen, flags, timeout, result, strerror(errno));
 #endif
     return result;
 }
@@ -955,7 +955,7 @@ int sendmmsg(int sockfd, struct mmsghdr* msgvec, unsigned int vlen, int flags)
 {
     initialize();
     errno = 0;
-    ssize_t result = -1;
+    int result = -1;
     if (tl_recursive || __atomic_load_n(&g_disable, __ATOMIC_SEQ_CST)) {
         result = libc_sendmmsg(sockfd, msgvec, vlen, flags);
     } else {
@@ -964,7 +964,7 @@ int sendmmsg(int sockfd, struct mmsghdr* msgvec, unsigned int vlen, int flags)
         tl_recursive = false;
     }
 #if LOG_CALLS
-    interposer_log(LEVEL_TRACE, "sendmmsg(%d, %p, %u, %u) = %zd [%s]",
+    interposer_log(LEVEL_TRACE, "sendmmsg(%d, %p, %u, %u) = %d [%s]",
         sockfd, (void*)msgvec, vlen, flags, result, strerror(errno));
 #endif
     return result;

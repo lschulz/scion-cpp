@@ -320,7 +320,7 @@ int run_client(
             }
         }
     } else {
-        path = paths[rand() % path_count];
+        path = paths[(size_t)rand() % path_count];
     }
     struct sockaddr_storage next_hop;
     socklen_t next_hop_len = sizeof(next_hop);

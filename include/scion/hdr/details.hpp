@@ -101,7 +101,7 @@ inline std::uint16_t updateInternetChecksum(std::uint16_t chksum, std::uint32_t 
         sum = (sum >> 16) + (sum & 0xffffu);
     }
     if (sum != 0xffff) sum = (~sum & 0xffffu);
-    return sum;
+    return (std::uint16_t)sum;
 };
 
 } // namespace details

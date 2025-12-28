@@ -64,7 +64,7 @@ static scion::Maybe<std::string> getExecutablePath()
     };
     int n = -1;
     for (auto&& link : proc) {
-        n = readlink(link, path.data(), path.size());
+        n = (int)readlink(link, path.data(), path.size());
         if (n >= 0) {
             path.resize(n);
             return path;

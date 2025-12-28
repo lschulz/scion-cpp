@@ -94,6 +94,7 @@ if __name__ == "__main__":
     runner = unittest.TextTestRunner()
     setUpModule(args)
     try:
-        runner.run(suite(args.build))
+        ret = not runner.run(suite(args.build)).wasSuccessful()
     finally:
         tearDownModule(args)
+    exit(ret)

@@ -322,7 +322,7 @@ int client_init(struct Client* cl,
             }
         }
     } else {
-        selection = rand() % path_count;
+        selection = (size_t)rand() % path_count;
     }
     cl->path = paths[selection];
     paths[selection] = NULL;

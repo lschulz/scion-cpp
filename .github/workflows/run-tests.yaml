@@ -1,0 +1,113 @@
+name: Run tests
+
+on:
+  push:
+    branch: main
+  pull_request:
+
+jobs:
+  tests-linux:
+    name: Run tests (Ubuntu)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out the source repository
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - name: Install dependencies
+        run: >
+          sudo apt-get install -y
+          libboost-dev
+          libboost-json-dev
+          libc-ares-dev
+          libcap-dev
+          libgrpc++-dev
+          libmnl-dev
+          libncurses-dev
+          libprotobuf-dev
+          libre2-dev
+          libtomlplusplus-dev
+          pandoc
+          protobuf-compiler
+          protobuf-compiler-grpc
+      - name: Configure
+        run: |
+          mkdir build
+          cmake -G 'Ninja Multi-Config' -B build
+      - name: Build
+        id: build
+        run: cmake --build build --config Debug
+      - name: SCION++ tests
+        if: steps.build.conclusion == 'success'
+        run: timeout 5 make test
+      - name: Scitra tests
+        if: steps.build.conclusion == 'success'
+        run: timeout 5 make test-scitra
+      - name: Interposer tests
+        if: steps.build.conclusion == 'success'
+        run: timeout 5 make test-interposer
+      - name: Checkout SCION
+        uses: actions/checkout@v6
+        with:
+          repository: 'scionproto/scion'
+          path: 'scion'
+          ref: v0.14.0
+      - name: Set up Bazel
+        uses: bazel-contrib/setup-bazel@0.16.0
+        with:
+          bazelisk-version: v1.19.0
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}
+      - name: Set up Python
+        uses: actions/setup-python@v6.1.0
+        with:
+          python-version: 3.12
+          cache: pip
+      - name: Install Python dependencies
+        working-directory: '${{ github.workspace }}/scion'
+        run: pip install -r tools/env/pip3/requirements.txt
+      - name: Install SCION dependencies
+        working-directory: '${{ github.workspace }}/scion'
+        run: cat tools/env/debian/pkgs.txt | sudo apt-get install -y $(xargs)
+      - name: Disable Bazel remote cache
+        working-directory: '${{ github.workspace }}/scion'
+        run: sed '/remote_cache/s/^/#/g' .bazelrc | sponge .bazelrc
+      - name: Build SCION
+        working-directory: '${{ github.workspace }}/scion'
+        run: |
+          bazel build //:scion
+          bazel build //:scion-topo
+          tar xf bazel-bin/scion.tar -C bin
+          tar xf bazel-bin/scion-topo.tar -C bin
+      - name: Run integration tests
+        run: make SCION_ROOT=${{ github.workspace }}/scion test-integration
+
+  # FIXME: Building gRPC with vcpkg takes a long time.
+  # See: https://github.com/microsoft/vcpkg/issues/43603
+  unit-tests-windows:
+    name: Run unit tests (Windows)
+    runs-on: windows-latest
+    steps:
+      - name: Check out the source repository
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - name: Get CMake and Ninja
+        uses: lukka/get-cmake@latest
+      - name: Install dependencies with vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: a20d95d3c76906363896754eb1cc93db2a694f16
+      - name: Configure
+        uses: lukka/run-cmake@v10
+        with:
+          configurePreset: vcpkg-vs
+      - name: Build
+        id: build
+        run: cmake --build build --config Debug
+      - name: SCION++ tests
+        if: steps.build.conclusion == 'success'
+        run: .\build\Debug\unit-tests.exe .\tests
+      - name: Scitra tests
+        if: steps.build.conclusion == 'success'
+        run: .\build\scitra\Debug\scitra-tests.exe .\scitra\tests

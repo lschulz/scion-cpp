@@ -106,7 +106,7 @@ int runUdpServer(const Arguments& args)
         }
     }
     auto port = std::atoi(args.bindPort.c_str());
-    udp::endpoint localEp(bind, port);
+    udp::endpoint localEp(bind, (port_type)port);
 
     if (s.bind(localEp, ec); ec) {
         std::cerr << "Can't bind to " << bind << " : " << ec.what() << '\n';
@@ -155,7 +155,7 @@ int runTcpServer(const Arguments& args)
         }
     }
     auto port = std::atoi(args.bindPort.c_str());
-    if (acceptor.bind(tcp::endpoint(bind, port), ec); ec) {
+    if (acceptor.bind(tcp::endpoint(bind, (port_type)port), ec); ec) {
         std::cerr << "Can't bind to " << bind << " : " << ec.what() << '\n';
         return EXIT_FAILURE;
     }
@@ -226,7 +226,7 @@ int connect(boost::asio::io_context& ioCtx, Socket& s, const Arguments& args)
         }
         auto port = DEFAULT_PORT;
         if (!args.bindPort.empty()) {
-            port = std::atoi(args.bindPort.c_str());
+            port = (std::uint16_t)std::atoi(args.bindPort.c_str());
         }
         typename Socket::endpoint_type localEp(bind, port);
         if (s.bind(localEp, ec); ec) {

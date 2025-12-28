@@ -153,7 +153,8 @@ ControlPlane* Interposer::cp()
 
     if (controlPlane->isConnected()) {
         // Set default MTU
-        pmtu.setFirstHopMtu(std::min<size_t>(controlPlane->asInfo().mtu, SCION_BUFFER_SIZE));
+        pmtu.setFirstHopMtu((std::uint16_t)std::min<size_t>(
+            controlPlane->asInfo().mtu, SCION_BUFFER_SIZE));
         // Set localhost address in resolver
         if (auto addrFamily = controlPlane->internalAddrFamily(); addrFamily== AF_INET) {
             resolver.setLocalhost(Resolver::AddressSet{
@@ -1814,9 +1815,9 @@ int interposer_recvmmsg(NativeSocket sockfd, struct mmsghdr* msgvec,
         for (unsigned int i = 0; i < vlen; ++i) {
             auto recvd = interposer_recvmsg_impl(*iter->second, &msgvec[i].msg_hdr, flags);
             if (recvd >= 0) {
-                msgvec[i].msg_len = recvd;
+                msgvec[i].msg_len = (unsigned int)recvd;
             } else {
-                if (i == 0) return recvd;
+                if (i == 0) return (int)recvd;
                 else return (int)i;
             }
         }
@@ -1837,9 +1838,9 @@ int interposer_sendmmsg(NativeSocket sockfd, struct mmsghdr* msgvec, unsigned in
         for (unsigned int i = 0; i < vlen; ++i) {
             auto sent = interposer_sendmsg_impl(*iter->second, &msgvec[i].msg_hdr, flags);
             if (sent >= 0) {
-                msgvec[i].msg_len = sent;
+                msgvec[i].msg_len = (unsigned int)sent;
             } else {
-                if (i == 0) return sent;
+                if (i == 0) return (int)sent;
                 else return (int)i;
             }
         }

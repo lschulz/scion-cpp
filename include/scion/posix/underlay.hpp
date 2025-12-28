@@ -149,7 +149,7 @@ public:
         }
 
         for (int tryPort = lastPort; tryPort >= firstPort; tryPort--) {
-            auto sa = EndpointTraits<SockAddr>::fromHostPort(ip, tryPort);
+            auto sa = EndpointTraits<SockAddr>::fromHostPort(ip, (std::uint16_t)tryPort);
             if (::bind(handle, reinterpret_cast<const sockaddr*>(&sa), sizeof(sa)) == 0) {
                 return ErrorCode::Ok;
             } else {

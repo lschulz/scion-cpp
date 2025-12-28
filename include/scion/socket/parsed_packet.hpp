@@ -118,8 +118,8 @@ struct ParsedPacket
         }, l4);
         auto hbhSize = (std::uint16_t)hbhOpts.size();
         auto e2eSize = (std::uint16_t)e2eOpts.size();
-        std::uint16_t len = sci.plen - hbhSize - e2eSize;
-        len -= 2 * (hbhSize > 0) + 2 * (e2eSize > 0);
+        auto len = (std::uint16_t)(sci.plen - hbhSize - e2eSize);
+        len -= (std::uint16_t)(2 * (hbhSize > 0) + 2 * (e2eSize > 0));
         checksum += sci.checksum(len, nh);
         return hdr::details::internetChecksum(payload, checksum);
     }

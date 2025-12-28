@@ -248,7 +248,7 @@ public:
         if constexpr (Stream::IsReading) {
             if (temp != 10 && temp != 18 && temp != 26)
                 return err.error("invalid TCP SAck option");
-            blocks = (temp - 2) / 8;
+            blocks = (std::uint_fast8_t)((temp - 2) / 8);
         }
         for (std::size_t i = 0; i < std::min<std::size_t>(blocks, maxBlocks); ++i) {
             if (!stream.serializeUint32(left[i], err)) return err.propagate();

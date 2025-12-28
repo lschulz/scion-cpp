@@ -27,7 +27,7 @@
 void print_buffer(const char* buffer, size_t size)
 {
     for (size_t i = 0; i < size; ++i) {
-        unsigned char c = buffer[i];
+        char c = buffer[i];
         if (isprint(c)) {
             putchar(c);
         } else {

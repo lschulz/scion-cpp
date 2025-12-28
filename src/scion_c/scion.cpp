@@ -198,7 +198,7 @@ scion::ScIPEndpoint endpoint_cast(const sockaddr_scion* sa)
 // Errors //
 ////////////
 
-extern "C"
+extern "C" DLLEXPORT
 const char* scion_error_string(scion_error err)
 {
     switch (err) {
@@ -257,7 +257,7 @@ const char* scion_error_string(scion_error err)
 // Clock //
 ///////////
 
-extern "C"
+extern "C" DLLEXPORT
 uint64_t scion_time_utc()
 {
     using namespace std::chrono;
@@ -265,7 +265,7 @@ uint64_t scion_time_utc()
         utc_clock::now().time_since_epoch()).count());
 }
 
-extern "C"
+extern "C" DLLEXPORT
 uint64_t scion_time_steady()
 {
     using namespace std::chrono;
@@ -391,7 +391,7 @@ struct scion_context_t
     CScmpHandler scmpHandler;
 };
 
-extern "C"
+extern "C" DLLEXPORT
 scion_error scion_create_host_context(scion_context** pctx, const scion_context_opts* opts)
 {
     using namespace scion;
@@ -442,13 +442,13 @@ scion_error scion_create_host_context(scion_context** pctx, const scion_context_
     return SCION_OK;
 }
 
-extern "C"
+extern "C" DLLEXPORT
 void scion_delete_host_context(scion_context* ctx)
 {
     if (ctx) delete ctx;
 }
 
-extern "C"
+extern "C" DLLEXPORT
 void* scion_set_scmp_handler(
     scion_context* ctx, scion_scmp_handler handler, void* user_ptr)
 {
@@ -458,37 +458,37 @@ void* scion_set_scmp_handler(
     return prev;
 }
 
-extern "C"
+extern "C" DLLEXPORT
 size_t scion_poll(scion_context* ctx)
 {
     return ctx->ioCtx.poll();
 }
 
-extern "C"
+extern "C" DLLEXPORT
 size_t scion_run(scion_context* ctx)
 {
     return ctx->ioCtx.run();
 }
 
-extern "C"
+extern "C" DLLEXPORT
 size_t scion_run_for(scion_context* ctx, uint32_t timeout)
 {
     return ctx->ioCtx.run_for(std::chrono::milliseconds(timeout));
 }
 
-extern "C"
+extern "C" DLLEXPORT
 void scion_stop(scion_context* ctx)
 {
     ctx->ioCtx.stop();
 }
 
-extern "C"
+extern "C" DLLEXPORT
 void scion_restart(scion_context* ctx)
 {
     ctx->ioCtx.restart();
 }
 
-extern "C"
+extern "C" DLLEXPORT
 uint16_t scion_discovered_pmtu(scion_context* ctx, scion_path* path, const struct scion_addr* dest)
 {
     using namespace scion::generic;
@@ -509,7 +509,7 @@ uint16_t scion_discovered_pmtu(scion_context* ctx, scion_path* path, const struc
     }
 }
 
-extern "C"
+extern "C" DLLEXPORT
 uint16_t scion_discovered_pmtu_raw(
     scion_context* ctx, scion_raw_path* path, const struct scion_addr* dest)
 {
@@ -532,7 +532,7 @@ uint16_t scion_discovered_pmtu_raw(
 // Addresses //
 ///////////////
 
-extern "C"
+extern "C" DLLEXPORT
 bool scion_addr_are_equal(const scion_addr* a, const scion_addr* b)
 {
     return a->sscion_host_type == b->sscion_host_type
@@ -541,7 +541,7 @@ bool scion_addr_are_equal(const scion_addr* a, const scion_addr* b)
         && std::memcmp(a->u.sscion_addr, b->u.sscion_addr, 16) == 0;
 }
 
-extern "C"
+extern "C" DLLEXPORT
 bool scion_sockaddr_are_equal(const sockaddr_scion* a, const sockaddr_scion* b)
 {
     return a->sscion_family == b->sscion_family
@@ -550,7 +550,7 @@ bool scion_sockaddr_are_equal(const sockaddr_scion* a, const sockaddr_scion* b)
         && scion_addr_are_equal(&a->sscion_addr, &b->sscion_addr);
 }
 
-extern "C"
+extern "C" DLLEXPORT
 scion_error scion_sockaddr_get_host(
     const struct sockaddr_scion* saddr, struct sockaddr* host, socklen_t host_len)
 {
@@ -576,7 +576,7 @@ scion_error scion_sockaddr_get_host(
     }
 }
 
-extern "C"
+extern "C" DLLEXPORT
 scion_error scion_split_host_port(
     const char* addr, const char** host, size_t* host_len, uint16_t* port)
 {
@@ -591,7 +591,7 @@ scion_error scion_split_host_port(
     }
 }
 
-extern "C"
+extern "C" DLLEXPORT
 scion_error scion_parse_host(const char* host, scion_addr* addr)
 {
     auto res = scion::ScIPAddress::Parse(std::string_view(host, std::strlen(host)));
@@ -603,7 +603,7 @@ scion_error scion_parse_host(const char* host, scion_addr* addr)
     }
 }
 
-extern "C"
+extern "C" DLLEXPORT
 scion_error scion_parse_ep(const char* endpoint, sockaddr_scion* sockaddr)
 {
     auto res = scion::ScIPEndpoint::Parse(std::string_view(endpoint, std::strlen(endpoint)));
@@ -615,7 +615,7 @@ scion_error scion_parse_ep(const char* endpoint, sockaddr_scion* sockaddr)
     }
 }
 
-extern "C"
+extern "C" DLLEXPORT
 scion_error scion_print_host(const scion_addr* addr, char* buffer, size_t* buffer_len)
 {
     using namespace scion::details;
@@ -633,7 +633,7 @@ scion_error scion_print_host(const scion_addr* addr, char* buffer, size_t* buffe
     return err;
 }
 
-extern "C"
+extern "C" DLLEXPORT
 scion_error scion_print_ep(const sockaddr_scion* addr, char* buffer, size_t* buffer_len)
 {
     using namespace scion::details;
@@ -655,7 +655,7 @@ scion_error scion_print_ep(const sockaddr_scion* addr, char* buffer, size_t* buf
 // Name Resolution //
 /////////////////////
 
-extern "C"
+extern "C" DLLEXPORT
 scion_error scion_resolve_name(scion_context* ctx,
     const char* name, struct sockaddr_scion* res, size_t* res_len)
 {
@@ -672,7 +672,7 @@ scion_error scion_resolve_name(scion_context* ctx,
     return SCION_OK;
 }
 
-extern "C"
+extern "C" DLLEXPORT
 void scion_resolve_name_async(scion_context* ctx,
     const char* name, struct sockaddr_scion* res, size_t* res_len,
     scion_async_resolve_handler handler)
@@ -712,7 +712,7 @@ void scion_resolve_name_async(scion_context* ctx,
 // Paths //
 ///////////
 
-extern "C"
+extern "C" DLLEXPORT
 scion_error scion_query_paths(
     scion_context* ctx, uint64_t dst, scion_path** paths, size_t* paths_len)
 {
@@ -741,7 +741,7 @@ scion_error scion_query_paths(
     return SCION_OK;
 }
 
-extern "C"
+extern "C" DLLEXPORT
 void scion_release_paths(scion_path** paths, size_t paths_len)
 {
     using namespace scion;
@@ -753,25 +753,25 @@ void scion_release_paths(scion_path** paths, size_t paths_len)
     }
 }
 
-extern "C"
+extern "C" DLLEXPORT
 uint64_t scion_path_first_as(scion_path* path)
 {
     return reinterpret_cast<scion::Path*>(path)->firstAS();
 }
 
-extern "C"
+extern "C" DLLEXPORT
 uint64_t scion_path_last_as(scion_path* path)
 {
     return reinterpret_cast<scion::Path*>(path)->lastAS();
 }
 
-extern "C"
+extern "C" DLLEXPORT
 scion_ptype scion_path_type(scion_path* path)
 {
     return static_cast<scion_ptype>(reinterpret_cast<scion::Path*>(path)->type());
 }
 
-extern "C"
+extern "C" DLLEXPORT
 uint64_t scion_path_expiry(scion_path* path)
 {
     using namespace std::chrono;
@@ -779,25 +779,25 @@ uint64_t scion_path_expiry(scion_path* path)
     return duration_cast<nanoseconds>(expiry).count();
 }
 
-extern "C"
+extern "C" DLLEXPORT
 uint16_t scion_path_mtu(scion_path* path)
 {
     return reinterpret_cast<scion::Path*>(path)->mtu();
 }
 
-extern "C"
+extern "C" DLLEXPORT
 uint64_t scion_path_broken(scion_path* path)
 {
     return reinterpret_cast<scion::Path*>(path)->broken();
 }
 
-extern "C"
+extern "C" DLLEXPORT
 void scion_path_set_broken(scion_path* path, uint64_t broken)
 {
     reinterpret_cast<scion::Path*>(path)->setBroken(broken);
 }
 
-extern "C"
+extern "C" DLLEXPORT
 scion_error scion_path_meta_hops(scion_path* path, scion_hop* hops, size_t* hops_len)
 {
     using namespace scion;
@@ -818,20 +818,20 @@ scion_error scion_path_meta_hops(scion_path* path, scion_hop* hops, size_t* hops
     return SCION_OK;
 }
 
-extern "C"
+extern "C" DLLEXPORT
 uint32_t scion_path_hop_count(scion_path* path)
 {
     return reinterpret_cast<scion::Path*>(path)->hopCount();
 }
 
-extern "C"
+extern "C" DLLEXPORT
 void scion_path_digest(scion_path* path, scion_digest* digest)
 {
     auto d = reinterpret_cast<scion::Path*>(path)->digest();
     std::memcpy(digest->value, d.value(), sizeof(digest->value));
 }
 
-extern "C"
+extern "C" DLLEXPORT
 scion_error scion_path_next_hop(scion_path* path, sockaddr* next_hop, socklen_t* next_hop_len)
 {
     using namespace scion;
@@ -859,7 +859,7 @@ scion_error scion_path_next_hop(scion_path* path, sockaddr* next_hop, socklen_t*
     }
 }
 
-extern "C"
+extern "C" DLLEXPORT
 void scion_path_encoded(scion_path* path, const uint8_t** encoded, size_t* encoded_len)
 {
     auto raw = reinterpret_cast<scion::Path*>(path)->encoded();
@@ -867,7 +867,7 @@ void scion_path_encoded(scion_path* path, const uint8_t** encoded, size_t* encod
     *encoded_len = raw.size();
 }
 
-extern "C"
+extern "C" DLLEXPORT
 scion_error scion_path_print(scion_path* path, char* buffer, size_t* buffer_len)
 {
     using namespace scion;
@@ -889,19 +889,19 @@ scion_error scion_path_print(scion_path* path, char* buffer, size_t* buffer_len)
 // Raw Paths //
 ///////////////
 
-extern "C"
+extern "C" DLLEXPORT
 scion_raw_path* scion_raw_path_allocate()
 {
     return reinterpret_cast<scion_raw_path*>(new scion::RawPath);
 }
 
-extern "C"
+extern "C" DLLEXPORT
 void scion_raw_path_free(scion_raw_path* path)
 {
     if (path) delete reinterpret_cast<scion::RawPath*>(path);
 }
 
-extern "C"
+extern "C" DLLEXPORT
 void scion_raw_path_encoded(scion_raw_path* path, const uint8_t** encoded, size_t* encoded_len)
 {
     auto raw = reinterpret_cast<scion::RawPath*>(path)->encoded();
@@ -909,38 +909,38 @@ void scion_raw_path_encoded(scion_raw_path* path, const uint8_t** encoded, size_
     *encoded_len = raw.size();
 }
 
-extern "C"
+extern "C" DLLEXPORT
 uint64_t scion_raw_path_first_as(scion_raw_path* path)
 {
     return reinterpret_cast<scion::RawPath*>(path)->firstAS();
 }
 
-extern "C"
+extern "C" DLLEXPORT
 uint64_t scion_raw_path_last_as(scion_raw_path* path)
 {
     return reinterpret_cast<scion::RawPath*>(path)->lastAS();
 }
 
-extern "C"
+extern "C" DLLEXPORT
 scion_ptype scion_raw_path_type(scion_raw_path* path)
 {
     return static_cast<scion_ptype>(reinterpret_cast<scion::RawPath*>(path)->type());
 }
 
-extern "C"
+extern "C" DLLEXPORT
 void scion_raw_path_digest(scion_raw_path* path, scion_digest* digest)
 {
     auto d = reinterpret_cast<scion::RawPath*>(path)->digest();
     std::memcpy(digest->value, d.value(), sizeof(digest->value));
 }
 
-extern "C"
+extern "C" DLLEXPORT
 scion_error scion_raw_path_reverse(scion_raw_path* path)
 {
     return translate_error(reinterpret_cast<scion::RawPath*>(path)->reverseInPlace());
 }
 
-extern "C"
+extern "C" DLLEXPORT
 scion_error scion_raw_path_print(scion_raw_path* path, char* buffer, size_t* buffer_len)
 {
     using namespace scion;
@@ -962,13 +962,13 @@ scion_error scion_raw_path_print(scion_raw_path* path, char* buffer, size_t* buf
 // Header Cache //
 //////////////////
 
-extern "C"
+extern "C" DLLEXPORT
 scion_hdr_cache* scion_hdr_cache_allocate()
 {
     return reinterpret_cast<scion_hdr_cache*>(new scion::HeaderCache<>);
 }
 
-extern "C"
+extern "C" DLLEXPORT
 void scion_hdr_cache_free(scion_hdr_cache* headers)
 {
     if (headers) delete reinterpret_cast<scion::HeaderCache<>*>(headers);
@@ -1036,7 +1036,7 @@ struct scion_socket_t
     std::variant<scion::asio::UdpSocket> v;
 };
 
-extern "C"
+extern "C" DLLEXPORT
 scion_error scion_socket_create(scion_context* ctx, scion_socket** socket, int socket_type)
 {
     if (socket_type != SOCK_DGRAM) return SCION_NOT_IMPLEMENTED;
@@ -1049,13 +1049,13 @@ scion_error scion_socket_create(scion_context* ctx, scion_socket** socket, int s
     return SCION_OK;
 }
 
-extern "C"
+extern "C" DLLEXPORT
 void scion_close(scion_socket* socket)
 {
     if (socket) delete socket;
 }
 
-extern "C"
+extern "C" DLLEXPORT
 scion_error scion_bind(scion_socket* socket, const struct sockaddr* addr, socklen_t addr_len)
 {
     using namespace scion;
@@ -1094,7 +1094,7 @@ scion_error scion_bind(scion_socket* socket, const struct sockaddr* addr, sockle
     }, socket->v);
 }
 
-extern "C"
+extern "C" DLLEXPORT
 scion_error scion_connect(scion_socket* socket, const struct sockaddr_scion* addr)
 {
     return std::visit([&](auto&& s) -> scion_error {
@@ -1102,7 +1102,7 @@ scion_error scion_connect(scion_socket* socket, const struct sockaddr_scion* add
     }, socket->v);
 }
 
-extern "C"
+extern "C" DLLEXPORT
 bool scion_is_open(scion_socket* socket)
 {
     return std::visit([&](auto&& s) -> bool {
@@ -1110,7 +1110,7 @@ bool scion_is_open(scion_socket* socket)
     }, socket->v);
 }
 
-extern "C"
+extern "C" DLLEXPORT
 scion_native_handle scion_underlay_handle(scion_socket* socket)
 {
     return std::visit([&](auto&& s) {
@@ -1118,7 +1118,7 @@ scion_native_handle scion_underlay_handle(scion_socket* socket)
     }, socket->v);
 }
 
-extern "C"
+extern "C" DLLEXPORT
 scion_error scion_set_nonblocking(scion_socket* socket, bool nonblocking)
 {
     return std::visit([&](auto&& s) {
@@ -1126,7 +1126,7 @@ scion_error scion_set_nonblocking(scion_socket* socket, bool nonblocking)
     }, socket->v);
 }
 
-extern "C"
+extern "C" DLLEXPORT
 void scion_getsockname(scion_socket* socket, struct sockaddr_scion* addr)
 {
     using namespace scion;
@@ -1136,7 +1136,7 @@ void scion_getsockname(scion_socket* socket, struct sockaddr_scion* addr)
     *addr = details::endpoint_cast(local);
 }
 
-extern "C"
+extern "C" DLLEXPORT
 void scion_getmapped(scion_socket* socket, struct sockaddr_scion* addr)
 {
     using namespace scion;
@@ -1146,7 +1146,7 @@ void scion_getmapped(scion_socket* socket, struct sockaddr_scion* addr)
     *addr = details::endpoint_cast(local);
 }
 
-extern "C"
+extern "C" DLLEXPORT
 void scion_getpeername(scion_socket* socket, struct sockaddr_scion* addr)
 {
     using namespace scion;
@@ -1156,7 +1156,7 @@ void scion_getpeername(scion_socket* socket, struct sockaddr_scion* addr)
     *addr = details::endpoint_cast(local);
 }
 
-extern "C"
+extern "C" DLLEXPORT
 scion_error scion_measure(scion_socket* socket, const scion_packet* args, size_t* hdr_size)
 {
     using namespace scion;
@@ -1194,7 +1194,7 @@ scion_error scion_measure(scion_socket* socket, const scion_packet* args, size_t
     }
 }
 
-extern "C"
+extern "C" DLLEXPORT
 scion_error scion_request_stun_mapping(scion_socket* socket, struct sockaddr* router,
     socklen_t router_len)
 {
@@ -1214,7 +1214,7 @@ scion_error scion_request_stun_mapping(scion_socket* socket, struct sockaddr* ro
     return translate_error(ec);
 }
 
-extern "C"
+extern "C" DLLEXPORT
 scion_error scion_send(scion_socket* socket, scion_hdr_cache* headers,
     const void* buf, size_t* n, const struct scion_packet* args)
 {
@@ -1273,7 +1273,7 @@ scion_error scion_send(scion_socket* socket, scion_hdr_cache* headers,
     }
 }
 
-extern "C"
+extern "C" DLLEXPORT
 scion_error scion_send_cached(scion_socket* socket, scion_hdr_cache* headers,
     const void* buf, size_t* n, struct scion_packet* args)
 {
@@ -1298,7 +1298,7 @@ scion_error scion_send_cached(scion_socket* socket, scion_hdr_cache* headers,
     }
 }
 
-extern "C"
+extern "C" DLLEXPORT
 scion_error scion_recv_stun_response(scion_socket* socket)
 {
     using namespace scion;
@@ -1308,7 +1308,7 @@ scion_error scion_recv_stun_response(scion_socket* socket)
     return translate_error(ec);
 }
 
-extern "C"
+extern "C" DLLEXPORT
 void* scion_recv(scion_socket* socket,
     void* buf, size_t* n, struct scion_packet* args, scion_error* err)
 {
@@ -1346,7 +1346,7 @@ void* scion_recv(scion_socket* socket,
     return recvd->data();
 }
 
-extern "C"
+extern "C" DLLEXPORT
 void scion_request_stun_mapping_async(scion_socket* socket, struct sockaddr* router,
     socklen_t router_len, struct scion_async_send_handler handler)
 {
@@ -1392,7 +1392,7 @@ void scion_request_stun_mapping_async(scion_socket* socket, struct sockaddr* rou
     }, socket->v);
 }
 
-extern "C"
+extern "C" DLLEXPORT
 void scion_send_async(
     scion_socket* socket, scion_hdr_cache* headers, const void* buf, size_t n,
     const struct scion_packet* args, struct scion_async_send_handler handler)
@@ -1483,7 +1483,7 @@ void scion_send_async(
     }, socket->v);
 }
 
-extern "C"
+extern "C" DLLEXPORT
 void scion_send_cached_async(
     scion_socket* socket, scion_hdr_cache* headers, const void* buf, size_t n,
     struct scion_packet* args, struct scion_async_send_handler handler)
@@ -1529,7 +1529,7 @@ void scion_send_cached_async(
     }, socket->v);
 }
 
-extern "C"
+extern "C" DLLEXPORT
 void scion_recv_stun_response_async(scion_socket* socket,
     struct scion_async_recv_handler handler)
 {
@@ -1547,7 +1547,7 @@ void scion_recv_stun_response_async(scion_socket* socket,
     }, socket->v);
 }
 
-extern "C"
+extern "C" DLLEXPORT
 void scion_recv_async(scion_socket* socket, void* buf, size_t n, struct scion_packet* args,
     struct scion_async_recv_handler handler)
 {
@@ -1620,7 +1620,7 @@ void scion_recv_async(scion_socket* socket, void* buf, size_t n, struct scion_pa
     }, socket->v);
 }
 
-extern "C"
+extern "C" DLLEXPORT
 scion_error scion_cancel(scion_socket* socket)
 {
     return std::visit([&](auto&& s) {
@@ -1632,32 +1632,32 @@ scion_error scion_cancel(scion_socket* socket)
 // Timers //
 ////////////
 
-extern "C"
+extern "C" DLLEXPORT
 scion_timer* scion_timer_allocate(scion_context* ctx)
 {
     return reinterpret_cast<scion_timer*>(new boost::asio::steady_timer(ctx->ioCtx));
 }
 
-extern "C"
+extern "C" DLLEXPORT
 void scion_timer_free(scion_timer* timer)
 {
     delete reinterpret_cast<boost::asio::steady_timer*>(timer);
 }
 
-extern "C"
+extern "C" DLLEXPORT
 void scion_timer_set_timeout(scion_timer* timer, uint32_t timeout)
 {
     using std::chrono::milliseconds;
     reinterpret_cast<boost::asio::steady_timer*>(timer)->expires_after(milliseconds(timeout));
 }
 
-extern "C"
+extern "C" DLLEXPORT
 size_t scion_timer_cancel(scion_timer* timer)
 {
     return reinterpret_cast<boost::asio::steady_timer*>(timer)->cancel();
 }
 
-extern "C"
+extern "C" DLLEXPORT
 scion_error scion_timer_wait(scion_timer* timer)
 {
     boost::system::error_code ec;
@@ -1665,7 +1665,7 @@ scion_error scion_timer_wait(scion_timer* timer)
     return translate_error(ec);
 }
 
-extern "C"
+extern "C" DLLEXPORT
 void scion_timer_wait_async(scion_timer* timer, struct scion_wait_handler handler)
 {
     auto token = [=] (const boost::system::error_code& error) {

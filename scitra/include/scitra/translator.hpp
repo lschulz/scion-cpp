@@ -77,7 +77,7 @@ inline std::uint32_t computeIPv6FlowLabel(const hdr::IPv6& ip, std::uint32_t l4F
 
 Verdict translateIcmpToScmp(PacketBuffer& pkt);
 Verdict translateScmpToIcmp(PacketBuffer& pkt);
-void makeIcmpDestUnreachable(PacketBuffer& pkt, int code);
+void makeIcmpDestUnreachable(PacketBuffer& pkt, std::uint8_t code);
 void makeIcmpPacketTooBig(PacketBuffer& pkt, std::uint16_t mtu);
 
 } // namespace details
@@ -221,7 +221,7 @@ translateEgress(
     if (pkt.sci.size() + (*path)->size() + pkt.l4Size() + pkt.payload().size() > mtu) {
         std::size_t ipMtu = mtu + pkt.ipv6.size() - pkt.sci.size() - (*path)->size();
         if (ipMtu >= IPV6_MIN_LINK_MTU) {
-            details::makeIcmpPacketTooBig(pkt, ipMtu);
+            details::makeIcmpPacketTooBig(pkt, (std::uint16_t)std::min<std::size_t>(ipMtu, 65535u));
             return std::make_tuple(Verdict::Return, 0, nextHop);
         } else {
             return std::make_tuple(Verdict::Drop, 0, nextHop);
@@ -234,11 +234,12 @@ translateEgress(
     std::uint32_t mss = 0, clampedMSS = 0;
     if (pkt.l4Valid == PacketBuffer::L4Type::TCP) {
         if (pkt.tcp.optMask.MSS) {
-            int scionMSS = (int)mtu - (int)(pkt.sci.size() + (*path)->size()) - TCP_HDR_SIZE;
+            int scionMSS = (int)mtu - (int)(pkt.sci.size() + (*path)->size()) - (int)TCP_HDR_SIZE;
             if (scionMSS <= 0) return std::make_tuple(Verdict::Abort, 0, nextHop);
             mss = pkt.tcp.options.mss.mss;
-            clampedMSS = std::min<std::uint16_t>(pkt.tcp.options.mss.mss, scionMSS);
-            pkt.tcp.options.mss.mss = clampedMSS;
+            clampedMSS = std::min(
+                pkt.tcp.options.mss.mss, (std::uint16_t)std::min(scionMSS, 65535));
+            pkt.tcp.options.mss.mss = (std::uint16_t)clampedMSS;
         }
     }
 
@@ -352,11 +353,12 @@ Verdict translateIngress(
     if (pkt.l4Valid == PacketBuffer::L4Type::TCP) {
         if (pkt.tcp.optMask.MSS) {
             auto mtu = getMTU(pkt.sci, pkt.path);
-            int scionMSS = (int)mtu - (int)(pkt.sci.size() + pkt.path.size()) - TCP_HDR_SIZE;
+            int scionMSS = (int)mtu - (int)(pkt.sci.size() + pkt.path.size()) - (int)TCP_HDR_SIZE;
             if (scionMSS <= 0) return Verdict::Abort;
             mss = pkt.tcp.options.mss.mss;
-            clampedMSS = std::min<std::uint16_t>(pkt.tcp.options.mss.mss, scionMSS);
-            pkt.tcp.options.mss.mss = clampedMSS;
+            clampedMSS = std::min(
+                pkt.tcp.options.mss.mss, (std::uint16_t)std::min(scionMSS, 65535));
+            pkt.tcp.options.mss.mss = (std::uint16_t)clampedMSS;
         }
     }
 

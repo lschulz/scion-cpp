@@ -130,7 +130,7 @@ Maybe<PathPtr> pathFromProtobuf(IsdAsn src, IsdAsn dst,
     auto path = makePath(
         src, dst, hdr::PathType::SCION,
         scion::details::timepointFromProtobuf(pb.expiration()),
-        pb.mtu(),
+        (std::uint16_t)std::min(pb.mtu(), 65535u),
         *nh,
         std::span<const std::byte>(
             reinterpret_cast<const std::byte*>(raw.data()),

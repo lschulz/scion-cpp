@@ -200,8 +200,8 @@ public:
         }
 
         // Update path meta header
-        meta.currInf = (std::uint8_t)numInf - meta.currInf - 1;
-        meta.currHf = (std::uint8_t)numHop - meta.currHf - 1;
+        meta.currInf = (std::uint8_t)(numInf - meta.currInf - 1);
+        meta.currHf = (std::uint8_t)(numHop - meta.currHf - 1);
 
         if (numInf == 2) std::swap(meta.segLen[0], meta.segLen[1]);
         else if (numInf == 3) std::swap(meta.segLen[0], meta.segLen[2]);

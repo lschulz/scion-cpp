@@ -15,10 +15,12 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    add_compile_options(/W3)
+    # Disabled warnings:
+    # C4146 - unary minus operator applied to unsigned type, result still unsigned
+    add_compile_options(/W3 /wd4146)
     add_compile_options(/arch:AVX2)
 else()
-    add_compile_options(-Wall -Wextra -Wpedantic -Wno-unused-parameter)
+    add_compile_options(-Wall -Wextra -Wpedantic -Wconversion -Wno-unused-parameter)
     add_compile_options(-fPIC)
 if (MARCH)
     add_compile_options(-march=${MARCH})
@@ -67,7 +69,10 @@ find_package(Boost CONFIG REQUIRED COMPONENTS json)
 
 find_package(protobuf CONFIG)
 
-if (Protobuf_FOUND)
+# Assume protobuf has been found even if Protobuf_FOUND is false when building
+# on Windows. FindProtobuf.cmake sets Protobuf_FOUND to false even if protobuf
+# works.
+if (Protobuf_FOUND OR WIN32)
 
     set(GRPC_LIBS protobuf::libprotobuf)
 
@@ -131,9 +136,16 @@ add_subdirectory(deps/CLI11)
 
 if (LINUX)
 add_subdirectory(deps/imtui)
+target_compile_options(imtui PRIVATE
+    -Wno-conversion
+)
+target_compile_options(imtui-ncurses PRIVATE
+    -Wno-conversion
+)
 target_compile_options(imgui-for-imtui PRIVATE
     -Wno-unused-variable
     -Wno-deprecated-enum-enum-conversion
+    -Wno-conversion
 )
 endif(LINUX)
 
@@ -319,8 +331,14 @@ target_sources(scion-c
         "include/scion/scion.h"
 )
 target_link_libraries(scion-c PRIVATE scion-cpp)
+if (WIN32)
+    target_link_libraries(scion-c INTERFACE Ws2_32.lib)
+endif()
 set_target_properties(scion-c PROPERTIES
     OUTPUT_NAME "scionc"
+    # Rename import library file on DLL platforms (Windows) to avoid name
+    # conflict with static library.
+    ARCHIVE_OUTPUT_NAME "scionc-import"
     DEBUG_POSTFIX "d"
     VERSION "0.0.1"
     SOVERSION "0"
@@ -373,7 +391,7 @@ set(SRC_TEST
 )
 
 add_executable(unit-tests ${SRC_TEST})
-target_link_libraries(unit-tests PRIVATE gtest gmock scion-cpp scion-c)
+target_link_libraries(unit-tests PRIVATE gtest gmock scion-cpp scion-c-static)
 target_include_directories(unit-tests
     PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tests"
     PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated"

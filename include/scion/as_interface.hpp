@@ -40,8 +40,8 @@ public:
 
     std::uint32_t checksum() const
     {
-        return (ifid & 0xffff) + ((ifid >> 16) & 0xffff)
-            + ((ifid >> 32) & 0xffff) + ((ifid >> 48) & 0xffff);
+        return (std::uint32_t)((ifid & 0xffff) + ((ifid >> 16) & 0xffff)
+            + ((ifid >> 32) & 0xffff) + ((ifid >> 48) & 0xffff));
     }
 
     std::size_t size() const { return 8; }

@@ -201,7 +201,7 @@ int main(int argc, char* argv[])
                 auto rtt = duration_cast<microseconds>(
                     clock::now() - probeTimestamps[reply.seq]).count();
                 std::cout << std::format("{} {} IfID={} {:.3}ms\n",
-                    reply.seq, reply.sender, reply.iface, rtt / 1000.0);
+                    reply.seq, reply.sender, reply.iface, (double)rtt / 1000.0);
             }
         }
     };

@@ -132,7 +132,7 @@ Verdict translateScmpToIcmp(PacketBuffer& pkt)
     }
 }
 
-void makeIcmpDestUnreachable(PacketBuffer& pkt, int code)
+void makeIcmpDestUnreachable(PacketBuffer& pkt, std::uint8_t code)
 {
     pkt.ipv6.dst = pkt.ipv6.src;
     pkt.ipv6.src = scion::generic::IPAddress::MakeIPv6(0xfcull << 56, 1);

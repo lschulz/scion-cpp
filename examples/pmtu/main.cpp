@@ -117,7 +117,7 @@ int main(int argc, char* argv[])
 
     // Open socket
     Socket s;
-    PathMtuDiscoverer pmtu(localAS->mtu);
+    PathMtuDiscoverer pmtu((std::uint16_t)std::min(localAS->mtu, 65535u));
     s.setNextScmpHandler(&pool)->setNextScmpHandler(&pmtu);
     if (auto ec = s.bind(bindAddress, portRange->first, portRange->second); ec) {
         std::cerr << "Can't bind to " << bindAddress << " : " << fmtError(ec) << '\n';

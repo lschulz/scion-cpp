@@ -398,7 +398,7 @@ std::shared_ptr<Flow> ScitraTun::getFlow(const FlowID& id, FlowType type)
     static std::mt19937 rng(std::random_device{}());
     auto flow = flows[id];
     if (!flow) {
-        std::uniform_int_distribution<std::uint32_t> dist(0, tunQueues.size());
+        std::uniform_int_distribution<std::uint32_t> dist;
         flow = std::make_shared<Flow>(type, dist(rng));
         flows[id] = flow;
     }
@@ -619,7 +619,9 @@ std::error_code ScitraTun::translateIPtoScion(TunQueue& tun)
         if (verdict == Verdict::Pass) {
             if (auto socket = getSocket(port); socket) {
                 assert(flow);
-                flow->lock().updateState(pkt, recvd).countEgress(1, pkt.payload().size());
+                flow->lock()
+                    .updateState(pkt, recvd)
+                    .countEgress(1, (std::uint32_t)pkt.payload().size());
                 auto nh = generic::toUnderlay<asio::ip::udp::endpoint>(nextHop);
                 if (!nh.has_value()) continue; // this should never happen
                 auto ec = socket->sendPacket(pkt, *nh, recvd); // blocking
@@ -697,11 +699,14 @@ asio::awaitable<std::error_code> ScitraTun::translateScionToIP(std::shared_ptr<S
             if (fl->getType() == FlowType::Passive && !pkt.path.reverseInPlace()) {
                 fl->lock()
                     .updatePassivePath(pkt.path, generic::toGenericEp(from))
-                    .updateState(pkt, recvd).countIngress(1, pkt.payload().size());
+                    .updateState(pkt, recvd)
+                    .countIngress(1, (std::uint32_t)pkt.payload().size());
             } else {
-                fl->lock().updateState(pkt, recvd).countIngress(1, pkt.payload().size());
+                fl->lock()
+                    .updateState(pkt, recvd)
+                    .countIngress(1, (std::uint32_t)pkt.payload().size());
             }
-            auto queue = fl->getQueue() % tunQueues.size();
+            auto queue = fl->getQueue((std::uint32_t)tunQueues.size());
             auto ec = tunQueues[queue].sendPacket(pkt);
             if (ec) spdlog::error("Error sending packet to TUN (queue {}): {}",
                 queue, fmtError(ec));

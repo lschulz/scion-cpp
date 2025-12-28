@@ -176,7 +176,11 @@ public:
     {}
 
     FlowType getType() const { return type; }
-    std::uint32_t getQueue() const { return queue; }
+
+    std::uint32_t getQueue(std::uint32_t queues) const
+    {
+        return queue % queues;
+    }
 
     // Acquire a lock on the path.
     FlowProxy lock();

@@ -442,13 +442,13 @@ void Policy::sort(std::span<PathPtr> paths) const
             break;
         case PathOrder::MetaBwAsc:
             std::ranges::stable_sort(paths,
-                std::less<std::uint32_t>(), [] (const PathPtr& p) {
+                std::less<std::uint64_t>(), [] (const PathPtr& p) {
                     return getMetaBw(*p);
             });
             break;
         case PathOrder::MetaBwDesc:
             std::ranges::stable_sort(paths,
-                std::greater<std::uint32_t>(), [] (const PathPtr& p) {
+                std::greater<std::uint64_t>(), [] (const PathPtr& p) {
                     return getMetaBw(*p);
             });
             break;

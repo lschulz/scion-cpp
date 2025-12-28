@@ -23,7 +23,15 @@
 #include "scion/addr/isd_asn.hpp"
 #include "scion/details/protobuf_time.hpp"
 #include "scion/path/attributes.hpp"
+
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4267)
+#endif
 #include "scion/proto/daemon/v1/daemon.pb.h"
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 #include <chrono>
 #include <cstdint>

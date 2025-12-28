@@ -34,7 +34,7 @@ using std::size_t;
 const std::uint8_t NetlinkRoute::TABLE_MAIN = RT_TABLE_MAIN;
 
 NetlinkRoute::NetlinkRoute()
-    : seq(time(NULL))
+    : seq((std::uint32_t)time(NULL))
 {}
 
 std::error_code NetlinkRoute::open()
@@ -94,11 +94,11 @@ Maybe<uint32_t> NetlinkRoute::getInterfaceMTU(const std::string& dev)
     }
 
     // Parse response
-    if (mnl_nlmsg_ok(nlh, bufsize) && nlh->nlmsg_type == RTM_NEWLINK) {
+    if (mnl_nlmsg_ok(nlh, (int)bufsize) && nlh->nlmsg_type == RTM_NEWLINK) {
         if (mnl_nlmsg_get_payload_len(nlh) > sizeof(ifinfomsg)) {
             // see mnl_attr_for_each
             auto attr = (nlattr*)mnl_nlmsg_get_payload_offset(nlh, sizeof(ifinfomsg));
-            while (mnl_attr_ok(attr, (char*)mnl_nlmsg_get_payload_tail(nlh) - (char*)attr)) {
+            while (mnl_attr_ok(attr, (int)((char*)mnl_nlmsg_get_payload_tail(nlh) - (char*)attr))) {
                 if (attr->nla_type == IFLA_MTU) {
                     return mnl_attr_get_u32(attr);
                 }
@@ -276,7 +276,7 @@ std::error_code NetlinkRoute::modAddress(
     } else {
         msg->ifa_family = AF_INET6;
             if (addr.hasZone())
-        msg->ifa_scope = addr.zoneId();
+        msg->ifa_scope = (unsigned char)addr.zoneId();
         auto ip = scion::generic::toUnderlay<in6_addr>(addr);
         if (!mnl_attr_put_check(nlh, bufsize, IFA_ADDRESS, sizeof(struct in6_addr), &(*ip)))
             return ScitraError::LogicError;
