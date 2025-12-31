@@ -8,7 +8,8 @@ scitra-tun - a SCION-IP packet translator
 
 | **scitra-tun**
     \[**-a**|**--tun-addr** addr\] \[**-d**|**--sciond**\ daemon\] \[**-l**|**--log-file** log\]
-    \[**-n**|**--tun-name** name\] \[**--nat-timeout** timeout\] \[**-p**|**--ports** port \[port...\]\]
+    \[**-m**|**--mtu** mtu\] \[**-n**|**--tun-name** name\] \[**--nat-timeout** timeout\]
+    \[**-p**|**--ports** port \[port...\]\]
     \[**--policy** policy\] \[**-q**|**--queues** queues\] \[**--stun-port** port\]
     \[**-t**|**--threads** threads\] \[**--scmp**\] \[**--stun**\] \[**--tui**\]
     \[**--interface** address\] \[**--address** interface\] \[address\] \[interface\]
@@ -49,6 +50,8 @@ IPv6 subnets with the same ISD-ASN and set up IPv6 routes between them.
 `-h, ---help` Show command syntax.
 
 `-l, --log-file` _log_ Path to log file. Log is written to stderr if this option is not given.
+
+`-m, --mtu` _mtu_ Override the default MTU of the TUN interface.
 
 `-n, --tun-name` _name_ Name of the TUN device created by scitra-tun (default "scion").
 

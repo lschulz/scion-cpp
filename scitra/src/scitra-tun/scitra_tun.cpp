@@ -37,6 +37,10 @@ static constexpr std::size_t PACKET_BUFFER_SIZE = 9000;
 static constexpr std::uint16_t SAFE_MTU_IPV4 = 576 - 28;
 // Minimum safe MTU for SCION with an IPv6 underlay.
 static constexpr std::uint16_t SAFE_MTU_IPV6 = 1280 - 48;
+// Size of the UDP/IPv4 underlay in bytes.
+static constexpr int IPv4_UNDERLAY_SIZE = 28;
+// Size of the UDP/IPv6 underlay in bytes.
+static constexpr int IPv6_UNDERLAY_SIZE = 48;
 
 // Minimum time a path must be valid in order to be used by active and passive
 // flows. Active flows should switch path sooner than passive ones so that when
@@ -53,18 +57,15 @@ static PathCacheOptions PATH_CACHE_OPTS = {
 
 /// \brief Returns the minimum overhead SCION adds over IPv6 with either a
 /// UDP/IPv4 or UDP/IPv6 underlay.
-static std::uint32_t minScionOverhead(bool underlayIsIPv6)
+static int minScionOverhead(bool underlayIsIPv6)
 {
-    using std::uint32_t;
-    constexpr int IPv6_HEADER = 40;   // IPv6 header
-    constexpr int IPv4_UNDERLAY = 28; // UDP/IPv4 underlay
-    constexpr int IPv6_UNDERLAY = 48; // UDP/IPv6 underlay
-    constexpr int SCION_IPv4 = 36;    // SCION header with IPv4 host addresses
-    constexpr int SCION_IPv6 = 60;    // SCION header with IPv6 host addresses
+    constexpr int IPv6_HEADER = 40; // IPv6 header
+    constexpr int SCION_IPv4 = 36;  // SCION header with IPv4 host addresses
+    constexpr int SCION_IPv6 = 60;  // SCION header with IPv6 host addresses
     if (!underlayIsIPv6)
-        return uint32_t(IPv4_UNDERLAY + SCION_IPv4 - IPv6_HEADER);
+        return IPv4_UNDERLAY_SIZE + SCION_IPv4 - IPv6_HEADER;
     else
-        return uint32_t(IPv6_UNDERLAY + SCION_IPv6 - IPv6_HEADER);
+        return IPv6_UNDERLAY_SIZE + SCION_IPv6 - IPv6_HEADER;
 };
 
 ///////////////
@@ -162,22 +163,28 @@ ScitraTun::ScitraTun(const Arguments& args)
     }
 
     // Configure TUN interface MTU
-    // By default, the MTU of the TUN interface is set to the maximum IPv6 packet size usable
-    // for intra-AS communication with an empty SCION path, so that the effective Path MTU with
-    // non-empty paths is always smaller than the interface MTU.
     auto publicMtu = netlink.getInterfaceMTU(netDevice);
     if (isError(publicMtu)) {
         throw std::runtime_error(
             std::format("Can't get MTU of '{}': {}", netDevice, fmtError(publicMtu.error())));
     }
-    localAS.mtu = std::min(localAS.mtu, *publicMtu);
-    auto tunMtu = std::max<std::uint32_t>(1280, *publicMtu - minScionOverhead(publicIP.is6()));
+    const auto underlaySize = publicIP.is6() ? IPv4_UNDERLAY_SIZE : IPv6_UNDERLAY_SIZE;
+    int tunMtu = args.tunMtu;
+    if (tunMtu == 0) {
+        // By default, the MTU of the TUN interface is set to the maximum IPv6 packet size usable
+        // for intra-AS communication with an empty SCION path, so that the effective Path MTU with
+        // non-empty paths is always smaller than the interface MTU.
+        tunMtu = std::min((int)localAS.mtu + underlaySize, (int)*publicMtu);
+        tunMtu -= minScionOverhead(publicIP.is6());
+    }
+    tunMtu = std::max(tunMtu, 1280); // can't set the MTU lower then the minimum for IPv6
     spdlog::info("TUN MTU = {} ({} from daemon, {} public interface)",
         tunMtu, localAS.mtu, *publicMtu);
-    if (auto ec = netlink.setInterfaceMTU(tunDevice, localAS.mtu); ec) {
+    if (auto ec = netlink.setInterfaceMTU(tunDevice, (std::uint32_t)tunMtu); ec) {
         throw std::runtime_error(
             std::format("Can't set MTU of '{}': {}", tunDevice, fmtError(ec)));
     }
+    localAS.mtu = std::min(localAS.mtu, (std::uint32_t)(tunMtu + underlaySize));
 
     // Configure TUN IP and Route
     if (auto ec = netlink.setInterfaceState(tunDevice, true); ec) {
@@ -627,9 +634,12 @@ std::error_code ScitraTun::translateIPtoScion(TunQueue& tun)
                 auto ec = socket->sendPacket(pkt, *nh, recvd); // blocking
                 if (ec) {
                     if (ec == std::errc::message_size) {
-                        // MTU to next hop is lower than expected AS-intermal MTU. Fall back to
+                        // MTU to next hop is lower than expected AS-internal MTU. Fall back to
                         // minimum safe MTU. The discovered MTU could be read from the socket's
                         // error queue, but it would be difficult to assign it to the right paths.
+                        spdlog::warn("Translated packet too big to send to next hop '{}'."
+                            " Falling back to minimum safe MTU. Check AS-internal MTU setting.",
+                            *nh);
                         pmtu->updateMtu(pkt.sci.dst.host(), pkt.path,
                             nextHop.host().is4() ? SAFE_MTU_IPV4 : SAFE_MTU_IPV6);
                     } else {
@@ -691,7 +701,7 @@ asio::awaitable<std::error_code> ScitraTun::translateScionToIP(std::shared_ptr<S
             {
                 RawPath copy = rp;
                 copy.reverseInPlace();
-                return pmtu->getMtu(sci.dst.host(), copy, std::chrono::steady_clock::now());
+                return pmtu->getMtu(sci.src.host(), copy, std::chrono::steady_clock::now());
             }
         );
         if (verdict == Verdict::Pass) {

@@ -57,6 +57,8 @@ static std::unique_ptr<Arguments> parseCommandLine(int argc, char* argv[])
         "Override the address assigned to the TUN device with another IPv6"
         " address. By default, the TUN address is derived from the public"
         " address.");
+    app.add_option("-m,--mtu", args->tunMtu,
+        "Override the default MTU of the TUN interface.");
     app.add_option("-p,--ports", args->ports,
         "One ore mote statically forwarded TCP/UDP ports separated by whitespace.");
     app.add_option("-q,--queues", args->queues,

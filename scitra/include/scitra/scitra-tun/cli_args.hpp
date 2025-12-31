@@ -34,6 +34,7 @@ struct Arguments
     std::string sciond = "127.0.0.1:30255";
     std::string tunDevice = "scion";
     std::string tunAddress;
+    int tunMtu = 0;
     std::vector<std::uint16_t> ports;
     int queues = 1;
     int threads = 1;
