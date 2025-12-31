@@ -218,7 +218,7 @@ deb packages not necessarily for other CPack generators or manual installation.
 
 ```bash
 mkdir build
-cmake -G 'Ninja Multi-Config' -B build -DCPACK_SET_DESTDIR=ON -DCMAKE_INSTALL_PREFIX=/
+cmake -G 'Ninja Multi-Config' -B build -DMARCH='' -DCPACK_SET_DESTDIR=ON -DCMAKE_INSTALL_PREFIX=/
 make deb
 ```
 

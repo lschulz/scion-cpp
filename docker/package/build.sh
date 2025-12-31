@@ -3,7 +3,7 @@
 # Build out-of-tree
 mkdir /build
 cmake -G 'Ninja Multi-Config' -S /scion-cpp -B /build \
-    -DCPACK_SET_DESTDIR=ON -DCMAKE_INSTALL_PREFIX=/ -DRELEASE=YES
+    -DMARCH='' -DCPACK_SET_DESTDIR=ON -DCMAKE_INSTALL_PREFIX=/ -DRELEASE=YES
 cmake --build /build --config Release
 
 # Package
