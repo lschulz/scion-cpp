@@ -380,13 +380,18 @@ bool Policy::matchACL(const path_meta::Interfaces& ifaces) const
 {
     if (!m_acl) return true;
     for (auto&& hop : ifaces.data) {
+        bool match = false;
         for (auto&& [allow, hp] : *m_acl) {
             if (hp.match(hop.isdAsn, hop.ingress, hop.egress)) {
-                return allow;
+                if (!allow) return false;
+                match = true;
+                break;
             }
         }
+        // default case if no HP matches the current hop
+        if (!match) return false;
     }
-    return false;
+    return true;
 }
 
 bool Policy::matchSequence(const path_meta::Interfaces& ifaces) const

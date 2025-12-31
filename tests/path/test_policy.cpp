@@ -220,3 +220,67 @@ TEST(PathPolicy, PolicySet)
         paths.at(2)
     ));
 }
+
+TEST(PathPolicy, EmptyPolicySet)
+{
+    namespace pm = scion::path_meta;
+    using namespace scion;
+    using namespace scion::path_policy;
+    using namespace std::chrono_literals;
+
+    PolicySet policies;
+
+    auto src = unwrap(IsdAsn::Parse("1-64512"));
+    auto dst = unwrap(IsdAsn::Parse("1-ff00:0:1"));
+    std::vector<PathPtr> paths;
+    for (auto&& buf : loadPackets("path/data/paths.bin")) {
+        proto::daemon::v1::Path pb;
+        pb.ParseFromArray(buf.data(), (int)(buf.size()));
+        auto flags = daemon::PathReqFlags::AllMetadata;
+        auto res = daemon::details::pathFromProtobuf(src, dst, pb, flags);
+        ASSERT_TRUE(res.has_value()) << getError(res);
+        paths.push_back(std::move(*res));
+    }
+
+    // All paths with metadata are accepted
+    std::vector copy = paths;
+    auto filtered = policies.apply(
+        unwrap(ScIPEndpoint::Parse("1-64512,127.0.0.1:34000")),
+        unwrap(ScIPEndpoint::Parse("[1-ff00:0:1,10.0.0.1]:22")),
+        hdr::ScionProto::UDP,
+        1,
+        copy
+    );
+    ASSERT_EQ(filtered.data(), copy.data());
+    EXPECT_THAT(filtered, testing::ElementsAreArray(paths));
+
+    // Path without metadata are rejected
+    copy = paths;
+    copy[1]->removeAttribute(PATH_ATTRIBUTE_INTERFACES);
+    copy[1]->removeAttribute(PATH_ATTRIBUTE_HOP_META);
+    copy[1]->removeAttribute(PATH_ATTRIBUTE_LINK_META);
+    filtered = policies.apply(
+        unwrap(ScIPEndpoint::Parse("1-64512,127.0.0.1:34000")),
+        unwrap(ScIPEndpoint::Parse("[1-ff00:0:1,10.0.0.1]:22")),
+        hdr::ScionProto::UDP,
+        1,
+        copy
+    );
+    ASSERT_EQ(filtered.data(), copy.data());
+    EXPECT_THAT(filtered, testing::ElementsAre(
+        paths.at(0), paths.at(2)
+    ));
+
+    // The empty path is always accepted
+    paths = {makeEmptyPath(src)};
+    copy = paths;
+    filtered = policies.apply(
+        unwrap(ScIPEndpoint::Parse("1-64512,10.0.0.1:34000")),
+        unwrap(ScIPEndpoint::Parse("1-64512,10.0.0.2:34000")),
+        hdr::ScionProto::UDP,
+        1,
+        copy
+    );
+    ASSERT_EQ(filtered.data(), copy.data());
+    EXPECT_THAT(filtered, testing::ElementsAreArray(paths));
+}

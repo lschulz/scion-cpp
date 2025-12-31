@@ -195,6 +195,7 @@ public:
     /// false.
     bool test(const Path& path) const
     {
+        if (path.empty()) return true;
         auto md = path.getAttribute<scion::path_meta::Interfaces>(PATH_ATTRIBUTE_INTERFACES);
         if (!md) return false;
         if (!checkRequirements(path)) return false;
@@ -293,7 +294,7 @@ private:
                 return m_policies[policy];
             }
         }
-        return std::make_pair(m_defaultPolicy, POLICY_INDEX_NONE);
+        return std::pair<const Policy&, std::size_t>(m_defaultPolicy, POLICY_INDEX_NONE);
     }
 
     void parse(const boost::json::value& data);
