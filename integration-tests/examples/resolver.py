@@ -42,6 +42,6 @@ class Resolver(unittest.TestCase):
 
     def test_online(self):
         res = subprocess.run([
-            self.command, "netsys.ovgu.de"
+            self.command, "example.scion.host"
         ], stdout=PIPE, check=True)
-        self.assertEqual(res.stdout.decode(), "19-ffaa:1:c3f,127.0.0.1\n")
+        self.assertEqual(res.stdout.decode(), "1-64512,192.0.2.1\n")

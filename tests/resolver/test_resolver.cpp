@@ -34,10 +34,10 @@ TEST(Resolver, ResolveHost)
     ASSERT_TRUE(addr.has_value()) << fmtError(addr.error());
     EXPECT_THAT(*addr, testing::ElementsAre(localhost));
 
-    addr = resolver.resolveHost("netsys.ovgu.de");
+    addr = resolver.resolveHost("example.scion.host");
     ASSERT_TRUE(addr.has_value()) << fmtError(addr.error());
     EXPECT_THAT(*addr, testing::ElementsAre(
-        unwrap(ScIPAddress::Parse("19-ffaa:1:c3f,127.0.0.1")
+        unwrap(ScIPAddress::Parse("1-64512,192.0.2.1")
     )));
 
     EXPECT_TRUE(hasFailed(resolver.resolveHost("127.0.0.1")));
@@ -72,10 +72,10 @@ TEST(Resolver, ResolveHostAsync)
         EXPECT_THAT(*addr, testing::ElementsAre(localhost));
     });
 
-    resolver.resolveHostAsync("netsys.ovgu.de", ioCtx, [] (auto addr) {
+    resolver.resolveHostAsync("example.scion.host", ioCtx, [] (auto addr) {
         ASSERT_TRUE(addr.has_value()) << fmtError(addr.error());
         EXPECT_THAT(*addr, testing::ElementsAre(
-            unwrap(ScIPAddress::Parse("19-ffaa:1:c3f,127.0.0.1")
+            unwrap(ScIPAddress::Parse("1-64512,192.0.2.1")
         )));
     });
 

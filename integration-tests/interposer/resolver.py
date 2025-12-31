@@ -35,11 +35,11 @@ class InterposedResolver(unittest.TestCase):
 
     def test_resolver(self):
         res = subprocess.run([
-            self.command, "netsys.ovgu.de"
+            self.command, "example.scion.host"
         ], env={
             "SCION_DAEMON_ADDRESS": "127.0.0.19:30255",
             **self.env
         }, stdout=PIPE, stderr=DEVNULL)
         self.assertEqual(res.stdout.decode(),
-            "[19-ffaa:1:c3f,127.0.0.1]:0\n"
-            "[141.44.17.123]:0\n")
+            "[1-64512,192.0.2.1]:0\n"
+            "[192.0.2.1]:0\n")

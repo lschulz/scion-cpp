@@ -91,7 +91,7 @@ TEST(GetAddrInfoTest, ARecord)
     addrinfo hints = {};
     hints.ai_family = AF_INET;
     addrinfo* res = nullptr;
-    ASSERT_EQ(interposer_getaddrinfo("netsys.ovgu.de", "443", &hints, &res), 0);
+    ASSERT_EQ(interposer_getaddrinfo("example.scion.host", "443", &hints, &res), 0);
     std::unique_ptr<addrinfo, void(*)(addrinfo*)> defer(res, &interposer_freeaddrinfo);
 
     ASSERT_NE(res, nullptr);
@@ -99,7 +99,7 @@ TEST(GetAddrInfoTest, ARecord)
     ASSERT_EQ(res->ai_addrlen, sizeof(sockaddr_in));
     auto* sa = reinterpret_cast<sockaddr_in*>(res->ai_addr);
     EXPECT_EQ(sa->sin_family, AF_INET);
-    EXPECT_EQ(sa->sin_addr.s_addr, 0x7b112c8d);
+    EXPECT_EQ(sa->sin_addr.s_addr, 0x010200c0);
     EXPECT_EQ(sa->sin_port, htons(443));
     ASSERT_EQ(res->ai_next, nullptr);
 }
@@ -136,7 +136,7 @@ TEST(GetAddrInfoTest, DualStackScionNative)
     addrinfo hints = {};
     hints.ai_flags = AI_SCION_NATIVE;
     addrinfo* res = nullptr;
-    ASSERT_EQ(interposer_getaddrinfo("netsys.ovgu.de", "https", &hints, &res), 0);
+    ASSERT_EQ(interposer_getaddrinfo("example.scion.host", "https", &hints, &res), 0);
     std::unique_ptr<addrinfo, void(*)(addrinfo*)> defer(res, &interposer_freeaddrinfo);
 
     ASSERT_NE(res, nullptr);
@@ -150,11 +150,11 @@ TEST(GetAddrInfoTest, DualStackScionNative)
         } else if (node->ai_family == AF_SCION) {
             ASSERT_EQ(node->ai_addrlen, sizeof(sockaddr_scion));
             auto* sa = reinterpret_cast<sockaddr_scion*>(node->ai_addr);
-            EXPECT_EQ(sa->sscion_addr.sscion_isd_asn, scion_htonll(0x13ffaa00010c3full));
+            EXPECT_EQ(sa->sscion_addr.sscion_isd_asn, scion_htonll(0x0100000000fc00ull));
             EXPECT_EQ(sa->sscion_addr.sscion_host_type, SCION_IPv4);
             EXPECT_EQ(sa->sscion_addr.sscion_scope_id, 0);
             EXPECT_THAT(sa->sscion_addr.u.sscion_addr, testing::ElementsAre(
-                127, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                192, 0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
             ));
             EXPECT_EQ(sa->sscion_port, htons(443));
             ++scion;
@@ -167,7 +167,7 @@ TEST(GetAddrInfoTest, DualStackScionNative)
 TEST(GetAddrInfoTest, DualStackScionSurrogate)
 {
     addrinfo* res = nullptr;
-    ASSERT_EQ(interposer_getaddrinfo("netsys.ovgu.de", "https", NULL, &res), 0);
+    ASSERT_EQ(interposer_getaddrinfo("example.scion.host", "https", NULL, &res), 0);
     std::unique_ptr<addrinfo, void(*)(addrinfo*)> defer(res, &interposer_freeaddrinfo);
 
     ASSERT_NE(res, nullptr);
@@ -184,7 +184,7 @@ TEST(GetAddrInfoTest, DualStackScionSurrogate)
             EXPECT_EQ(sa->sin6_flowinfo, 0);
             EXPECT_EQ(sa->sin6_scope_id, 0);
             EXPECT_THAT((std::span<char, 8>(reinterpret_cast<char*>(&sa->sin6_addr), 8)),
-                testing::ElementsAre(0xfc, 0, 0, 0, 0, 0, 0, 0));
+                testing::ElementsAre(0xfc, 0, 0x10, 0xfc, 0, 0, 0, 0));
             EXPECT_EQ(sa->sin6_port, htons(443));
             ++ipv6;
         }

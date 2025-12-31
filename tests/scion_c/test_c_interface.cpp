@@ -241,9 +241,9 @@ TEST_F(CInterfaceFixture, NameResolution)
     EXPECT_TRUE(scion_sockaddr_are_equal(&ep[1], &expected2));
 
     len = ep.size();
-    EXPECT_EQ(scion_resolve_name(ctx.get(), "netsys.ovgu.de", ep.data(), &len), SCION_OK);
+    EXPECT_EQ(scion_resolve_name(ctx.get(), "example.scion.host", ep.data(), &len), SCION_OK);
     EXPECT_EQ(len, 1);
-    auto expected3 = endpoint_cast(unwrap(ScIPEndpoint::Parse("19-ffaa:1:c3f,127.0.0.1")));
+    auto expected3 = endpoint_cast(unwrap(ScIPEndpoint::Parse("1-64512,192.0.2.1")));
     EXPECT_TRUE(scion_sockaddr_are_equal(&ep[0], &expected3));
 }
 
@@ -263,11 +263,11 @@ TEST_F(CInterfaceFixture, NameResolutionAsync)
         auto data = reinterpret_cast<user_data*>(user_ptr);
         ASSERT_EQ(status, SCION_OK);
         ASSERT_EQ(data->len, 1);
-        auto expected = endpoint_cast(unwrap(ScIPEndpoint::Parse("19-ffaa:1:c3f,127.0.0.1")));
+        auto expected = endpoint_cast(unwrap(ScIPEndpoint::Parse("1-64512,192.0.2.1")));
         ASSERT_TRUE(scion_sockaddr_are_equal(&data->ep[0], &expected));
     };
 
-    scion_resolve_name_async(ctx.get(), "netsys.ovgu.de", data.ep.data(), &data.len,
+    scion_resolve_name_async(ctx.get(), "example.scion.host", data.ep.data(), &data.len,
         scion_async_resolve_handler{callback, &data});
     scion_run(ctx.get());
 }
