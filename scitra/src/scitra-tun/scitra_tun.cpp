@@ -170,7 +170,7 @@ ScitraTun::ScitraTun(const Arguments& args)
     }
     const auto underlaySize = publicIP.is6() ? IPv4_UNDERLAY_SIZE : IPv6_UNDERLAY_SIZE;
     int tunMtu = args.tunMtu;
-    if (tunMtu == 0) {
+    if (tunMtu <= 0) {
         // By default, the MTU of the TUN interface is set to the maximum IPv6 packet size usable
         // for intra-AS communication with an empty SCION path, so that the effective Path MTU with
         // non-empty paths is always smaller than the interface MTU.
@@ -312,6 +312,7 @@ void ScitraTun::overrideFlowPath(const FlowID& flowid, PathPtr path)
 void ScitraTun::removeFlow(const FlowID& flowid)
 {
     std::lock_guard lock(flowMutex);
+    spdlog::info("Remove flow {}", flowid);
     flows.erase(flowid);
 }
 
@@ -379,6 +380,7 @@ std::error_code ScitraTun::reloadPathPolicy()
 Maybe<std::shared_ptr<Socket>> ScitraTun::openSocket(std::uint16_t port, bool persistent)
 {
     std::unique_lock lock(socketMutex);
+    spdlog::info("Open socket {} (persistent: {})", port, persistent);
     if (shouldExit) return Error(ScitraError::Exiting);
     if (auto i = sockets.find(port); i != sockets.end()) {
         return i->second;
@@ -405,6 +407,7 @@ std::shared_ptr<Flow> ScitraTun::getFlow(const FlowID& id, FlowType type)
     static std::mt19937 rng(std::random_device{}());
     auto flow = flows[id];
     if (!flow) {
+        spdlog::info("New {} flow {}", toString(type), id);
         std::uniform_int_distribution<std::uint32_t> dist;
         flow = std::make_shared<Flow>(type, dist(rng));
         flows[id] = flow;
@@ -436,6 +439,7 @@ std::shared_ptr<Socket> ScitraTun::getSocket(std::uint16_t port)
 void ScitraTun::closeSocket(std::uint16_t port)
 {
     std::unique_lock lock(socketMutex);
+    spdlog::info("Close socket {}", port);
     if (auto i = sockets.find(port); i != sockets.end()) {
         i->second->close();
         i = sockets.erase(i);
@@ -463,10 +467,12 @@ void ScitraTun::maintainFlowsAndSockets()
     FlowState state = FlowState::CLOSED;
     for (auto i = flows.begin(); i != flows.end();) {
         i->second->lock().getState(state).tick(now);
-        if (state == FlowState::CLOSED)
+        if (state == FlowState::CLOSED) {
+            spdlog::info("Remove flow {}", i->first);
             i = flows.erase(i);
-        else
+        } else {
             ++i;
+        }
     }
 
     // Maintain up-to-date paths
@@ -583,7 +589,7 @@ std::error_code ScitraTun::translateIPtoScion(TunQueue& tun)
             if (ec == ErrorCondition::Cancelled) {
                 break;
             } else if (ec != ErrorCondition::InvalidPacket) {
-                spdlog::error("Error reading from TUN queue: {}", fmtError(ec));
+                spdlog::error("IP->SCION Error reading from TUN queue: {}", fmtError(ec));
                 continue;
             }
         }
@@ -598,7 +604,8 @@ std::error_code ScitraTun::translateIPtoScion(TunQueue& tun)
                 PathPtr path;
                 std::uint16_t mtu = 0;
                 ScIPAddress localSrc(localAS.isdAsn, src.host());
-                flow = getFlow(FlowID(localSrc, dst, sport, dport, proto), FlowType::Active);
+                FlowID fid(localSrc, dst, sport, dport, proto);
+                flow = getFlow(fid, FlowType::Active);
                 flow->lock().getPath(path);
 
                 bool expiresSoon = false;
@@ -613,6 +620,7 @@ std::error_code ScitraTun::translateIPtoScion(TunQueue& tun)
                 if (!path || path->broken() || expiresSoon) {
                     auto maybe = selectPath(src, dst, sport, dport, proto, tc);
                     if (maybe.has_value() && *maybe) {
+                        spdlog::info("Selected path for {}: {}", fid, **maybe);
                         flow->lock().setPath(*maybe);
                         mtu = pmtu->getMtu(dst.host(), **maybe, recvd);
                     }
@@ -637,20 +645,23 @@ std::error_code ScitraTun::translateIPtoScion(TunQueue& tun)
                         // MTU to next hop is lower than expected AS-internal MTU. Fall back to
                         // minimum safe MTU. The discovered MTU could be read from the socket's
                         // error queue, but it would be difficult to assign it to the right paths.
-                        spdlog::warn("Translated packet too big to send to next hop '{}'."
+                        spdlog::warn("IP->SCION Translated packet too big to send to next hop '{}'."
                             " Falling back to minimum safe MTU. Check AS-internal MTU setting.",
                             *nh);
                         pmtu->updateMtu(pkt.sci.dst.host(), pkt.path,
                             nextHop.host().is4() ? SAFE_MTU_IPV4 : SAFE_MTU_IPV6);
                     } else {
-                        spdlog::error("Error sending packet to next hop '{}': {}",
+                        spdlog::error("IP->SCION Error sending packet to next hop '{}': {}",
                             *nh, fmtError(ec));
                     }
                 }
             }
         } else if (verdict == Verdict::Return) {
+            spdlog::debug("IP->SCION Return packet to local sender");
             auto ec = tun.sendPacket(pkt);
-            if (ec) spdlog::error("Error sending packet to TUN: {}", fmtError(ec));
+            if (ec) spdlog::error("IP->SCION Error sending packet to TUN: {}", fmtError(ec));
+        } else {
+            spdlog::debug("IP->SCION Packet dropped ({})", (int)verdict);
         }
         DBG_TIME_END(tun.lastRx, egrTicks, egrSamples);
     }
@@ -668,7 +679,7 @@ asio::awaitable<std::error_code> ScitraTun::translateScionToIP(std::shared_ptr<S
             if (ec == std::errc::bad_file_descriptor || ec == std::errc::operation_canceled) {
                 break;
             } else if (ec != ErrorCondition::StunReceived && ec != ErrorCondition::InvalidPacket) {
-                spdlog::error("Error reading from socket: {}", fmtError(ec));
+                spdlog::error("SCION->IP Error reading from socket: {}", fmtError(ec));
                 continue;
             }
         }
@@ -679,6 +690,7 @@ asio::awaitable<std::error_code> ScitraTun::translateScionToIP(std::shared_ptr<S
         // destination port. If the inner L4 header does not contain a port, the
         // packet must have been received at the dispatcher port.
         if (pkt.l4DPort(DISPATCHER_PORT) != socket->port()) {
+            spdlog::debug("SCION->IP Destination port validation failed");
             continue;
         }
 
@@ -686,8 +698,14 @@ asio::awaitable<std::error_code> ScitraTun::translateScionToIP(std::shared_ptr<S
         // host address in the SCION header.
         if (pkt.path.empty()) {
             auto src = generic::toGenericEp(from);
-            if (pkt.sci.src.host() != src.host()) continue;
-            if (pkt.l4SPort() != src.port()) continue;
+            if (pkt.sci.src.host() != src.host()) {
+                spdlog::debug("SCION->IP AS-internal packet source address validation failed");
+                continue;
+            }
+            if (pkt.l4SPort(DISPATCHER_PORT) != src.port()) {
+                spdlog::debug("SCION->IP AS-internal packet source port validation failed");
+                continue;
+            }
         }
 
         // Handle SCMP
@@ -718,8 +736,10 @@ asio::awaitable<std::error_code> ScitraTun::translateScionToIP(std::shared_ptr<S
             }
             auto queue = fl->getQueue((std::uint32_t)tunQueues.size());
             auto ec = tunQueues[queue].sendPacket(pkt);
-            if (ec) spdlog::error("Error sending packet to TUN (queue {}): {}",
+            if (ec) spdlog::error("SCION->IP Error sending packet to TUN (queue {}): {}",
                 queue, fmtError(ec));
+        } else {
+            spdlog::debug("SCION->IP Packet dropped ({})", (int)verdict);
         }
         DBG_TIME_END(socket->lastRx, igrTicks, igrSamples);
     }

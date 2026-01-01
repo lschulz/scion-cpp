@@ -45,7 +45,7 @@ enum class FlowState
     CLOSING,     // TCP FIN or RST send/received
 };
 
-inline const char* toString(int proto)
+inline const char* protoToString(int proto)
 {
     using namespace scion::hdr;
     switch (proto) {
@@ -139,6 +139,21 @@ private:
         if (proto == (int)scion::hdr::IPProto::ICMPv6)
             return scion::hdr::ScionProto::SCMP;
         return scion::hdr::ScionProto(proto);
+    }
+};
+
+template <>
+struct std::formatter<FlowID>
+{
+    constexpr auto parse(auto& ctx)
+    {
+        return ctx.begin();
+    }
+
+    auto format(const FlowID& id, auto& ctx) const
+    {
+        return std::format_to(ctx.out(), "{} -> {} ({})",
+            id.src, id.dst, protoToString((int)id.proto));
     }
 };
 

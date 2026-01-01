@@ -21,6 +21,7 @@
 #pragma once
 
 #include <CLI/CLI.hpp>
+#include <spdlog/spdlog.h>
 
 #include <cstdint>
 #include <filesystem>
@@ -39,6 +40,7 @@ struct Arguments
     int queues = 1;
     int threads = 1;
     std::filesystem::path policy;
+    spdlog::level::level_enum logLevel = spdlog::level::warn;
     std::filesystem::path logFile;
     bool enableScmpDispatch = false;
     bool stun = false;

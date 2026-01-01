@@ -7,9 +7,10 @@ scitra-tun - a SCION-IP packet translator
 ## SYNOPSIS ##
 
 | **scitra-tun**
-    \[**-a**|**--tun-addr** addr\] \[**-d**|**--sciond**\ daemon\] \[**-l**|**--log-file** log\]
-    \[**-m**|**--mtu** mtu\] \[**-n**|**--tun-name** name\] \[**--nat-timeout** timeout\]
-    \[**-p**|**--ports** port \[port...\]\]
+    \[**-a**|**--tun-addr** addr\] \[**-d**|**--sciond**\ daemon\]
+    \[**-l**|**--log-level** level\] \[**--log-file** log\]
+    \[**-m**|**--mtu** mtu\] \[**-n**|**--tun-name** name\]
+    \[**--nat-timeout** timeout\] \[**-p**|**--ports** port \[port...\]\]
     \[**--policy** policy\] \[**-q**|**--queues** queues\] \[**--stun-port** port\]
     \[**-t**|**--threads** threads\] \[**--scmp**\] \[**--stun**\] \[**--tui**\]
     \[**--interface** address\] \[**--address** interface\] \[address\] \[interface\]
@@ -47,13 +48,16 @@ IPv6 subnets with the same ISD-ASN and set up IPv6 routes between them.
 `-d, --sciond` SCION daemon address. Is also read from the environment variable
     SCION_DAEMON_ADDRESS. Default: 127.0.0.1:30255
 
-`-h, ---help` Show command syntax.
+`-h, --help` Show command syntax.
 
-`-l, --log-file` _log_ Path to log file. Log is written to stderr if this option is not given.
+`-l, --log-level` _level_ Log level as string or integer from the possible values trace(0),
+    debug(1), info(2), warning(3), error(4), critical(5). Default: warning
+
+`--log-file` _log_ Path to log file. Log is written to stderr if this option is not given.
 
 `-m, --mtu` _mtu_ Override the default MTU of the TUN interface.
 
-`-n, --tun-name` _name_ Name of the TUN device created by scitra-tun (default "scion").
+`-n, --tun-name` _name_ Name of the TUN device created by scitra-tun. Default: "scion"
 
 `--nat-timeout` _timeout_ Timeout for NAT bindings. That is, after how many seconds of inactivity a
     STUN request must be repeated. Default: 30 seconds

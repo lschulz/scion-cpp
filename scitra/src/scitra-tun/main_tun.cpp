@@ -34,12 +34,22 @@
 #include <ranges>
 #include <signal.h>
 #include <system_error>
-
+#include <vector>
 
 extern const char* VERSION_LINE;
 
 static std::unique_ptr<Arguments> parseCommandLine(int argc, char* argv[])
 {
+    using LogLevel = std::pair<const char*, spdlog::level::level_enum>;
+    static const std::array<LogLevel, 6> logLevelMap{
+        LogLevel{"trace", spdlog::level::trace},
+        LogLevel{"debug", spdlog::level::debug},
+        LogLevel{"info", spdlog::level::info},
+        LogLevel{"warning", spdlog::level::warn},
+        LogLevel{"error", spdlog::level::err},
+        LogLevel{"critical", spdlog::level::critical}
+    };
+
     auto args = std::make_unique<Arguments>();
     CLI::App app{"scitra-tun: SCION-IP Translator for Linux"};
     app.add_option("public_interface,--interface", args->publicInterface,
@@ -69,7 +79,9 @@ static std::unique_ptr<Arguments> parseCommandLine(int argc, char* argv[])
         ->check(CLI::Range(1, 64));
     app.add_option("--policy", args->policy,
         "Path to a JSON file containing path policies");
-    app.add_option("-l,--log-file", args->logFile,
+    app.add_option("-l,--log-level", args->logLevel,
+        "Log level (default: warning)")->transform(CLI::CheckedTransformer(logLevelMap));
+    app.add_option("--log-file", args->logFile,
         "Path to log file. Log is written to stderr if this option is not given.");
     app.add_flag("--scmp", args->enableScmpDispatch,
         "Accept SCMP packets at the endhost/dispatcher port (30041/UDP)");
@@ -152,7 +164,8 @@ int main(int argc, char* argv[])
             spdlog::set_default_logger(spdlog::basic_logger_mt("log", args->logFile));
         }
         spdlog::set_pattern("[%Y-%m-%d %T.%e] [%t] [%^%l%$] %v");
-        spdlog::flush_on(spdlog::level::info);
+        spdlog::set_level(args->logLevel);
+        spdlog::flush_on(spdlog::level::debug);
     }
     catch (const spdlog::spdlog_ex& e) {
         std::cerr << "Log init failed: " << e.what() << std::endl;

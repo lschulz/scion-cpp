@@ -756,7 +756,7 @@ void ScitraTui::drawFrame(const ImVec2& window)
                     ImGui::Text("%u", (unsigned)flow->tuple.dst.port());
 
                     ImGui::TableNextColumn();
-                    ImGui::Text("%s", toString((int)flow->tuple.proto));
+                    ImGui::Text("%s", protoToString((int)flow->tuple.proto));
 
                     ImGui::TableNextColumn();
                     ImGui::TextUnformatted(toString(flow->state));
