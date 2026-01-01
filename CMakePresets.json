@@ -3,7 +3,7 @@
     "configurePresets": [
         {
             "name": "vcpkg-vs",
-            "generator": "Visual Studio 17 2022",
+            "generator": "Visual Studio 18 2026",
             "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/${presetName}",
