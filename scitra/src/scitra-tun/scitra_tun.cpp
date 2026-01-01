@@ -312,7 +312,7 @@ void ScitraTun::overrideFlowPath(const FlowID& flowid, PathPtr path)
 void ScitraTun::removeFlow(const FlowID& flowid)
 {
     std::lock_guard lock(flowMutex);
-    spdlog::info("Remove flow {}", flowid);
+    spdlog::debug("Remove flow {}", flowid);
     flows.erase(flowid);
 }
 
@@ -380,7 +380,7 @@ std::error_code ScitraTun::reloadPathPolicy()
 Maybe<std::shared_ptr<Socket>> ScitraTun::openSocket(std::uint16_t port, bool persistent)
 {
     std::unique_lock lock(socketMutex);
-    spdlog::info("Open socket {} (persistent: {})", port, persistent);
+    spdlog::debug("Open socket {} (persistent: {})", port, persistent);
     if (shouldExit) return Error(ScitraError::Exiting);
     if (auto i = sockets.find(port); i != sockets.end()) {
         return i->second;
@@ -407,7 +407,7 @@ std::shared_ptr<Flow> ScitraTun::getFlow(const FlowID& id, FlowType type)
     static std::mt19937 rng(std::random_device{}());
     auto flow = flows[id];
     if (!flow) {
-        spdlog::info("New {} flow {}", toString(type), id);
+        spdlog::debug("New {} flow {}", toString(type), id);
         std::uniform_int_distribution<std::uint32_t> dist;
         flow = std::make_shared<Flow>(type, dist(rng));
         flows[id] = flow;
@@ -439,7 +439,7 @@ std::shared_ptr<Socket> ScitraTun::getSocket(std::uint16_t port)
 void ScitraTun::closeSocket(std::uint16_t port)
 {
     std::unique_lock lock(socketMutex);
-    spdlog::info("Close socket {}", port);
+    spdlog::debug("Close socket {}", port);
     if (auto i = sockets.find(port); i != sockets.end()) {
         i->second->close();
         i = sockets.erase(i);
@@ -468,7 +468,7 @@ void ScitraTun::maintainFlowsAndSockets()
     for (auto i = flows.begin(); i != flows.end();) {
         i->second->lock().getState(state).tick(now);
         if (state == FlowState::CLOSED) {
-            spdlog::info("Remove flow {}", i->first);
+            spdlog::debug("Remove flow {}", i->first);
             i = flows.erase(i);
         } else {
             ++i;
@@ -620,7 +620,7 @@ std::error_code ScitraTun::translateIPtoScion(TunQueue& tun)
                 if (!path || path->broken() || expiresSoon) {
                     auto maybe = selectPath(src, dst, sport, dport, proto, tc);
                     if (maybe.has_value() && *maybe) {
-                        spdlog::info("Selected path for {}: {}", fid, **maybe);
+                        spdlog::debug("Selected path for {}: {}", fid, **maybe);
                         flow->lock().setPath(*maybe);
                         mtu = pmtu->getMtu(dst.host(), **maybe, recvd);
                     }
