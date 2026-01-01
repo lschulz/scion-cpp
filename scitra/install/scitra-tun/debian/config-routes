@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # This template script adjusts the IPv6 routing tables for Scitra-TUN. It is
 # only necessary when SCION is used with an IPv6 underlay. To use the template,

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # If enabled, this script configures DNS over SCION via Scitra-TUN.
 
@@ -12,15 +12,18 @@ SCITRA_INTERFACE=scion
 SCION_DNS_SERVER=fc00:10fc::ffff:1.1.1.1
 
 # DNS search domain(s) that the SCION DNS server is queried for
-DNS_DOMAIN="scion scion.host"
+DNS_DOMAIN="scion scion.host scion.fast"
 
 case "$1" in
     start)
         if [ $ENABLE -eq 1 ]; then
-            resolvectl dns $SCITRA_INTERFACE $SCION_DNS_SERVER
-            resolvectl domain $SCITRA_INTERFACE $DNS_DOMAIN
+            if [[ ! -d "/sys/class/net/$SCITRA_INTERFACE" ]]; then
+                sleep 1
+            fi
+            resolvectl dns "$SCITRA_INTERFACE" $SCION_DNS_SERVER
+            resolvectl domain "$SCITRA_INTERFACE" $DNS_DOMAIN
 # If resolvectl is not available, try resolvconf instead
-#           resolvconf -a $SCITRA_INTERFACE -x \
+#           resolvconf -a "$SCITRA_INTERFACE" -x \
 # <<EOF
 # nameserver $SCION_DNS_SERVER
 # EOF
@@ -29,10 +32,10 @@ case "$1" in
     ;;
 
     stop)
-        if [ $ENABLE -eq 1 ]; then
-            resolvectl revert $SCITRA_INTERFACE
+        if [[ $ENABLE -eq 1 && -d "/sys/class/net/$SCITRA_INTERFACE" ]]; then
+            resolvectl revert "$SCITRA_INTERFACE"
 # If resolvectl is not available, try resolvconf instead
-#           resolvconf -d $SCITRA_INTERFACE
+#           resolvconf -d "$SCITRA_INTERFACE"
         fi
         exit 0
     ;;
