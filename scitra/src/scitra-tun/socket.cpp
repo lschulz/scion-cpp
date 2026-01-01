@@ -183,6 +183,13 @@ void Socket::ingressNat(PacketBuffer& pkt, const asio::ip::udp::endpoint& from)
             sub += pkt.udp.dport;
             pkt.udp.dport = m_localPort;
             add += pkt.udp.dport;
+        } else if (pkt.l4Valid == PacketBuffer::L4Type::SCMP) {
+            if (pkt.scmp.getType() == hdr::ScmpType::EchoReply) {
+                auto& echoReply = std::get<hdr::ScmpEchoReply>(pkt.scmp.msg);
+                sub += echoReply.id;
+                echoReply.id = m_localPort;
+                add += echoReply.id;
+            }
         }
         pkt.l4UpdateChecksum(add, sub);
     }
@@ -205,6 +212,13 @@ void Socket::egressNat(PacketBuffer& pkt)
             sub += pkt.udp.sport;
             pkt.udp.sport = mapped->port();
             add += pkt.udp.sport;
+        } else if (pkt.l4Valid == PacketBuffer::L4Type::SCMP) {
+            if (pkt.scmp.getType() == hdr::ScmpType::EchoRequest) {
+                auto& echoReq = std::get<hdr::ScmpEchoRequest>(pkt.scmp.msg);
+                sub += echoReq.id;
+                echoReq.id = mapped->port();
+                add += echoReq.id;
+            }
         }
         pkt.l4UpdateChecksum(add, sub);
     }
