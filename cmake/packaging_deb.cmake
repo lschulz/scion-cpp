@@ -27,7 +27,7 @@ set(CPACK_DEBIAN_SCIONC_DEV_DESCRIPTION
     "SCION C++ SDK C interface headers"
 )
 set(CPACK_DEBIAN_SCIONC_DEV_PACKAGE_DEPENDS
-    "scion++-dev (= 0.0.1-1)"
+    "scion++-dev (= 0.0.2-1)"
 )
 
 # scionc
