@@ -1,0 +1,4 @@
+/etc/scion/scitra-tun.conf
+/etc/scion/scitra-policy.json
+/usr/share/scitra-tun/config-dns
+/usr/share/scitra-tun/config-routes
