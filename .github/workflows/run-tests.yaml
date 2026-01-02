@@ -101,7 +101,7 @@ jobs:
       - name: Configure
         uses: lukka/run-cmake@v10
         with:
-          configurePreset: vcpkg-vs
+          configurePreset: vcpkg-vs-17
       - name: Build
         id: build
         run: cmake --build build --config Debug

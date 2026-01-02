@@ -185,7 +185,7 @@ cmake --build build --config Release
 
 CMake preset for Windows:
 ```bash
-cmake --preset=vcpkg-vs
+cmake --preset=vcpkg-vs-17 # or vcpkg-vs-18 for Visual Studio 2026
 cmake --build build --config Debug
 cmake --build build --config Release
 ```
