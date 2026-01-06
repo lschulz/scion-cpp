@@ -4,12 +4,7 @@ cmake_minimum_required(VERSION 3.28)
 # scion2ip
 # ========
 
-set(scion2ip_VERSION_MAJOR 0)
-set(scion2ip_VERSION_MINOR 0)
-set(scion2ip_VERSION_PATCH 1)
-set(scion2ip_VERSION
-    "${scion2ip_VERSION_MAJOR}.${scion2ip_VERSION_MINOR}.${scion2ip_VERSION_PATCH}${VERSION_TAG}")
-configure_file(src/version.cpp.in version.cpp)
+configure_file("src/version.cpp.in" "version.cpp")
 
 add_executable(scion2ip)
 target_sources(scion2ip PRIVATE

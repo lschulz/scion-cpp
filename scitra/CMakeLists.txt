@@ -9,12 +9,7 @@ find_package(PkgConfig)
 pkg_check_modules(libcap REQUIRED IMPORTED_TARGET libcap)
 pkg_check_modules(libpsx REQUIRED IMPORTED_TARGET libpsx)
 
-set(scitra-tun_VERSION_MAJOR 0)
-set(scitra-tun_VERSION_MINOR 0)
-set(scitra-tun_VERSION_PATCH 1)
-set(scitra-tun_VERSION
-    "${scitra-tun_VERSION_MAJOR}.${scitra-tun_VERSION_MINOR}.${scitra-tun_VERSION_PATCH}${VERSION_TAG}")
-configure_file(src/scitra-tun/version.cpp.in version.cpp)
+configure_file("src/scitra-tun/version.cpp.in" "version.cpp")
 
 add_executable(scitra-tun)
 target_sources(scitra-tun PRIVATE

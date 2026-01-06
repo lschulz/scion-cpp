@@ -45,8 +45,8 @@ set_target_properties(interposer PROPERTIES
     OUTPUT_NAME "scion-interposer"
     PREFIX ""
     DEBUG_POSTFIX "d"
-    VERSION "0.0.2"
-    SOVERSION "0"
+    VERSION "${INTERPOSER_VERSION}"
+    SOVERSION "${INTERPOSER_SO_VERSION}"
 )
 install(TARGETS interposer
     COMPONENT INTERPOSER

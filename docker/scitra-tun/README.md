@@ -6,8 +6,8 @@ without requiring dependencies on the host except for Docker and the SCION Daemo
 
 Building the image require the scitra-tun Debian packages in the build context:
 ```bash
-cp ../../out/scion++-tools_0.0.2-1_amd64.deb ./scitra-tun
-cp ../../out/scitra-tun_0.0.2-1_amd64.deb ./scitra-tun
+cp ../../out/scion++-tools_0.0.3-1_amd64.deb ./scitra-tun
+cp ../../out/scitra-tun_0.0.3-1_amd64.deb ./scitra-tun
 docker compose build
 ```
 
