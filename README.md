@@ -253,6 +253,7 @@ Make or update test data:
 python3 -m venv .venv
 . .venv/bin/activate
 pip install -r python/requirements.txt
+pip install -e python/scapy-scion-int[extras]
 make test-data
 ```
 

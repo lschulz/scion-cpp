@@ -1,26 +1,5 @@
-asttokens==3.0.1
-cffi==2.0.0
-cryptography==46.0.3
-decorator==5.2.1
-executing==2.2.1
 grpcio==1.76.0
 grpcio-tools==1.76.0
-ipython==9.8.0
-ipython_pygments_lexers==1.1.1
-jedi==0.19.2
-matplotlib-inline==0.2.1
-parso==0.8.5
-pexpect==4.9.0
-prompt_toolkit==3.0.52
-protobuf==6.33.1
-ptyprocess==0.7.0
-pure_eval==0.2.3
-pycparser==2.23
-Pygments==2.19.2
-scapy==2.6.1
--e git+https://github.com/lschulz/scapy-scion-int.git@3dcae90d227395c720934ac9617ffa0818d84893#egg=scapy_scion&subdirectory=../../../python/scapy-scion-int
+protobuf==6.33.2
 setuptools==80.9.0
-stack-data==0.6.3
-traitlets==5.14.3
 typing_extensions==4.15.0
-wcwidth==0.2.14
