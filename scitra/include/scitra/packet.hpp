@@ -101,20 +101,21 @@ public:
 private:
     // Raw packet
     std::pmr::vector<std::byte> buffer;
-    std::span<std::byte> packet;
-    std::byte* endOfHeader = nullptr;
+    struct Span
+    {
+        std::size_t offset;
+        std::size_t size;
+    } packet;
+    std::size_t endOfHeader;
 
 public:
     /// \brief Initialize a packet buffer adopting `buffer` as its raw packet
     /// storage.
     explicit PacketBuffer(std::pmr::vector<std::byte>&& buffer)
         : buffer(std::move(buffer))
-        , packet(buffer.data(), buffer.size())
-    {
-        assert(buffer.data() <= packet.data());
-        assert(packet.data() + packet.size() <= buffer.data() + buffer.size());
-        endOfHeader = buffer.data();
-    }
+        , packet(0, buffer.size())
+        , endOfHeader(0)
+    {}
 
     /// \brief Clear the packet buffer and invalidate all extracted headers.
     /// Returns a writeable view into the packet buffer in which a new packet
@@ -130,9 +131,12 @@ public:
         stunValid = false;
         scionValid = false;
         l4Valid = L4Type::None;
-        packet = std::span<std::byte>(buffer.data() + headroom, buffer.size() - headroom);
-        endOfHeader = packet.data();
-        return packet;
+        packet = Span{
+            .offset = headroom,
+            .size = buffer.size() - headroom
+        };
+        endOfHeader = 0;
+        return std::span<std::byte>(buffer.data() + packet.offset, packet.size);
     };
 
     /// \brief Parse a new packet that has been placed into the span returned
@@ -148,13 +152,15 @@ public:
     /// attempted.
     std::error_code parsePacket(std::size_t size, bool noUnderlay, IsScion* isScion = nullptr)
     {
-        packet = packet.subspan(0, std::min(size, packet.size()));
-        ReadStream rs(packet);
+        endOfHeader = packet.offset;
+        packet.size = std::min(size, packet.size);
+        ReadStream rs(std::span<std::byte>(buffer.data() + packet.offset, packet.size));
         SCION_STREAM_ERROR err;
         if (!parse(rs, noUnderlay, isScion, err)) {
             SCION_DEBUG_PRINT(err);
             return ErrorCode::InvalidPacket;
         }
+        endOfHeader = rs.getPtr() - buffer.data();
         return ErrorCode::Ok;
     }
 
@@ -165,9 +171,9 @@ public:
     /// \return New payload length.
     std::size_t quoteRawHeaders(std::size_t maxSize)
     {
-        packet = packet.subspan(0, std::min(packet.size(), maxSize));
-        endOfHeader = packet.data();
-        return packet.size();
+        packet.size = std::min(packet.size, maxSize);
+        endOfHeader = packet.offset;
+        return packet.size;
     }
 
     /// \brief Write updated header back into the raw packet buffer.
@@ -177,10 +183,11 @@ public:
     /// the headroom reserved by clearAndGetBuffer().
     Maybe<std::span<const std::byte>> emitPacket(bool noUnderlay = false)
     {
-        assert(packet.data() <= endOfHeader && endOfHeader <= (packet.data() + packet.size()));
-        auto headroom = endOfHeader - buffer.data();
-        auto hdrSize = (std::ptrdiff_t)measureHeaders(noUnderlay);
-        auto payloadSize = packet.size() - (endOfHeader - packet.data());
+        assert(packet.offset <= endOfHeader && endOfHeader <= (packet.offset + packet.size));
+        assert(packet.offset + packet.size <= buffer.size());
+        auto headroom = endOfHeader;
+        auto hdrSize = measureHeaders(noUnderlay);
+        auto payloadSize = packet.size - (endOfHeader - packet.offset);
         if (headroom < hdrSize) {
             return Error(ErrorCode::BufferTooSmall); // insufficient headroom
         }
@@ -191,8 +198,11 @@ public:
             SCION_DEBUG_PRINT(err);
             return Error(ErrorCode::LogicError);
         }
-        packet = std::span<std::byte>(pktBegin, hdrSize + payloadSize);
-        return packet;
+        packet = Span{
+            .offset = headroom - hdrSize,
+            .size = hdrSize + payloadSize
+        };
+        return std::span<std::byte>(buffer.data() + packet.offset, packet.size);
     }
 
     /// \brief Returns the size of the parsed valid packet headers.
@@ -217,10 +227,11 @@ public:
     /// \brief Gets a view of the packet payload.
     std::span<const std::byte> payload() const
     {
-        assert(packet.data() <= endOfHeader && endOfHeader <= (packet.data() + packet.size()));
+        assert(packet.offset <= endOfHeader && endOfHeader <= (packet.offset + packet.size));
+        assert(packet.offset + packet.size <= buffer.size());
         return std::span<const std::byte>(
-            endOfHeader,
-            packet.size() - (endOfHeader - packet.data())
+            buffer.data() + endOfHeader,
+            packet.size - (endOfHeader - packet.offset)
         );
     }
 

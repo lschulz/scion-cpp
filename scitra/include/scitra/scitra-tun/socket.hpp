@@ -60,17 +60,22 @@ private:
     std::atomic<std::shared_ptr<generic::IPEndpoint>> m_mapped;
 
     // Last time something was sent from the socket.
-    std::chrono::steady_clock::time_point m_lastUsed;
+    std::atomic<std::chrono::steady_clock::time_point> m_lastUsed;
 
     struct StunState
     {
+        using HeldPacket = std::pair<PacketBuffer, asio::ip::udp::endpoint>;
+
         std::mutex mutex;
-        // True if a STUN binding request was sent and we expect a reply.
-        bool expectStunResponse = false;
+        // Greater than zero if a STUN binding request was sent and we expect a reply.
+        // Counts the number of requests send before the first reply is received.
+        unsigned int expectStunResponse = 0;
         // IP address of the STUN server we expect a reply from.
         asio::ip::address expectedStunServer;
         // STUN transaction ID for matching replies with the current request.
         std::array<std::byte, 12> stunTx = {};
+        // Packet that must be sent once the address mapping is known.
+        std::unique_ptr<HeldPacket> heldPacket;
     } m_stun;
 
 public:
@@ -89,7 +94,7 @@ public:
     bool persistent() const { return m_persistent; }
 
     // Returns the last time something was sent on the socket.
-    std::chrono::steady_clock::time_point lastUsed() const { return m_lastUsed; }
+    std::chrono::steady_clock::time_point lastUsed() const { return m_lastUsed.load(); }
 
     // Check if the underlay socket is open.
     bool isOpen() const { return m_underlay.is_open(); }
@@ -117,7 +122,10 @@ public:
         const std::chrono::steady_clock::time_point& t);
 
 private:
-    std::error_code requestStunMapping(asio::ip::udp::endpoint server);
+    std::error_code respondToBindingReq(
+        const PacketBuffer& pkt, const asio::ip::udp::endpoint& from);
+    std::error_code requestStunMapping(const PacketBuffer& pkt, asio::ip::udp::endpoint nextHop);
+    std::error_code sendHeldPacket();
     void ingressNat(PacketBuffer& pkt, const asio::ip::udp::endpoint& from);
     void egressNat(PacketBuffer& pkt);
 };

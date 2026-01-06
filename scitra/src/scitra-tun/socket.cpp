@@ -21,6 +21,8 @@
 #include "scitra/scitra-tun/socket.hpp"
 #include "scion/asio/addresses.hpp"
 
+#include <spdlog/spdlog.h>
+
 #include <random>
 
 
@@ -89,18 +91,43 @@ Socket::recvPacket(PacketBuffer& pkt, asio::ip::udp::endpoint& from)
 
     if (ENABLE_STUN) {
         if (pkt.stunValid) {
-            std::lock_guard stunLock(m_stun.mutex);
-            if (!m_stun.expectStunResponse || from.address() != m_stun.expectedStunServer)
-                co_return ScitraError::InvalidPacket;
-            if (pkt.stun.type != hdr::StunMsgType::BindingResponse)
-                co_return ScitraError::InvalidPacket;
-            if (pkt.stun.transaction != m_stun.stunTx)
-                co_return ScitraError::InvalidPacket;
-            m_stun.expectStunResponse = false;
-            if (pkt.stun.mapped) {
-                m_mapped.store(std::make_shared<generic::IPEndpoint>(pkt.stun.mapped->address));
+            if (pkt.stun.type == hdr::StunMsgType::BindingRequest) {
+                // Persistent sockets answer STUN binding request
+                if (!m_persistent) co_return ScitraError::InvalidPacket;
+                spdlog::debug("Socket {}: Responding to STUN binding request from {}",
+                    m_localPort, from);
+                if (ec = respondToBindingReq(pkt, from); ec) {
+                    spdlog::debug("Socket {}: Error sending STUN response to {}: {}",
+                        from, fmtError(ec));
+                }
+                co_return ScitraError::StunReceived;
+            } else if (pkt.stun.type == hdr::StunMsgType::BindingResponse) {
+                std::lock_guard stunLock(m_stun.mutex);
+                if (from.address() != m_stun.expectedStunServer)
+                    co_return ScitraError::InvalidPacket;
+                if (pkt.stun.type != hdr::StunMsgType::BindingResponse)
+                    co_return ScitraError::InvalidPacket;
+                if (pkt.stun.transaction != m_stun.stunTx)
+                    co_return ScitraError::InvalidPacket;
+                m_stun.expectStunResponse = 0;
+                if (pkt.stun.mapped) {
+                    spdlog::debug("Socket {}: STUN binding response from {}: {} -> {}",
+                        m_localPort, from,
+                        generic::IPEndpoint(m_localAddress, m_localPort),
+                        pkt.stun.mapped->address);
+                    m_mapped.store(std::make_shared<generic::IPEndpoint>(pkt.stun.mapped->address));
+                    if (m_stun.heldPacket) {
+                        if (auto ec = sendHeldPacket(); ec) {
+                            spdlog::debug("Socket {}: Error sending held packet to {}: {}",
+                                m_localPort, m_stun.heldPacket->second, fmtError(ec));
+                        }
+                        m_stun.heldPacket = nullptr;
+                        m_lastUsed.store(std::chrono::steady_clock::now());
+                    }
+                }
+                co_return ScitraError::StunReceived;
             }
-            co_return ScitraError::StunReceived;
+            co_return ScitraError::InvalidPacket;
         }
         ingressNat(pkt, from);
     }
@@ -111,10 +138,9 @@ std::error_code Socket::sendPacket(PacketBuffer& pkt, const asio::ip::udp::endpo
     const std::chrono::steady_clock::time_point& t)
 {
     if (ENABLE_STUN) {
-        if (t - m_lastUsed > NAT_TIMEOUT) {
-            if (auto ec = requestStunMapping(nextHop); ec) {
+        if (t - m_lastUsed.load() > NAT_TIMEOUT) {
+            if (auto ec = requestStunMapping(pkt, nextHop); ec != ScitraError::StunReceived)
                 return ec;
-            }
         }
         egressNat(pkt);
     }
@@ -127,12 +153,39 @@ std::error_code Socket::sendPacket(PacketBuffer& pkt, const asio::ip::udp::endpo
     auto n = m_underlay.send_to(asio::buffer(*buffer), nextHop, 0, ec);
     if (ec) return ec;
     if (n < buffer->size()) return ScitraError::PartialWrite;
-    m_lastUsed = t;
+    m_lastUsed.store(t);
     return ScitraError::Ok;
 }
 
-// Send a STUN binding request to `server`.
-std::error_code Socket::requestStunMapping(asio::ip::udp::endpoint server)
+// Respond to STUN binding request.
+std::error_code Socket::respondToBindingReq(
+    const PacketBuffer& pkt, const asio::ip::udp::endpoint& from)
+{
+    // Prepare binding response with the observed remote endpoint
+    hdr::STUN stun;
+    stun.type = hdr::StunMsgType::BindingResponse;
+    stun.transaction = pkt.stun.transaction;
+    stun.mapped = hdr::StunXorMappedAddress{generic::toGenericEp(from)};
+
+    // Serialize response
+    std::array<std::byte, 44> buffer;
+    WriteStream ws(std::span<std::byte>(buffer.data(), buffer.size()));
+    if (!stun.serialize(ws, NullStreamError)) {
+        return ScitraError::LogicError;
+    }
+    const std::size_t size = ws.getPtr() - buffer.data();
+
+    // Send response packet
+    boost::system::error_code ec;
+    auto n = m_underlay.send_to(asio::buffer(buffer, size), from, 0, ec);
+    if (ec) return ec;
+    if (n < size) return ScitraError::PartialWrite;
+    return ScitraError::Ok;
+}
+
+// Send a STUN binding request to `nextHop`.
+// Returns ScitraError::StunReceived if no more STUN requests should be sent.
+std::error_code Socket::requestStunMapping(const PacketBuffer& pkt, asio::ip::udp::endpoint nextHop)
 {
     hdr::STUN stun;
     stun.type = hdr::StunMsgType::BindingRequest;
@@ -153,16 +206,44 @@ std::error_code Socket::requestStunMapping(asio::ip::udp::endpoint server)
     }
 
     // Send request packet
+    std::lock_guard stunLock(m_stun.mutex);
+    if (m_stun.expectStunResponse >= 3) {
+        // Give up on STUN and try direct connection
+        spdlog::debug("Socket {}: STUN timeout", m_localPort);
+        m_stun.expectStunResponse = 0;
+        m_mapped.store(std::make_shared<generic::IPEndpoint>(m_localAddress, m_localPort));
+        return ScitraError::StunReceived;
+    }
+
+    auto server = nextHop;
     if (STUN_PORT) server.port(STUN_PORT);
     boost::system::error_code ec;
     auto n = m_underlay.send_to(asio::buffer(buffer), server, 0, ec);
     if (ec) return ec;
     if (n < buffer.size()) return ScitraError::PartialWrite;
+    spdlog::debug("Socket {}: Sent STUN binding request to {}", m_localPort, server);
 
-    std::lock_guard stunLock(m_stun.mutex);
-    m_stun.expectStunResponse = true;
+    // Record information about expected response
+    m_stun.expectStunResponse++;
     m_stun.expectedStunServer = server.address();
     m_stun.stunTx = stun.transaction;
+    m_stun.heldPacket = std::make_unique<StunState::HeldPacket>(pkt, nextHop);
+    return ScitraError::Ok;
+}
+
+// Send the packet buffered at the last STUN binding request.
+// Precondition: m_stun.mutex is locked.
+std::error_code Socket::sendHeldPacket()
+{
+    assert(m_stun.heldPacket);
+    auto& [pkt, nh] = *m_stun.heldPacket;
+    egressNat(pkt);
+    auto buffer = pkt.emitPacket(true);
+    if (isError(buffer)) return buffer.error();
+    boost::system::error_code ec;
+    auto n = m_underlay.send_to(asio::buffer(*buffer), nh, 0, ec);
+    if (n < buffer->size()) return ScitraError::PartialWrite;
+    if (ec) return ec;
     return ScitraError::Ok;
 }
 

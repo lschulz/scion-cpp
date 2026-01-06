@@ -590,8 +590,8 @@ std::error_code ScitraTun::translateIPtoScion(TunQueue& tun)
                 break;
             } else if (ec != ErrorCondition::InvalidPacket) {
                 spdlog::error("IP->SCION Error reading from TUN queue: {}", fmtError(ec));
-                continue;
             }
+            continue;
         }
 
         const auto recvd = std::chrono::steady_clock::now();
@@ -661,7 +661,7 @@ std::error_code ScitraTun::translateIPtoScion(TunQueue& tun)
             auto ec = tun.sendPacket(pkt);
             if (ec) spdlog::error("IP->SCION Error sending packet to TUN: {}", fmtError(ec));
         } else {
-            spdlog::debug("IP->SCION Packet dropped ({})", (int)verdict);
+            spdlog::debug("IP->SCION Packet dropped");
         }
         DBG_TIME_END(tun.lastRx, egrTicks, egrSamples);
     }
@@ -680,8 +680,8 @@ asio::awaitable<std::error_code> ScitraTun::translateScionToIP(std::shared_ptr<S
                 break;
             } else if (ec != ErrorCondition::StunReceived && ec != ErrorCondition::InvalidPacket) {
                 spdlog::error("SCION->IP Error reading from socket: {}", fmtError(ec));
-                continue;
             }
+            continue;
         }
 
         const auto recvd = std::chrono::steady_clock::now();
@@ -739,7 +739,7 @@ asio::awaitable<std::error_code> ScitraTun::translateScionToIP(std::shared_ptr<S
             if (ec) spdlog::error("SCION->IP Error sending packet to TUN (queue {}): {}",
                 queue, fmtError(ec));
         } else {
-            spdlog::debug("SCION->IP Packet dropped ({})", (int)verdict);
+            spdlog::debug("SCION->IP Packet dropped");
         }
         DBG_TIME_END(socket->lastRx, igrTicks, igrSamples);
     }

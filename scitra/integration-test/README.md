@@ -48,17 +48,17 @@ sudo ip netns exec host0 sudo -u $USER bash
 In namespace `host0`:
 ```bash
 # IPv4
-scitra-tun veth1 10.128.0.2 -d 10.128.0.1:30255 --scmp --tui --log-file log0.txt
+scitra-tun veth1 10.128.0.2 -d 10.128.0.1:30255 --scmp --tui -l debug --log-file log0.txt
 # IPv6
-scitra-tun veth1 fc00:10fc:100::2 -a fd00::1 -d [fc00:10fc:100::1]:30255 --scmp --tui --log-file log0.txt
+scitra-tun veth1 fc00:10fc:100::2 -a fd00::1 -d [fc00:10fc:100::1]:30255 --scmp --tui -l debug --log-file log0.txt
 ```
 
 In namespace `host1`:
 ```bash
 # IPv4
-scitra-tun veth3 10.128.1.2 -d 10.128.1.1:30255 --ports=32000 --scmp --tui --log-file log1.txt
+scitra-tun veth3 10.128.1.2 -d 10.128.1.1:30255 --ports=32000 --scmp --tui -l debug --log-file log1.txt
 # IPv6
-scitra-tun veth3 fc00:10fc:200::2 -a fd00::2 -d [fc00:10fc:200::1]:30255 --ports=32000 --scmp --tui --log-file log1.txt
+scitra-tun veth3 fc00:10fc:200::2 -a fd00::2 -d [fc00:10fc:200::1]:30255 --ports=32000 --scmp --tui -l debug --log-file log1.txt
 ```
 
 #### Step 4 ####

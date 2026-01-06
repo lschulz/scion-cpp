@@ -80,11 +80,14 @@ static const char* HELP_TEXT =
     "and remote port, protocol type, the state of the flow as seen by Scitra-TUN,\n"
     "and packets/data rates. Flows can be sorted by clicking on the table headers.\n"
     "When a flow is selected, additional details are shown in the property window.\n"
+    "Select an already selected flow again to deselect.\n"
     "\n"
     "Flow Properties\n"
     "Direction: Whether the translator actively picks paths for the flow or\n"
     "           passively responds on the same path as used by the remote host.\n"
     "TC       : Traffic class / DSCP of the last translated packet.\n"
+    "Path     : The active path.\n"
+    "Hops     : Length of the active path in AS hops.\n"
     "Expiry   : Time until the path expires.\n"
     "Meta MTU : Path MTU reported by the path server. Zero if not available.\n"
     "Path MTU : Discovered Path MTU. May be smaller than the metadata MTU.\n"
@@ -96,7 +99,8 @@ static const char* HELP_TEXT =
     "\n"
     "Graphs\n"
     "------\n"
-    "Application throughput of the selected flow. Shows the last 60 samples.\n"
+    "Throughput of the selected flow or total throughput if no flow is selected.\n"
+    "Shows the last 60 samples.\n"
     "\n";
 
 constexpr std::size_t FLOW_RATE_HIST_LEN = 60;
@@ -811,7 +815,7 @@ void ScitraTui::drawFrame(const ImVec2& window)
     ImVec2 bottom(0, window.y - 1);
     ImGui::SetCursorPos(bottom);
     drawList->AddRectFilled(bottom, ImVec2(window.x + 1, bottom.y), IM_COL32(66, 150, 250, 79));
-    if (ImGui::Button("F1 Help", {12, 1}) || ImGui::IsKeyDown(TermKey::F1)) {
+    if (ImGui::Button("F1 Help", {10, 1}) || ImGui::IsKeyDown(TermKey::F1)) {
         showHelp = !showHelp;
     }
     ImGui::SameLine();

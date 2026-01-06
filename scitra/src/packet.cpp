@@ -133,8 +133,6 @@ bool PacketBuffer::parse(ReadStream& rs, bool noUnderlay, IsScion* isScion, SCIO
         if (!parseL4(rs, static_cast<ScionProto>(ipProto), err)) return err.propagate();
     }
 
-    // Payload
-    endOfHeader = const_cast<std::byte*>(rs.getPtr());
     return true;
 }
 
