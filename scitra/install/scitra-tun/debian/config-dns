@@ -12,7 +12,7 @@ SCITRA_INTERFACE=scion
 SCION_DNS_SERVER=fc00:10fc::ffff:1.1.1.1
 
 # DNS search domain(s) that the SCION DNS server is queried for
-DNS_DOMAIN="scion scion.host scion.fast"
+DNS_DOMAINS="~scion ~scion.host ~scion.fast"
 
 case "$1" in
     start)
@@ -21,7 +21,7 @@ case "$1" in
                 sleep 1
             fi
             resolvectl dns "$SCITRA_INTERFACE" $SCION_DNS_SERVER
-            resolvectl domain "$SCITRA_INTERFACE" $DNS_DOMAIN
+            resolvectl domain "$SCITRA_INTERFACE" $DNS_DOMAINS
 # If resolvectl is not available, try resolvconf instead
 #           resolvconf -a "$SCITRA_INTERFACE" -x \
 # <<EOF
