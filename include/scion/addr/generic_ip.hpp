@@ -201,7 +201,7 @@ public:
     bool is4() const { return m_addrInfo->type == AddrType::IPv4; }
 
     /// \brief Tell whether this is an IPv4-mapped IPv6 address.
-    bool is4in6() const { return is6() && m_hi == 0 && (m_lo >> 32) & 0xffffull; }
+    bool is4in6() const { return is6() && m_hi == 0 && (m_lo >> 32) == 0xffffull; }
 
     /// \brief Tell whether this is an IPv6 address including IP4 mapped to IPv6.
     bool is6() const { return m_addrInfo->type == AddrType::IPv6; }
@@ -210,7 +210,7 @@ public:
     bool isScion() const { return is6() && ((m_hi >> 56) & 0xff) == 0xfc; }
 
     /// \brief Tell whether this is a SCION-IPv4-mapped IPv6 address.
-    bool isScion4() const { return isScion() && (m_hi & 0xff'fffful) == 0 && (m_lo >> 32) & 0xffffull; }
+    bool isScion4() const { return isScion() && (m_hi & 0xff'fffful) == 0 && (m_lo >> 32) == 0xffffull; }
 
     /// \brief Tell whether this is a SCION-IPv6-mapped IPv6 address.
     bool isScion6() const { return isScion() && ((m_hi & 0xff'fffful) != 0 || (m_lo >> 32) != 0xffffull); }

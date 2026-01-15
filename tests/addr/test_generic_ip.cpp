@@ -92,19 +92,21 @@ TEST(GenericIP, IPv4in6)
 {
     using namespace scion::generic;
 
-    auto ip4 = IPAddress::MakeIPv4(0xaffffff);
+    auto ip4_1 = IPAddress::MakeIPv4(0xaffffff);
+    auto ip4_2 = IPAddress::MakeIPv6(0, 0xf9a7'f716'9f2c'95e2);
     auto ip4in6 = IPAddress::MakeIPv6(0x0, 0xffff'0aff'ffffull);
     auto ip4in6Unspec = IPAddress::MakeIPv6(0x0, 0xffff'0000'0000ull);
 
-    EXPECT_FALSE(ip4.is4in6());
+    EXPECT_FALSE(ip4_1.is4in6());
+    EXPECT_FALSE(ip4_2.is4in6());
     EXPECT_TRUE(ip4in6.is4in6());
     EXPECT_TRUE(ip4in6Unspec.is4in6());
 
     EXPECT_FALSE(ip4in6.isUnspecified());
     EXPECT_TRUE(ip4in6Unspec.isUnspecified());
 
-    EXPECT_EQ(ip4in6.unmap4in6(), ip4);
-    EXPECT_EQ(ip4.map4in6(), ip4in6);
+    EXPECT_EQ(ip4in6.unmap4in6(), ip4_1);
+    EXPECT_EQ(ip4_1.map4in6(), ip4in6);
 }
 
 TEST(GenericIP, ZoneIdentifier)
@@ -260,6 +262,7 @@ TEST(GenericIP, ScionMappedIPv6)
 
     auto scion4 = IPAddress::MakeIPv6(0xfc01'0000'0100'0000ul, 0xffff'0aff'fffful);
     auto scion6 = IPAddress::MakeIPv6(0xfc01'0000'0100'1234ul, 0x0aff'fffful);
+    auto notScion = IPAddress::MakeIPv6(0, 0xf9a7'f716'9f2c'95e2ul);
 
     EXPECT_TRUE(scion4.is6());
     EXPECT_TRUE(scion4.isScion());
@@ -271,8 +274,14 @@ TEST(GenericIP, ScionMappedIPv6)
     EXPECT_FALSE(scion6.isScion4());
     EXPECT_TRUE(scion6.isScion6());
 
+    EXPECT_TRUE(notScion.is6());
+    EXPECT_FALSE(notScion.isScion());
+    EXPECT_FALSE(notScion.isScion4());
+    EXPECT_FALSE(notScion.isScion6());
+
     EXPECT_EQ(std::format("{}", scion4), "fc01:0:100::ffff:10.255.255.255");
     EXPECT_EQ(std::format("{}", scion6), "fc01:0:100:1234::aff:ffff");
+    EXPECT_EQ(std::format("{}", notScion), "::f9a7:f716:9f2c:95e2");
 }
 
 TEST(GenericIP, MapScionToIPv6)
