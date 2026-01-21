@@ -696,6 +696,10 @@ asio::awaitable<std::error_code> ScitraTun::translateScionToIP(std::shared_ptr<S
             spdlog::debug("SCION->IP Destination port validation failed");
             continue;
         }
+        if (socket->port() == DISPATCHER_PORT && pkt.l4Valid != PacketBuffer::L4Type::SCMP) {
+            spdlog::debug("SCION->IP Non-SCMP packet at dispatcher port");
+            continue;
+        }
 
         // Packet Validation: AS-internal traffic source must match source
         // host address in the SCION header.
