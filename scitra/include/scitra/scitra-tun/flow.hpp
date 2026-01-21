@@ -184,7 +184,7 @@ private:
     friend class FlowProxy;
 
 public:
-    static inline const auto FLOW_TIMEOUT = std::chrono::minutes(2);
+    static inline const auto FLOW_TIMEOUT = std::chrono::seconds(120);
 
     Flow(FlowType type, std::uint32_t queue)
         : type(type), queue(queue)
@@ -197,7 +197,7 @@ public:
         return queue % queues;
     }
 
-    // Acquire a lock on the path.
+    // Acquire a lock on the flow.
     FlowProxy lock();
 };
 
@@ -278,7 +278,7 @@ public:
     {
         if (flow.state == FlowState::CLOSING)
             flow.state = FlowState::CLOSED;
-        else if (flow.state == FlowState::OPEN) {
+        else if (flow.state == FlowState::OPEN || flow.state == FlowState::SYN) {
             if (now - flow.lastUsed > Flow::FLOW_TIMEOUT)
                 flow.state = FlowState::CLOSING;
         }

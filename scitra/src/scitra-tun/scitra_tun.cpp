@@ -449,7 +449,8 @@ void ScitraTun::closeSocket(std::uint16_t port)
 void ScitraTun::maintainFlowsAndSockets()
 {
     using namespace std::chrono;
-    static const auto SOCKET_TIMEOUT = seconds(120);
+    using scion::hdr::ScionProto;
+    static const auto SOCKET_TIMEOUT = seconds(60);
     static const auto PMTU_TIMEOUT = hours(1);
 
     auto mySockets = getSocketInodes(32);
@@ -493,11 +494,6 @@ void ScitraTun::maintainFlowsAndSockets()
             ++i;
             continue;
         }
-        // Keep socket if there has been outgoing traffic recently.
-        if (now - socket->lastUsed() > SOCKET_TIMEOUT) {
-            ++i;
-            continue;
-        }
         // Keep socket if there is a TCP socket using the same port.
         // Ignores listening TCP sockets as server should use persistent
         // port forwarding.
@@ -512,19 +508,26 @@ void ScitraTun::maintainFlowsAndSockets()
             ++i;
             continue;
         }
-        // Keep socket if there is a connected UDP socket using the same
-        // port.
+        // Keep socket if there is a corresponding UDP socket that is connected
+        // to a SCION-mapped IP address or an unconnected socket that recently
+        // had outgoing traffic.
         auto udp = std::ranges::find_if(udpSockets, [&] (const SocketInfo& s) {
             if (std::ranges::binary_search(mySockets, s.inode))
                 return false;
-            if (s.localPort == localPort && s.remoteAddr.isScion())
+            if (s.localPort != localPort)
+                return false;
+            if (s.remoteAddr.isScion()) {
                 return s.localAddr.isUnspecified() || s.localAddr == tunIP;
+            } else if (s.remoteAddr.isUnspecified()) {
+                return now - socket->lastUsed() < SOCKET_TIMEOUT;
+            }
             return false;
         });
         if (udp != udpSockets.end()) {
             ++i;
             continue;
         }
+        // Remove socket and all flows connected to it
         socket->close();
         i = sockets.erase(i);
         for (auto j = flows.begin(); j != flows.end(); ++j) {

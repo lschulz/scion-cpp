@@ -62,7 +62,7 @@ static std::vector<SocketInfo> getSockets6(const char* path, std::size_t reserve
     while (std::getline(s, line)) {
         // format string from get_tcp6_sock() in net/ipv6/tcp_ipv6.c
         int res = std::sscanf(line.c_str(),
-            "%*4d: %08X%08X%08X%08X:%04X %08X%08X%08X%08X:%04X "
+            "%*d: %08X%08X%08X%08X:%04X %08X%08X%08X%08X:%04X "
             "%02X %*08X:%*08X %*02X:%*08X %*08X %*5u %*8d %lu",
             &localAddr[0], &localAddr[1], &localAddr[2], &localAddr[3],
             &localPort,
