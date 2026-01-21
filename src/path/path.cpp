@@ -44,7 +44,7 @@ PathDigest computeDigest(IsdAsn src, std::span<std::pair<std::uint16_t, std::uin
     auto seed = randomSeed();
     auto ia = (uint64_t)src;
     MurmurHash3_x64_128(&ia, sizeof(ia), seed, &haddr);
-    MurmurHash3_x64_128(path.data(), (int)(path.size()), seed, &hpath);
+    MurmurHash3_x64_128(path.data(), (int)(path.size_bytes()), seed, &hpath);
     return PathDigest(haddr[0] ^ hpath[0], haddr[1] ^ hpath[1]);
 }
 
