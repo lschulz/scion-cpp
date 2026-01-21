@@ -556,7 +556,7 @@ private:
     static constexpr float staticHeight = 8.0f; // height of fixed elements
     static constexpr float propertiesWidth = 50.0f;
     static constexpr int graphHeight = 8;
-    static constexpr int pathPageSize = 10;
+    static constexpr int pathPageSize = 20;
 
     // Data synchronization
     static inline const std::array<float, 4> updateInterval = {
@@ -839,6 +839,7 @@ void ScitraTui::drawFrame(const ImVec2& window)
                     });
                     if (i != pathSel.paths.end()) {
                         pathSel.selection = (int)std::distance(pathSel.paths.begin(), i);
+                        pathSel.page = pathSel.selection / pathPageSize;
                     }
                 }
                 pathSel.state = PathSelWnd::OPEN;
@@ -935,6 +936,9 @@ void ScitraTui::drawFrame(const ImVec2& window)
                 if (pathSel.selection >= 0 && (std::size_t)pathSel.selection < pathSel.paths.size()) {
                     pathSel.paths[pathSel.selection]->setBroken(0);
                     scitra.overrideFlowPath(pathSel.flow, pathSel.paths[pathSel.selection]);
+                    // Update the displayed flow data immediately as otherwise the new path would
+                    // only be reflected in the UI after the next flow data synchronization.
+                    flowData[selFlow]->path = pathSel.paths[pathSel.selection];
                 }
                 pathSel.paths.clear();
                 pathSel.selection = -1;
