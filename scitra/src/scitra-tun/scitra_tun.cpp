@@ -163,12 +163,17 @@ ScitraTun::ScitraTun(const Arguments& args)
     }
 
     // Configure TUN interface MTU
+    const auto underlaySize = publicIP.is6() ? IPv6_UNDERLAY_SIZE : IPv4_UNDERLAY_SIZE;
+    if (args.underlayMtu) {
+        const auto scionMtu = std::max(0, args.underlayMtu - underlaySize);
+        spdlog::info("Replacing SCION MTU {} from daemon with {}", localAS.mtu, scionMtu);
+        localAS.mtu = scionMtu;
+    }
     auto publicMtu = netlink.getInterfaceMTU(netDevice);
     if (isError(publicMtu)) {
         throw std::runtime_error(
             std::format("Can't get MTU of '{}': {}", netDevice, fmtError(publicMtu.error())));
     }
-    const auto underlaySize = publicIP.is6() ? IPv4_UNDERLAY_SIZE : IPv6_UNDERLAY_SIZE;
     int tunMtu = args.tunMtu;
     if (tunMtu <= 0) {
         // By default, the MTU of the TUN interface is set to the maximum IPv6 packet size usable
@@ -178,7 +183,7 @@ ScitraTun::ScitraTun(const Arguments& args)
         tunMtu -= minScionOverhead(publicIP.is6());
     }
     tunMtu = std::max(tunMtu, 1280); // can't set the MTU lower then the minimum for IPv6
-    spdlog::info("TUN MTU = {} ({} from daemon, {} public interface)",
+    spdlog::info("TUN MTU = {} ({} SCION MTU, {} public interface)",
         tunMtu, localAS.mtu, *publicMtu);
     if (auto ec = netlink.setInterfaceMTU(tunDevice, (std::uint32_t)tunMtu); ec) {
         throw std::runtime_error(
@@ -649,7 +654,8 @@ std::error_code ScitraTun::translateIPtoScion(TunQueue& tun)
                         // minimum safe MTU. The discovered MTU could be read from the socket's
                         // error queue, but it would be difficult to assign it to the right paths.
                         spdlog::warn("IP->SCION Translated packet too big to send to next hop '{}'."
-                            " Falling back to minimum safe MTU. Check AS-internal MTU setting.",
+                            " Falling back to minimum safe MTU. Consider setting --underlay-mtu",
+                            " to a more conservative value.",
                             *nh);
                         pmtu->updateMtu(pkt.sci.dst.host(), pkt.path,
                             nextHop.host().is4() ? SAFE_MTU_IPV4 : SAFE_MTU_IPV6);

@@ -67,6 +67,10 @@ static std::unique_ptr<Arguments> parseCommandLine(int argc, char* argv[])
         "Override the address assigned to the TUN device with another IPv6"
         " address. By default, the TUN address is derived from the public"
         " address.");
+    app.add_option("-u,--underlay-mtu", args->underlayMtu,
+        "The minimum link-layer underlay PMTU to any SCION router or host in the"
+        " local AS. Setting this value causes Scitra-TUN to ignore the AS-internal"
+        " MTU learned from the SCION daemon.");
     app.add_option("-m,--mtu", args->tunMtu,
         "Override the default MTU of the TUN interface.");
     app.add_option("-p,--ports", args->ports,

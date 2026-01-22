@@ -55,7 +55,10 @@ IPv6 subnets with the same ISD-ASN and set up IPv6 routes between them.
 
 `--log-file` _log_ Path to log file. Log is written to stderr if this option is not given.
 
-`-m, --mtu` _mtu_ Override the default MTU of the TUN interface.
+`-m, --mtu` _mtu_ Override the default MTU of the TUN interface. The default value is derived from
+    the MTU of public interface (see `--interface`) and the underlay MTU (see `-u`). Ignored if
+    zero. Values are clamped to the minimum MTU allowed for IPv6 (1280). In most cases, adjusting
+    the underlay MTU should be preferred over setting the TUN interface MTU directly.
 
 `-n, --tun-name` _name_ Name of the TUN device created by scitra-tun. Default: "scion"
 
@@ -73,6 +76,13 @@ IPv6 subnets with the same ISD-ASN and set up IPv6 routes between them.
     for SCION. Default: 3478
 
 `-t, --threads` _threads_ Number of socket worker threads. Default: 1
+
+`-u, --underlay-mtu` _umtu_ The minimum link-layer underlay PMTU to any SCION router or host in the
+    local AS. Ignored if zero. Setting this value causes Scitra-TUN to ignore the AS-internal MTU
+    learned from the SCION daemon. The underlay MTU _umtu_ is related to the SCION MTU _smtu_
+    specified in topology.json files by the formula _umtu_ = _smtu_ + 28 (for UDP/IPv4 underlays) or
+    _umtu_ = _smtu_ + 40 (for UDP/IPv6 underlays). If packets are being dropped due to exceeding the
+    discoverd PMTU in the underlay, lower this value.
 
 `--scmp` Accept SCMP packets at the endhost/dispatcher port (30041/UDP).
 

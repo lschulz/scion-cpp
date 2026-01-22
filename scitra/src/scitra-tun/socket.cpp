@@ -151,7 +151,13 @@ std::error_code Socket::sendPacket(PacketBuffer& pkt, const asio::ip::udp::endpo
     }
     boost::system::error_code ec;
     auto n = m_underlay.send_to(asio::buffer(*buffer), nextHop, 0, ec);
-    if (ec) return ec;
+    if (ec) {
+        if (ec == std::errc::message_size) {
+            spdlog::warn("Socket {}: Message size error sending to {} ({} bytes)",
+                m_localPort, nextHop, buffer->size());
+        }
+        return ec;
+    }
     if (n < buffer->size()) return ScitraError::PartialWrite;
     m_lastUsed.store(t);
     return ScitraError::Ok;
