@@ -511,7 +511,7 @@ void PolicySet::parse(const boost::json::value& data)
                 auto failover = raw->as_string();
                 if (failover == "default") {
                     nextPolicy = POLICY_INDEX_DEFAULT;
-                } if (auto i = policyNames.find(failover); i != policyNames.end()) {
+                } else if (auto i = policyNames.find(failover); i != policyNames.end()) {
                     nextPolicy = i->second;
                 } else {
                     throw ParserError(std::format(

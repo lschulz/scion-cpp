@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
   "name": "scion-cpp",
-  "version-semver": "0.0.3",
+  "version-semver": "0.0.4",
   "dependencies": [
     {
       "name": "asio-grpc",

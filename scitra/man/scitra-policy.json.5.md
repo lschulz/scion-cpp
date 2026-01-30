@@ -1,4 +1,4 @@
-% scitra-policy.json(5) Version 0.0.3 | Scitra Manual
+% scitra-policy.json(5) Version 0.0.4 | Scitra Manual
 
 ## NAME ##
 

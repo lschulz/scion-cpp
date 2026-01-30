@@ -1,4 +1,4 @@
-% scion2ip(1) Version 0.0.3 | Scitra Manual
+% scion2ip(1) Version 0.0.4 | Scitra Manual
 
 ## NAME ##
 
