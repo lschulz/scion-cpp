@@ -161,7 +161,8 @@
     ],
     "python.analysis.extraPaths": [
         "./python/scapy-scion-int",
-        "./python"
+        "./python",
+        "./integration-tests"
     ],
     "C_Cpp.default.compilerPath": "/usr/bin/g++-13"
 }
