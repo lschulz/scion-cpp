@@ -192,6 +192,7 @@ cmake --build build --config Release
 
 ### Installation ###
 ```bash
+make man
 cmake --install build --config Release
 ```
 Installs the scion++ and scionc libraries as well as application binaries for scitra-tun and the

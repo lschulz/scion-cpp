@@ -39,7 +39,7 @@ static const char* HELP_TEXT =
     "\n"
     "https://github.com/lschulz/scion-cpp/scitra\n"
     "https://github.com/netsys-lab/scion-ip-translator\n"
-    "https://lcschulz.de/\n"
+    "https://lcschulz.de/software/scitra-tun\n"
     "\n"
     "The user interface you are seeing is drawn with Dear ImGui and ImTui. The\n"
     "UI can be navigated using the keyboard and if supported by your terminal\n"
