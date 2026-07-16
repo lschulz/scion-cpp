@@ -85,8 +85,8 @@ public:
         if constexpr (Stream::IsReading) {
             std::span<const std::byte> hdr;
             if (!stream.lookahead(hdr, 20, err)) return err.propagate();
-            std::uint16_t c = details::internetChecksum(hdr);
-            if ((std::uint16_t)(~c)) return err.error("incorrect IP checksum");
+            std::uint16_t c = details::onesComplementChecksum(hdr);
+            if (c != 0xffff) return err.error("incorrect IP checksum");
         }
         auto ver = version;
         if (!stream.serializeBits(ver, 4, err)) return err.propagate();
@@ -114,7 +114,7 @@ public:
         if (!src.serialize(stream, true, err)) return err.propagate();
         if (!dst.serialize(stream, true, err)) return err.propagate();
         if constexpr (Stream::IsWriting) {
-            std::span<const std::byte> hdr;
+            std::span<std::byte> hdr;
             if (!stream.lookback(hdr, 20, err)) return err.propagate();
             chksum = details::internetChecksum(hdr);
             if (!stream.updateChksum(chksum, 8, err)) return err.propagate();

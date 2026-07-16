@@ -38,7 +38,7 @@ TEST(Checksum, InternetChecksum)
     EXPECT_EQ(internetChecksum(a), 0xffff);
 
     static const std::array<std::byte, 4> b = { 0xff_b, 0xff_b };
-    EXPECT_EQ(internetChecksum(b), 0xffff);
+    EXPECT_EQ(internetChecksum(b), 0);
 
     static const std::array<std::byte, 3> c = { 0xff_b, 0xff_b, 0xff_b };
     EXPECT_EQ(internetChecksum(c), 0x00ff);

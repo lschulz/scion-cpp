@@ -40,6 +40,7 @@ with SCION-aware wrappers.
   - [Scitra-TUN](scitra/docs/scitra-tun.md) A SCION-IP translator using TUN interfaces on Linux.
 - [SCION API Interposers](interposer/): Deep SCION integration without touching application code.
     Currently only available for glibc in Linux-like environments.
+- [ID-INT Traceroute](applications/idint-traceroute/): TODO
 
 ### Documentation ###
 API documentation is generated with Doxygen.
@@ -133,6 +134,7 @@ test .............. scion++ and scionc unit tests
 For scitra-tun (Linux only):
 - libmnl >= 1.0.5
 - libcap >= 3.1.3
+- libsystemd-dev >= 255.4
 - [ImTui](https://github.com/ggerganov/imtui) (included as submodule)
 - [spdlog](https://github.com/gabime/spdlog) (included as submodule)
 
@@ -144,7 +146,8 @@ Most dependencies can be built and installed with vcpkg:
 ```bash
 vcpkg install
 ```
-In Linux, `libmnl` and `libcap` must be installed using the system's package manager.
+In Linux, `libmnl`, `libcap`, and `libsystemd-dev` must be installed using the system's package
+manager.
 
 All required build tools and dependencies can also be installed with apt (Ubuntu 24.04).
 ```bash

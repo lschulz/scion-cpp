@@ -53,6 +53,9 @@ enum class ErrorCode : int
     NameNotFound,     ///< name was not found
     RemoteError,      ///< remote machine returned an error
     FileNotFound,     ///< file not found
+    Expired,          ///< data is expired
+    NoKey,            ///< no valid key for cryptographic operation
+    InvalidMAC,       ///< MAC validation failed
 
     // packet validation errors
     InvalidPacket = 256, ///< received an invalid packet
@@ -88,6 +91,9 @@ enum class ErrorCondition : int
     NameNotFound,     ///< name was not found
     RemoteError,      ///< remote machine returned an error
     FileNotFound,     ///< file not found
+    Expired,          ///< data is expired
+    NoKey,            ///< no valid key for cryptographic operation
+    InvalidMAC,       ///< MAC validation failed
     InvalidPacket = 256, ///< received an invalid packet
     ChecksumError,       ///< packet checksum incorrect
     DstAddrMismatch,     ///< packet rejected because of unexpected destination address

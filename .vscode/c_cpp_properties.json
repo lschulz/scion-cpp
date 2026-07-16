@@ -12,6 +12,7 @@
                 "${workspaceFolder}/deps/imtui/include",
                 "${workspaceFolder}/deps/imtui/third-party/imgui",
                 "${workspaceFolder}/deps/spdlog/include",
+                "${workspaceFolder}/deps/mptcpd/include",
                 "${workspaceFolder}/examples/c/include",
                 "${workspaceFolder}/examples/include",
                 "${workspaceFolder}/include",

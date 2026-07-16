@@ -71,6 +71,12 @@ struct ScionErrorCategory : public std::error_category
                 return "remote machine returned an error";
             case ErrorCode::FileNotFound:
                 return "file not found";
+            case ErrorCode::Expired:
+                return "data is expired";
+            case ErrorCode::NoKey:
+                return "no valid key for cryptographic operation";
+            case ErrorCode::InvalidMAC:
+                return "MAC validation failed";
             case ErrorCode::InvalidPacket:
                 return "received an invalid packet";
             case ErrorCode::ChecksumError:
@@ -145,6 +151,12 @@ struct ScionErrorCondition : std::error_category
                 return "remote machine returned an error";
             case ErrorCondition::FileNotFound:
                 return "file not found";
+            case ErrorCondition::Expired:
+                return "data is expired";
+            case ErrorCondition::NoKey:
+                return "no valid key for cryptographic operation";
+            case ErrorCondition::InvalidMAC:
+                return "MAC validation failed";
             case ErrorCondition::InvalidPacket:
                 return "received an invalid packet";
             case ErrorCondition::ChecksumError:

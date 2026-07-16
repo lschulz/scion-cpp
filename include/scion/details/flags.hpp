@@ -104,7 +104,14 @@ public:
 
 	operator bool() const { return (flagSet.flags & flag) != 0; }
 
-	FlagProxy<EnumType> operator=(bool value) { flagSet.flags &= flag; return *this; }
+	FlagProxy<EnumType> operator=(bool value)
+	{
+		if (value)
+			flagSet.flags |= flag;
+		else
+			flagSet.flags &= ~flag;
+		return *this;
+	}
 };
 
 } // namespace details

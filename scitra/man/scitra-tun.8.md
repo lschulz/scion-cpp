@@ -1,4 +1,4 @@
-% scitra-tun(8) Version 0.0.4 | Scitra Manual
+% scitra-tun(8) Version 0.0.5 | Scitra Manual
 
 ## NAME ##
 

@@ -49,7 +49,6 @@ enum class OptType : std::uint8_t
     SPAO       = 2,   // SCION Packet Authentication Option
     IdInt      = 253, // ID-INT main option (testing only)
     IdIntEntry = 254, // ID-INT stack entry (testing only)
-
 };
 
 /// \brief SCION common and address header. Does not include the path.
@@ -464,6 +463,7 @@ public:
         return std::span<std::byte>(authenticator.data(), n);
     }
 
+    /// \brief Returns the size of the option including type and length fields.
     std::size_t size() const
     {
         return 2 + dataLen;

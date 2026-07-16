@@ -30,9 +30,11 @@
 
 struct Arguments
 {
-    std::string publicAddress;
     std::string publicInterface;
+    std::string publicAddress;
+    std::vector<std::string> extraAddresses;
     std::string sciond = "127.0.0.1:30255";
+    std::string mptcpd;
     std::string tunDevice = "scion";
     std::string tunAddress;
     int underlayMtu = 0;

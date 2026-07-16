@@ -24,6 +24,8 @@
 #include "scion/path/path.hpp"
 #include "scion/path/raw.hpp"
 
+#include <boost/container/flat_set.hpp>
+
 #include <cstring>
 #include <ostream>
 #include <span>
@@ -134,6 +136,33 @@ std::ostream& operator<<(std::ostream& stream, const Path& path)
 {
     stream << std::format("{}", path);
     return stream;
+}
+
+Maybe<std::pair<int, int>> Path::overlap(const Path& other) const
+{
+    using namespace scion::path_meta;
+
+    auto hopsA = getAttribute<Interfaces>(PATH_ATTRIBUTE_INTERFACES);
+    auto hopsB = other.getAttribute<Interfaces>(PATH_ATTRIBUTE_INTERFACES);
+    if (!hopsA || !hopsB) return Error(ErrorCode::InvalidArgument);
+
+    auto less = [] (const Hop& a, const Hop& b) {
+        if (a.isdAsn != b.isdAsn) return a.isdAsn < b.isdAsn;
+        if (a.ingress != b.ingress) return a.ingress < b.ingress;
+        return a.egress < b.egress;
+    };
+    boost::container::flat_set<Hop, decltype(less)> myHops(less);
+    myHops.reserve(hopsA->data.size());
+    for (const auto& hop : hopsA->data) {
+        myHops.insert(hop);
+    }
+
+    int overlap = 0;
+    for (const auto& hop : hopsB->data) {
+        if (myHops.contains(hop)) ++overlap;
+    }
+
+    return std::make_pair(overlap, (int)hopsB->data.size());
 }
 
 auto RawPath::expiry() const -> Expiry

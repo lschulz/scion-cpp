@@ -8,20 +8,24 @@ if (LINUX)
 find_package(PkgConfig)
 pkg_check_modules(libcap REQUIRED IMPORTED_TARGET libcap)
 pkg_check_modules(libpsx REQUIRED IMPORTED_TARGET libpsx)
+pkg_check_modules(libsystemd REQUIRED IMPORTED_TARGET libsystemd)
 
 configure_file("src/scitra-tun/version.cpp.in" "version.cpp")
 
 add_executable(scitra-tun)
 target_sources(scitra-tun PRIVATE
+    "src/crypto.cpp"
     "src/packet.cpp"
-    "src/translator.cpp"
+    "src/path_manager.cpp"
     "src/scitra-tun/error_codes.cpp"
     "src/scitra-tun/main_tun.cpp"
     "src/scitra-tun/netlink.cpp"
     "src/scitra-tun/scitra_tun.cpp"
+    "src/scitra-tun/service_systemd.cpp"
     "src/scitra-tun/socket.cpp"
     "src/scitra-tun/sys_net.cpp"
     "src/scitra-tun/tui.cpp"
+    "src/translator.cpp"
     "${CMAKE_CURRENT_BINARY_DIR}/version.cpp"
 )
 target_include_directories(scitra-tun PRIVATE
@@ -37,6 +41,7 @@ target_link_libraries(scitra-tun PRIVATE
     imtui-ncurses
     PkgConfig::libcap
     PkgConfig::libpsx
+    PkgConfig::libsystemd
 )
 target_compile_definitions(scitra-tun PRIVATE
     SCION_NO_DEBUG=1
@@ -83,9 +88,12 @@ endif(LINUX)
 # ==========
 
 set(SRC_SCITRA_TEST
+    "src/crypto.cpp"
     "src/packet.cpp"
     "src/translator.cpp"
     "tests/main.cpp"
+    "tests/test_crypto.cpp"
+    "tests/test_packet.cpp"
     "tests/test_translation.cpp"
     "${CMAKE_SOURCE_DIR}/tests/utilities.cpp"
 )
@@ -103,3 +111,4 @@ target_link_libraries(scitra-tests PRIVATE gtest gmock scion-cpp)
 # =====
 
 add_subdirectory(tools/scion2ip)
+add_subdirectory(mptcpd-plugin)

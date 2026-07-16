@@ -49,10 +49,12 @@ static const char* HELP_TEXT =
     "Keys\n"
     "----\n"
     "F1  Shows this message\n"
-    "F2  Changes the update speed\n"
+    "F2  Open settings dialog\n"
+    "F3  Changes the update speed\n"
     "F4  Brings up the path selection menu for the currently selected flow. Only\n"
-    "    outgoing (active) flows can change their path. The menu shows the paths\n"
-    "    after applying path policies.\n"
+    "    outgoing (active) flows that do not belong to a MPTCP connection can\n"
+    "    change their path. The menu shows the paths after applying path policies,\n"
+    "    so paths that are filtered out will not be selectable.\n"
     "F5  Reloads the policy file if one was given with -p/--policy when Scitra-TUN\n"
     "    was started.\n"
     "F6  Fetches new paths for the destination of the currently selected flow.\n"
@@ -83,19 +85,26 @@ static const char* HELP_TEXT =
     "Select an already selected flow again to deselect.\n"
     "\n"
     "Flow Properties\n"
-    "Direction: Whether the translator actively picks paths for the flow or\n"
-    "           passively responds on the same path as used by the remote host.\n"
-    "TC       : Traffic class / DSCP of the last translated packet.\n"
-    "Path     : The active path.\n"
-    "Hops     : Length of the active path in AS hops.\n"
-    "Expiry   : Time until the path expires.\n"
-    "Meta MTU : Path MTU reported by the path server. Zero if not available.\n"
-    "Path MTU : Discovered Path MTU. May be smaller than the metadata MTU.\n"
-    "MSS      : The flow's maximum segment size. The MSS des not take extension\n"
-    "           headers or TCP options into account.\n"
-    "Idle     : Time since the last packet. Flows are removed from the list if\n"
-    "           there is no corresponding connected socket in the system anymore.\n"
-    "           Flows from unconnected sockets expire after 2 minutes.\n"
+    "Local Addr  : SCION address of the local endpoint.\n"
+    "Remote Addr : SCION address of the remote endpoint.\n"
+    "Bound To    : Pre-translation IPv6 address of the local endpoint.\n"
+    "Bound Port  : Pre-translation port of the local endpoint.\n"
+    "MPTCP Token : Connection token of the remote host. Only shown for MPTCP\n"
+    "              connections\n."
+    "State       : Connection state as known to Scitra.\n"
+    "Direction   : Whether the translator actively picks paths for the flow or\n"
+    "              passively responds on the same path as used by the remote host.\n"
+    "TC          : Traffic class / DSCP of the last translated packet.\n"
+    "Path        : The active path.\n"
+    "Hops        : Length of the active path in AS hops.\n"
+    "Expiry      : Time until the path expires.\n"
+    "Meta MTU    : Path MTU reported by the path server. Zero if not available.\n"
+    "Path MTU    : Discovered Path MTU. May be smaller than the metadata MTU.\n"
+    "MSS         : The flow's maximum segment size. The MSS des not take extension\n"
+    "              headers or TCP options into account.\n"
+    "Idle        : Time since the last packet. Flows are removed from the list if\n"
+    "              there is no corresponding connected socket in the system anymore.\n"
+    "              Flows from unconnected sockets expire after 2 minutes.\n"
     "\n"
     "Graphs\n"
     "------\n"
@@ -271,9 +280,12 @@ struct FlowListEntry
     FlowListEntry() = default;
     FlowListEntry(const FlowInfo& flow, float elapsed)
         : tuple(flow.tuple)
+        , flags(flow.flags)
         , type(flow.type)
         , state(flow.state)
         , tc(flow.tc)
+        , boundTo(flow.boundTo)
+        , mptcpRemoteToken(flow.mptcpRemoteToken)
         , lastUsed(flow.lastUsed)
         , path(flow.path)
         , mtu(flow.mtu)
@@ -288,8 +300,11 @@ struct FlowListEntry
     void update(const FlowInfo& flow, float elapsed)
     {
         type = flow.type;
+        flags = flow.flags,
         state = flow.state;
         tc = flow.tc;
+        boundTo = flow.boundTo;
+        mptcpRemoteToken = flow.mptcpRemoteToken;
         lastUsed = flow.lastUsed;
         path = flow.path;
         mtu = flow.mtu;
@@ -322,9 +337,12 @@ struct FlowListEntry
     }
 
     FlowID tuple;
+    FlowInfo::FlagSet flags;
     FlowType type;
     FlowState state;
     std::uint8_t tc;
+    scion::generic::IPEndpoint boundTo;
+    std::uint32_t mptcpRemoteToken;
     std::chrono::steady_clock::time_point lastUsed;
     scion::PathPtr path;
     std::uint16_t mtu;
@@ -569,7 +587,9 @@ private:
     bool sortFlows = false;
     bool flowsOpen = true;
     bool graphsOpen = true;
+    bool graphsInPPS = false;
     bool showHelp = false;
+    bool showSetup = false;
 
     // Path pop-up
     bool pathSelector = false;
@@ -578,6 +598,7 @@ private:
         enum {
             NO_FLOW_SELECTED,
             PASSIVE_FLOW,
+            MULTIPATH,
             OPEN
         } state;
         FlowID flow;
@@ -760,7 +781,11 @@ void ScitraTui::drawFrame(const ImVec2& window)
                     ImGui::Text("%u", (unsigned)flow->tuple.dst.port());
 
                     ImGui::TableNextColumn();
-                    ImGui::Text("%s", protoToString((int)flow->tuple.proto));
+                    if (flow->flags[FlowInfo::Flags::Multipath]
+                        && flow->tuple.proto == scion::hdr::ScionProto::TCP)
+                        ImGui::TextUnformatted("MPTCP");
+                    else
+                        ImGui::Text("%s", protoToString((int)flow->tuple.proto));
 
                     ImGui::TableNextColumn();
                     ImGui::TextUnformatted(toString(flow->state));
@@ -789,26 +814,28 @@ void ScitraTui::drawFrame(const ImVec2& window)
         std::span<float, FLOW_RATE_HIST_LEN> tx(txAry.data(), txAry.size());
         std::span<float, FLOW_RATE_HIST_LEN> rx(rxAry.data(), rxAry.size());
         if (selFlow < 0 || (std::size_t)selFlow >= flowData.size()) {
-            globalRate.linearize(tx, [] (auto& x) {
-                return x.txBPS;
+            globalRate.linearize(tx, [this] (auto& x) {
+                return graphsInPPS ? x.txPPS : x.txBPS;
             });
-            globalRate.linearize(rx, [] (auto& x) {
-                return x.rxBPS;
+            globalRate.linearize(rx, [this] (auto& x) {
+                return graphsInPPS ? x.rxPPS : x.rxBPS;
             });
         } else {
-            flowData[selFlow]->rate.linearize(tx, [] (auto& x) {
-                return x.txBPS;
+            flowData[selFlow]->rate.linearize(tx, [this] (auto& x) {
+                return graphsInPPS ? x.txPPS : x.txBPS;
             });
-            flowData[selFlow]->rate.linearize(rx, [] (auto& x) {
-                return x.rxBPS;
+            flowData[selFlow]->rate.linearize(rx, [this] (auto& x) {
+                return graphsInPPS ? x.rxPPS : x.rxBPS;
             });
         }
-        plotBars(std::span<const float>(tx.data(), tx.size()), "TX bit/s", graphHeight);
+        auto label = graphsInPPS ? "TX pkt/s" : "TX bit/s";
+        plotBars(std::span<const float>(tx.data(), tx.size()), label, graphHeight);
         if (window.x >= minWidthSideBySideGraphs) {
             ImGui::SameLine();
             ImGui::SetCursorPosX(ImGui::GetCursorPosX() - 8.0f);
         }
-        plotBars(std::span<const float>(rx.data(), rx.size()), "RX bit/s", graphHeight);
+        label = graphsInPPS ? "RX pkt/s" : "RX bit/s";
+        plotBars(std::span<const float>(rx.data(), rx.size()), label, graphHeight);
     }
 
     // Buttons at the bottom of the screen
@@ -819,8 +846,12 @@ void ScitraTui::drawFrame(const ImVec2& window)
         showHelp = !showHelp;
     }
     ImGui::SameLine();
-    auto label = std::format("F2 Speed 1/{}s", (int)(1.0f / updateInterval[selInterval]));
-    if (ImGui::Button(label.c_str(), {16, 1}) || ImGui::IsKeyDown(TermKey::F2)) {
+    if (ImGui::Button("F2 Setup", {11, 1}) || ImGui::IsKeyDown(TermKey::F2)) {
+        showSetup = !showSetup;
+    }
+    ImGui::SameLine();
+    auto label = std::format("F3 Speed 1/{}s", (int)(1.0f / updateInterval[selInterval]));
+    if (ImGui::Button(label.c_str(), {16, 1}) || ImGui::IsKeyDown(TermKey::F3)) {
         if ((std::size_t)++selInterval >= updateInterval.size()) selInterval = 0;
     }
     ImGui::SameLine();
@@ -828,7 +859,11 @@ void ScitraTui::drawFrame(const ImVec2& window)
         pathSelector = !pathSelector;
         if (pathSelector && selFlow >= 0 && (std::size_t)selFlow < flowData.size()) {
             const auto& flow = flowData[selFlow];
-            if (flow->type == FlowType::Active) {
+            if (flow->type == FlowType::Passive) {
+                pathSel.state = PathSelWnd::PASSIVE_FLOW;
+            } else if (flow->flags[FlowInfo::Flags::Multipath]) {
+                pathSel.state = PathSelWnd::MULTIPATH;
+            } else {
                 pathSel.flow = flow->tuple;
                 pathSel.paths = scitra.getPaths(pathSel.flow, flow->tc);
                 pathSel.selection = -1;
@@ -843,8 +878,6 @@ void ScitraTui::drawFrame(const ImVec2& window)
                     }
                 }
                 pathSel.state = PathSelWnd::OPEN;
-            } else {
-                pathSel.state = PathSelWnd::PASSIVE_FLOW;
             }
         } else {
             pathSel.state = PathSelWnd::NO_FLOW_SELECTED;
@@ -890,6 +923,23 @@ void ScitraTui::drawFrame(const ImVec2& window)
             ImGui::TextUnformatted(HELP_TEXT);
         }
         if (ImGui::IsKeyDown(ImGui::GetIO().KeyMap[ImGuiKey_Escape])) showHelp = false;
+        if (ImGui::IsKeyDown(ImGui::GetIO().KeyMap[ImGuiKey_DownArrow])) {
+            ImGui::SetScrollY(ImGui::GetScrollY() + 1.0f);
+        } else if (ImGui::IsKeyDown(ImGui::GetIO().KeyMap[ImGuiKey_UpArrow])) {
+            ImGui::SetScrollY(ImGui::GetScrollY() - 1.0f);
+        }
+        ImGui::End();
+    }
+
+    // Setup pop-up
+    if (showSetup) {
+        ImVec2 size(50.0f, 2.0f);
+        ImGui::SetNextWindowSize(size);
+        ImGui::SetNextWindowPos(ImVec2(0.5f * (window.x - size.x), 0.5f * (window.y - size.y)));
+        if (ImGui::Begin("Setup", &showSetup, ImGuiWindowFlags_None | ImGuiWindowFlags_NoCollapse)) {
+            ImGui::Checkbox("Graphs in pkt/s", &graphsInPPS);
+        }
+        if (ImGui::IsKeyDown(ImGui::GetIO().KeyMap[ImGuiKey_Escape])) showSetup = false;
         ImGui::End();
     }
 
@@ -903,6 +953,8 @@ void ScitraTui::drawFrame(const ImVec2& window)
                 ImGui::TextUnformatted("No flow selected.");
             } else if (pathSel.state == PathSelWnd::PASSIVE_FLOW) {
                 ImGui::TextUnformatted("Passive flow selected, path is chosen by remote host.");
+            } else if (pathSel.state == PathSelWnd::MULTIPATH) {
+                ImGui::TextUnformatted("Can't change path of multipath flow.");
             } else {
                 auto size = ImGui::GetContentRegionAvail();
                 size.y -= 2;
@@ -1015,7 +1067,7 @@ void ScitraTui::propertyWindow(const ImVec2& tabSize)
                 const auto& flow = flowData[selFlow];
                 const std::size_t propertyWidth = 33;
                 ImGui::TableSetupScrollFreeze(0, 1);
-                ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_None, 10);
+                ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_None, 11);
                 ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
                 ImGui::TableHeadersRow();
 
@@ -1037,6 +1089,29 @@ void ScitraTui::propertyWindow(const ImVec2& tabSize)
                     auto str = std::format("{}", flow->tuple.dst);
                     if (str.size() > propertyWidth) str = wrapScAddress(str, propertyWidth);
                     ImGuiText(str);
+                }
+
+                {
+                    ImGui::TableNextRow(ImGuiTableRowFlags_None, 1.0f);
+                    ImGui::TableNextColumn();
+                    ImGui::Text("Bound To");
+                    ImGui::TableNextColumn();
+                    auto str = std::format("{}", flow->boundTo.host());
+                    if (str.size() > propertyWidth) str = wrapScAddress(str, propertyWidth);
+                    ImGuiText(str);
+                    ImGui::TableNextRow(ImGuiTableRowFlags_None, 1.0f);
+                    ImGui::TableNextColumn();
+                    ImGui::Text("Bound Port");
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%u", (unsigned)flow->boundTo.port());
+                }
+
+                if (flow->flags[FlowInfo::Flags::Multipath]) {
+                    ImGui::TableNextRow(ImGuiTableRowFlags_None, 1.0f);
+                    ImGui::TableNextColumn();
+                    ImGui::Text("MPTCP Token");
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%x", flow->mptcpRemoteToken);
                 }
 
                 ImGui::TableNextRow(ImGuiTableRowFlags_None, 1.0f);

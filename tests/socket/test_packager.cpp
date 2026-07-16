@@ -47,43 +47,47 @@ protected:
     };
 
     template <typename Alloc>
-    static void checkIdInt(const scion::ext::IdInt<Alloc>& idint)
+    static void checkIdInt(const scion::idint::IdInt<Alloc>& idint)
     {
         using namespace scion::hdr;
+        using namespace scion::idint;
 
-        EXPECT_EQ(idint.main.dataLen, 22);
+        EXPECT_EQ(idint.main.dataLen, 20);
+        EXPECT_EQ(idint.main.size(), 22);
         EXPECT_EQ(idint.main.flags, IdIntOpt::Flags::Discard);
-        EXPECT_EQ(idint.main.agrMode, IdIntOpt::AgrMode::AS);
-        EXPECT_EQ(idint.main.vtype, IdIntOpt::Verifier::Destination);
-        EXPECT_EQ(idint.main.stackLen, 16);
+        EXPECT_EQ(idint.main.agrMode, AM::AS);
+        EXPECT_EQ(idint.main.vtype, Verifier::Destination);
+        EXPECT_EQ(idint.main.stackLen, 96);
         EXPECT_EQ(idint.main.tos, 0);
         EXPECT_EQ(idint.main.delayHops, 0);
-        EXPECT_EQ(idint.main.bitmap, IdIntInstFlags::NodeID);
-        EXPECT_EQ(idint.main.agrFunc[0], IdIntOpt::AgrFunction::Last);
-        EXPECT_EQ(idint.main.agrFunc[1], IdIntOpt::AgrFunction::Last);
-        EXPECT_EQ(idint.main.agrFunc[2], IdIntOpt::AgrFunction::First);
-        EXPECT_EQ(idint.main.agrFunc[3], IdIntOpt::AgrFunction::First);
-        EXPECT_EQ(idint.main.instr[0], IdIntInstruction::IngressTstamp);
-        EXPECT_EQ(idint.main.instr[1], IdIntInstruction::DeviceTypeRole);
-        EXPECT_EQ(idint.main.instr[2], IdIntInstruction::Nop);
-        EXPECT_EQ(idint.main.instr[3], IdIntInstruction::Nop);
+        EXPECT_EQ(idint.main.bitmap, InstrFlag::NodeID);
+        EXPECT_EQ(idint.main.agrFuncs[0], AF::Last);
+        EXPECT_EQ(idint.main.agrFuncs[1], AF::Last);
+        EXPECT_EQ(idint.main.agrFuncs[2], AF::First);
+        EXPECT_EQ(idint.main.agrFuncs[3], AF::First);
+        EXPECT_EQ(idint.main.instr[0], Instr::IngressTstamp);
+        EXPECT_EQ(idint.main.instr[1], Instr::DeviceTypeRole);
+        EXPECT_EQ(idint.main.instr[2], Instr::Nop);
+        EXPECT_EQ(idint.main.instr[3], Instr::Nop);
         EXPECT_EQ(idint.main.sourceTS, 1000);
         EXPECT_EQ(idint.main.sourcePort, 10);
 
         EXPECT_EQ(idint.entries.size(), 1);
         auto& source = idint.entries[0];
-        EXPECT_EQ(source.dataLen, 20);
+        EXPECT_EQ(source.dataLen, 22);
+        EXPECT_EQ(source.size(), 24);
         EXPECT_EQ(source.flags, IdIntEntry::Flags::Source);
-        EXPECT_EQ(source.mask, IdIntInstFlags::NodeID);
-        EXPECT_THAT(source.ml, testing::ElementsAre(2, 1, 0, 0));
-        static const std::array<std::byte, 10> expected = {
+        EXPECT_EQ(source.mask, InstrFlag::NodeID);
+        EXPECT_THAT(source.ml, testing::ElementsAre(3, 1, 0, 0));
+        static const std::array<std::byte, 14> expected = {
             0x00_b, 0x00_b, 0x00_b, 0x02_b,
-            0x00_b, 0x00_b, 0x00_b, 0x03_b,
+            0x00_b, 0x00_b, 0x00_b, 0x00_b, 0x00_b, 0x03_b,
             0x00_b, 0x04_b,
+            0x00_b, 0x00_b, // padding
         };
-        EXPECT_TRUE(std::ranges::equal(source.getMetadata(), expected))
-            << printBufferDiff(source.getMetadata(), expected);
-        EXPECT_THAT(source.mac, testing::ElementsAre(0xff_b, 0xff_b, 0xff_b, 0xff_b));
+        EXPECT_TRUE(std::ranges::equal(source.metadata(), expected))
+            << printBufferDiff(source.metadata(), expected);
+        EXPECT_THAT(source.mac(), testing::ElementsAre(0xd8_b, 0x19_b, 0xc9_b, 0x98_b));
     }
 
     inline static scion::Address<scion::generic::IPAddress> src, dst;
@@ -367,7 +371,7 @@ TEST_F(PacketSocketFixture, ReceiveIdInt)
     EXPECT_EQ(packager.localEp(), local);
 
     auto ulSource = remote.host();
-    ext::IdInt idint;
+    idint::IdInt idint;
     std::array<ext::Extension*, 1> hbhExt = {&idint};
     ScionPackager::Endpoint from;
     RawPath path;

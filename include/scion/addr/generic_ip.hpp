@@ -256,10 +256,12 @@ public:
         }
     }
 
-    /// \brief Get IPv4 address as big-endian integer.
+    /// \brief Get IPv4 address as integer in host byte-order.
     std::uint32_t getIPv4() const { assert(is4()); return std::uint32_t(m_lo); }
 
-    /// \brief Get IPv6 address as two big-endian integers.
+    /// \brief Get IPv6 address as two integers in host byte-order. The
+    /// first integer is the high half of the address, the second is the low
+    /// half.
     std::pair<std::uint64_t, std::uint64_t> getIPv6() const
     {
         return std::make_pair(m_hi, m_lo);

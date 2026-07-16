@@ -21,12 +21,13 @@
 #pragma once
 
 #include "scitra/packet.hpp"
-#include "scitra/translator.hpp"
+#include "scitra/path_manager.hpp"
 #include "scitra/scitra-tun/cli_args.hpp"
 #include "scitra/scitra-tun/flow.hpp"
 #include "scitra/scitra-tun/netlink.hpp"
 #include "scitra/scitra-tun/socket.hpp"
 #include "scitra/scitra-tun/tun.hpp"
+#include "scitra/translator.hpp"
 
 #include "scion/asio/addresses.hpp"
 #include "scion/daemon/co_client.hpp"
@@ -35,6 +36,7 @@
 #include "scion/scmp/path_mtu.hpp"
 
 #include <boost/asio.hpp>
+#include <boost/container/flat_map.hpp>
 #include <linux/if_ether.h>
 
 #include <atomic>
@@ -66,15 +68,29 @@ struct DbgPerformance
 
 struct FlowInfo
 {
+    enum class Flags : int
+    {
+        Multipath = 1,
+    };
+    using FlagSet = scion::details::FlagSet<Flags>;
+
     FlowID tuple;
+    FlagSet flags;
     FlowType type;
     FlowState state;
     std::uint8_t tc;
+    scion::generic::IPEndpoint boundTo;
+    std::uint32_t mptcpRemoteToken;
     FlowCounters counters;
     std::chrono::steady_clock::time_point lastUsed;
     scion::PathPtr path;
     std::uint16_t mtu;
 };
+
+inline FlowInfo::FlagSet operator|(FlowInfo::Flags lhs, FlowInfo::Flags rhs)
+{
+    return FlowInfo::FlagSet(lhs) | rhs;
+}
 
 class ScitraTun
 {
@@ -92,6 +108,8 @@ private:
     asio::signal_set signals;
     // Timer that starts bookkeeping tasks in regular intervals.
     boost::asio::steady_timer eventTimer;
+    // TODO
+    mptcpd::PathManager tcpPathManager;
 
     // ASIO IO context for gRPC. gRPC has it's own event loop, so a separate
     // context is needed.
@@ -118,6 +136,9 @@ private:
     scion::generic::IPAddress mappedIP;
     // IPv6 address of the TUN interface. May be equal to mappedIP.
     scion::generic::IPAddress tunIP;
+    // Additional IPv6 addresses of the TUN interface that provide additional
+    // endpoints to MPTCP.
+    std::vector<scion::generic::IPAddress> extraIPs;
     // Name of the network interface used for SCION communication.
     std::string netDevice;
     // Name of the TUN interface.
@@ -132,10 +153,15 @@ private:
     // Indexed by local port.
     std::map<std::uint16_t, std::shared_ptr<Socket>> sockets;
 
-    // Mutex that must be held when accessing `flows`.
+    // Mutex that must be held when accessing `flows`, `mpPortRemap`,
+    // and `mpTokenMap`.
     mutable std::mutex flowMutex;
     // Active flows/connections using the translator. Indexed by flow ID.
     std::unordered_map<FlowID, std::shared_ptr<Flow>> flows;
+    // Mapping of MPTCP remote connection token to lead flow.
+    boost::container::flat_map<std::uint32_t, std::shared_ptr<Flow>> mpTokenMap;
+    // MPTCP source port remapping table.
+    boost::container::flat_map<scion::generic::IPEndpoint, std::uint16_t> mpPortRemap;
 
     std::filesystem::path policyFile;
     std::atomic<std::shared_ptr<path_policy::PolicySet>> pathPolicy;
@@ -189,8 +215,8 @@ public:
     /// account. If the requests flow does not exist, returns an empty list.
     std::vector<PathPtr> getPaths(const FlowID& flowid, std::uint8_t tc) const;
 
-    /// \brief Override the path selection the specified flow. Has no effect on
-    /// passive flows where the remote hosts selects the paths.
+    /// \brief Override the path of a flow. Has no effect on passive flows where
+    /// the remote hosts selects the path, and on MPTCP flows.
     void overrideFlowPath(const FlowID& flowid, PathPtr path);
 
     /// \brief Remove a flow immediately.
@@ -227,10 +253,24 @@ private:
     std::error_code translateIPtoScion(TunQueue& tun);
     asio::awaitable<std::error_code> translateScionToIP(std::shared_ptr<Socket> socket);
 
-    std::shared_ptr<Flow> getFlow(const FlowID& id, FlowType type);
+    std::shared_ptr<Flow> getFlowEgress(
+        const PacketBuffer& pkt, FlowID& id, const generic::IPEndpoint& localEp);
+    std::shared_ptr<Flow> getFlowIngress(const FlowID& id, const generic::IPEndpoint& localEp);
+    std::shared_ptr<Flow> findFlow(const FlowID& id);
+
+    std::error_code resetMptcpSubflow(
+        const std::shared_ptr<Flow>& flow, PacketBuffer& pkt,
+        TunQueue& tun, const std::chrono::steady_clock::time_point& recvd);
+    std::error_code rejectMptcpSubflow(
+        const std::shared_ptr<Flow>& flow, PacketBuffer& pkt,
+        const boost::asio::ip::udp::endpoint& nh,
+        const std::chrono::steady_clock::time_point& recvd);
+
     std::error_code queryPaths(SharedPathCache& cache, IsdAsn src, IsdAsn dst);
-    Maybe<PathPtr> selectPath(
-        const ScIPAddress& src, const ScIPAddress& dst,
-        std::uint16_t sport, std::uint16_t dport, hdr::ScionProto proto, std::uint8_t tc);
+    PathPtr refreshPath(const PathPtr& path);
+    Maybe<PathPtr> selectPath(const FlowID& flowid, std::uint8_t tc);
+    Maybe<PathPtr> selectPathMulti(
+        const FlowID& flowid, std::uint8_t tc, const std::span<PathPtr>& others);
+    Maybe<std::vector<PathPtr>> queryPaths(const FlowID& flowid, std::uint8_t tc);
     void printStatus();
 };

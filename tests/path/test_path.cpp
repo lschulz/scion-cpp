@@ -190,11 +190,12 @@ protected:
         pb.ParseFromArray(buf.data(), (int)(buf.size()));
         auto flags = daemon::PathReqFlags::Interfaces;
         path = daemon::details::pathFromProtobuf(src, dst, pb, flags).value();
+        path2 = daemon::details::pathFromProtobuf(src, dst, pb, NoFlags).value();
     };
 
     inline static scion::IsdAsn src, dst;
     inline static proto::daemon::v1::Path pb;
-    inline static scion::PathPtr path;
+    inline static scion::PathPtr path, path2;
 };
 
 TEST_F(PathFixture, Attributes)
@@ -232,6 +233,10 @@ TEST_F(PathFixture, Equality)
     pb2.mutable_expiration()->clear_seconds();
     auto path2 = daemon::details::pathFromProtobuf(src, dst, pb, NoFlags);
     EXPECT_NE(path, *path2);
+
+    scion::RawPath rp(*path);
+    EXPECT_EQ(*path, rp);
+    EXPECT_EQ(rp, *path);
 }
 
 TEST_F(PathFixture, Digest)
@@ -241,6 +246,9 @@ TEST_F(PathFixture, Digest)
     EXPECT_EQ(makeEmptyPath(path->firstAS())->digest(),
         PathDigest(0xe7cc783a3f31d342ull, 0x32437bfd0d34741aull));
     EXPECT_EQ(path->digest(), PathDigest(0x78761e9ce11d0564ull, 0x1640e338635f659bull));
+
+    scion::RawPath rp(*path);
+    EXPECT_EQ(path->digest(), rp.digest());
 }
 
 TEST_F(PathFixture, ContainsInterface)
@@ -263,13 +271,30 @@ TEST_F(PathFixture, ContainsHop)
         IsdAsn(Isd(2), Asn(0xff00'0000'0211)), AsInterface(5), AsInterface(4)));
 }
 
+TEST_F(PathFixture, Overlap)
+{
+    using namespace scion;
+
+    auto overlap = path->overlap(*path);
+    EXPECT_TRUE(overlap.has_value());
+    EXPECT_EQ(overlap->first, 3);
+    EXPECT_EQ(overlap->second, 3);
+
+    overlap = path->overlap(*path2);
+    EXPECT_FALSE(overlap.has_value());
+}
+
+TEST_F(PathFixture, EqualHops)
+{
+    EXPECT_TRUE(equalHops(*path, *path));
+    EXPECT_TRUE(equalHops(*path, *path2));
+}
+
 TEST_F(PathFixture, Format)
 {
     using namespace scion;
     using namespace scion::daemon;
 
     EXPECT_EQ(std::format("{}", *path), "1-ff00:0:111 2>5 2-ff00:0:211 4>3 2-ff00:0:222");
-
-    auto path2 = daemon::details::pathFromProtobuf(src, dst, pb, NoFlags).value();
     EXPECT_EQ(std::format("{}", *path2), "1-ff00:0:111 2>5 4>3 2-ff00:0:222");
 }

@@ -20,35 +20,43 @@
 
 #pragma once
 
-#include "proto/drkey/v1/drkey.pb.h"
-
 #include <algorithm>
 #include <array>
 #include <chrono>
 #include <cstddef>
+#include <span>
 
 
 namespace scion {
+
+enum class DRKeyProtocol : std::uint_fast16_t
+{
+    Generic = 0,
+    SCMP = 1,
+    IDINT = 2,
+};
+
 namespace drkey {
+
+using TimePoint = std::chrono::utc_clock::time_point;
 
 /// \brief A level 2 or level 3 DRKey.
 class Key
 {
 public:
-    using TimePoint = std::chrono::utc_clock::time_point;
-
-    std::array<std::byte, 16> key;
+    std::array<std::byte, 16> key = {};
     TimePoint epochBegin;
     TimePoint epochEnd;
 
 public:
     Key() = default;
 
-    Key(std::array<std::byte, 16> key, TimePoint epochBegin, TimePoint epochEnd)
-        : key(std::move(key))
-        , epochBegin(epochBegin)
+    Key(std::span<std::byte, 16> sKey, TimePoint epochBegin, TimePoint epochEnd)
+        : epochBegin(epochBegin)
         , epochEnd(epochEnd)
-    {}
+    {
+        std::ranges::copy(sKey, key.begin());
+    }
 
     Key(const std::byte pKey[16], TimePoint epochBegin, TimePoint epochEnd)
         : epochBegin(epochBegin)

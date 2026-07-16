@@ -86,16 +86,23 @@ protected:
     static bool insertPadding(std::size_t n, Stream& stream, Error& err)
     {
         static_assert(Stream::IsWriting);
-        if (n == 0) return true;
         hdr::SciOpt padding;
-        if (n == 1) {
-            padding.type = hdr::OptType::Pad1;
-            padding.dataLen = 1;
-        } else {
-            padding.type = hdr::OptType::PadN;
-            padding.dataLen = (std::uint8_t)(n - 2);
+        for (std::size_t i = 0; i < n;) {
+            auto remaining = n - i;
+            if (remaining == 1) {
+                padding.type = hdr::OptType::Pad1;
+                padding.dataLen = 1;
+                if (!padding.serialize(stream, err)) return err.propagate();
+                i += 1;
+            } else {
+                auto m = std::min<std::size_t>(remaining-2, 255);
+                padding.type = hdr::OptType::PadN;
+                padding.dataLen = (std::uint8_t)m;
+                if (!padding.serialize(stream, err)) return err.propagate();
+                i += m + 2;
+            }
         }
-        return padding.serialize(stream, err);
+        return true;
     }
 
 private:

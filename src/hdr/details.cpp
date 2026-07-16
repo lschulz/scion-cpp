@@ -46,9 +46,7 @@ std::uint16_t onesComplementChecksumScalar(std::span<const std::byte> buffer, st
     if (buffer.size() > 2*sizeWords) {
         sum += std::uint32_t(buffer[buffer.size()-1]) << 8;
     }
-    while ((sum & ~0xffffu) != 0) {
-        sum = (sum >> 16) + (sum & 0xffffu);
-    }
+    sum = (sum >> 16) + (sum & 0xffffu);
     return std::uint16_t(sum);
 }
 
@@ -102,9 +100,7 @@ std::uint16_t onesComplementChecksumAVX(std::span<const std::byte> buffer, std::
     }
 
     // Add carry for one's complement addition
-    while ((sum & ~0xffffu) != 0) {
-        sum = (sum >> 16) + (sum & 0xffffu);
-    }
+    sum = (sum >> 16) + (sum & 0xffffu);
     return std::uint16_t(sum);
 }
 #endif // __AVX2__

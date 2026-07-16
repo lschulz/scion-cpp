@@ -199,9 +199,12 @@ target_sources(scion-cpp
         "src/addr/generic_ip.cpp"
         "src/addr/isd_asn.cpp"
         "src/bit_stream.cpp"
+        "src/crypto/aes.cpp"
         "src/daemon/client.cpp"
         "src/default_address.cpp"
+        "src/detect_cpu.cpp"
         "src/error_codes.cpp"
+        "src/extensions/idint.cpp"
         "src/hdr/details.cpp"
         "src/murmur_hash3.cpp"
         "src/path/path_meta.cpp"
@@ -223,6 +226,7 @@ target_sources(scion-cpp
         "include/scion/asio/scmp_socket.hpp"
         "include/scion/asio/udp_socket.hpp"
         "include/scion/bit_stream.hpp"
+        "include/scion/crypto/aes.hpp"
         "include/scion/daemon/client.hpp"
         "include/scion/daemon/co_client.hpp"
         "include/scion/details/bit.hpp"
@@ -231,9 +235,13 @@ target_sources(scion-cpp
         "include/scion/details/flags.hpp"
         "include/scion/details/from_chars.hpp"
         "include/scion/details/protobuf_time.hpp"
+        "include/scion/detect_cpu.hpp"
         "include/scion/drkey/drkey.hpp"
+        "include/scion/drkey/key_cache.hpp"
         "include/scion/error_codes.hpp"
         "include/scion/extensions/extension.hpp"
+        "include/scion/extensions/idint_instr.hpp"
+        "include/scion/extensions/idint.hpp"
         "include/scion/extensions/idint.hpp"
         "include/scion/hdr/details.hpp"
         "include/scion/hdr/ethernet.hpp"
@@ -364,6 +372,9 @@ set(SRC_TEST
     "tests/asio/test_addresses.cpp"
     "tests/asio/test_scmp_socket.cpp"
     "tests/asio/test_udp_socket.cpp"
+    "tests/crypto/test_aes.cpp"
+    "tests/drkey/test_key_cache.cpp"
+    "tests/extensions/test_idint_api.cpp"
     "tests/hdr/test_checksum.cpp"
     "tests/hdr/test_idint.cpp"
     "tests/hdr/test_ip.cpp"
@@ -417,6 +428,12 @@ endif()
 # ------
 
 add_subdirectory(scitra)
+
+# ============
+# Applications
+# ============
+
+add_subdirectory(applications/idint-traceroute)
 
 # ========
 # Examples

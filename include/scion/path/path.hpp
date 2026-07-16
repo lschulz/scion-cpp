@@ -82,12 +82,32 @@ public:
         const generic::IPEndpoint& nh,
         std::span<const std::byte> dpPath);
 
+    explicit operator RawPath()
+    {
+        return RawPath(m_source, m_destination, m_type, encoded());
+    }
+
+    // Paths are considered equal if the match byte for byte including
+    // timestamps and MACs.
     bool operator==(const Path& other) const
     {
         return m_source == other.m_source && m_destination == other.m_destination
             && m_type == other.m_type && m_expires_by == other.m_expires_by
             && m_nextHop == other.m_nextHop
             && std::ranges::equal(m_path, other.m_path);
+    }
+
+    // Paths are considered equal if the match byte for byte including
+    // timestamps and MACs.
+    bool operator==(const RawPath& raw) const
+    {
+        return m_source == raw.firstAS() && m_destination == raw.lastAS()
+            && m_type == raw.type() && std::ranges::equal(encoded(), raw.encoded());
+    }
+
+    friend bool operator==(const RawPath& raw, const Path& path)
+    {
+        return path == raw;
     }
 
     /// \brief Returns the first AS on the path (the source).
@@ -230,6 +250,12 @@ public:
         return false;
     }
 
+    /// \brief Calculate how many hops in `other` are also in this path.
+    /// \returns Pair of shared hops and length of `other` in hops. The overlap
+    /// expressed as a fraction is `first` divided by `second`. Returns
+    /// InvalidArgument if one or both paths are missing interface metadata.
+    Maybe<std::pair<int, int>> overlap(const Path& other) const;
+
     friend std::ostream& operator<<(std::ostream& stream, const Path& path);
 };
 
@@ -284,6 +310,14 @@ inline PathPtr makeEmptyPath(IsdAsn isdAsn)
 {
     return PathPtr(new Path(isdAsn, isdAsn, hdr::PathType::Empty,
         Path::Expiry::max(), 0, generic::IPEndpoint(), std::span<std::byte>()));
+}
+
+/// \brief Check if two paths have the same AS interface-level hops ignoring
+/// timestamps and MACs.
+template <typename Path1, typename Path2>
+bool equalHops(const Path1& path1, const Path2& path2)
+{
+    return std::ranges::equal(path1.hops(), path2.hops());
 }
 
 } // namespace scion

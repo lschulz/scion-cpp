@@ -30,6 +30,7 @@ using namespace scion::generic;
 using std::uint32_t;
 using std::size_t;
 
+// Documentation for Linux routing sockets is available in man 7 rtnetlink.
 
 const std::uint8_t NetlinkRoute::TABLE_MAIN = RT_TABLE_MAIN;
 
@@ -130,9 +131,10 @@ std::error_code NetlinkRoute::setInterfaceMTU(const std::string& dev, uint32_t m
     return execute(nlh, buf.get(), bufsize, nlh->nlmsg_seq);
 }
 
+// TODO: Set source address instead of via.
 std::error_code NetlinkRoute::addRoute(
     std::uint8_t table, const IPAddress& dst, PrefixLen prefixlen,
-    const std::string& dev, const IPAddress* via)
+    const std::string& dev, const IPAddress* src)
 {
     if (!nl) return ScitraError::SocketClosed;
     int iface = if_nametoindex(dev.c_str());
@@ -158,9 +160,9 @@ std::error_code NetlinkRoute::addRoute(
         rtm->rtm_family = AF_INET;
         if (!mnl_attr_put_u32_check(nlh, bufsize, RTA_DST, dst.getIPv4()))
             return ScitraError::LogicError;
-        if (via) {
-            if (!via->is4()) return ScitraError::InvalidArgument;
-            if (!mnl_attr_put_u32_check(nlh, bufsize, RTA_GATEWAY, via->getIPv4()))
+        if (src) {
+            if (!src->is4()) return ScitraError::InvalidArgument;
+            if (!mnl_attr_put_u32_check(nlh, bufsize, RTA_PREFSRC, src->getIPv4()))
                 return ScitraError::LogicError;
         }
     } else {
@@ -169,11 +171,11 @@ std::error_code NetlinkRoute::addRoute(
         if (scion::isError(ip)) return ScitraError::LogicError;
         if (!mnl_attr_put_check(nlh, bufsize, RTA_DST, sizeof(in6_addr), &(*ip)))
             return ScitraError::LogicError;
-        if (via) {
-            if (!via->is6()) return ScitraError::InvalidArgument;
-            ip = scion::generic::toUnderlay<in6_addr>(*via);
+        if (src) {
+            if (!src->is6()) return ScitraError::InvalidArgument;
+            ip = scion::generic::toUnderlay<in6_addr>(*src);
             if (scion::isError(ip)) return ScitraError::LogicError;
-            if (!mnl_attr_put_check(nlh, bufsize, RTA_GATEWAY, sizeof(in6_addr), &(*ip)))
+            if (!mnl_attr_put_check(nlh, bufsize, RTA_PREFSRC, sizeof(in6_addr), &(*ip)))
                 return ScitraError::LogicError;
         }
     }

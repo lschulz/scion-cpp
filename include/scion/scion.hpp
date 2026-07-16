@@ -32,6 +32,7 @@
 
 #include <scion/daemon/client.hpp>
 #include <scion/drkey/drkey.hpp>
+#include <scion/drkey/key_cache.hpp>
 
 #include <scion/extensions/idint.hpp>
 

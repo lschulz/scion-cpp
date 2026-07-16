@@ -465,7 +465,7 @@ private:
             return ErrorCode::InvalidPacket;
         }
     #ifndef SCION_DISABLE_CHECKSUM
-        if (pkt.checksum() != 0xffffu) {
+        if (pkt.checksum() != 0xffff) {
             return ErrorCode::ChecksumError;
         }
     #endif
