@@ -21,6 +21,7 @@
 #include "scitra/scitra-tun/cli_args.hpp"
 #include "scitra/scitra-tun/scitra_tun.hpp"
 #include "scitra/scitra-tun/sys_net.hpp"
+#include "scitra/scitra-tun/service.hpp"
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
@@ -97,6 +98,9 @@ static std::unique_ptr<Arguments> parseCommandLine(int argc, char* argv[])
         "Timeout for NAT bindings. That is, after how many seconds of inactivity a STUN request"
         " must be repeated. (default 30)");
     app.add_flag("--tui", args->tui, "Start with TUI");
+    app.add_flag_function("--daemon", [](std::int64_t count) {
+        if (count > 0) service::setRunningAsService();
+    }, "Run as a systemd daemon.");
     app.set_version_flag("-v,--version", VERSION_LINE);
     app.set_config("--config", "",
         "Configuration file containing command line options in ini or TOML syntax.");
@@ -185,8 +189,10 @@ int main(int argc, char* argv[])
 
         if (dropCapabilities()) spdlog::error("dropping capabilities failed");
         app.run();
+        service::setServiceStatus(service::Status::Running);
         if (tui) uiLoop(app);
         app.join();
+        service::setServiceStatus(service::Status::Stopped);
     }
     catch (const std::exception& e) {
         spdlog::error(e.what());

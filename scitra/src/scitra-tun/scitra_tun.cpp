@@ -20,6 +20,7 @@
 
 #include "scitra/scitra-tun/debug.hpp"
 #include "scitra/scitra-tun/scitra_tun.hpp"
+#include "scitra/scitra-tun/service.hpp"
 #include "scitra/scitra-tun/sys_net.hpp"
 
 #include <spdlog/spdlog.h>
@@ -276,6 +277,7 @@ ScitraTun::~ScitraTun()
 
 void ScitraTun::stop()
 {
+    service::setServiceStatus(service::Status::StopPending);
     shouldExit = true;
     grpcWorkGuard.reset();
     grpcIoCtx.stop();

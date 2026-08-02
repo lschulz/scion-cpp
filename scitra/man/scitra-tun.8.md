@@ -1,4 +1,4 @@
-% scitra-tun(8) Version 0.0.4 | Scitra Manual
+% scitra-tun(8) Version 0.0.5 | Scitra Manual
 
 ## NAME ##
 
@@ -6,15 +6,7 @@ scitra-tun - a SCION-IP packet translator
 
 ## SYNOPSIS ##
 
-| **scitra-tun**
-    \[**-a**|**--tun-addr** addr\] \[**-d**|**--sciond**\ daemon\]
-    \[**-l**|**--log-level** level\] \[**--log-file** log\]
-    \[**-m**|**--mtu** mtu\] \[**-n**|**--tun-name** name\]
-    \[**--nat-timeout** timeout\] \[**-p**|**--ports** port \[port...\]\]
-    \[**--policy** policy\] \[**-q**|**--queues** queues\] \[**--stun-port** port\]
-    \[**-t**|**--threads** threads\] \[**--scmp**\] \[**--stun**\] \[**--tui**\]
-    \[**--interface** address\] \[**--address** interface\] \[address\] \[interface\]
-| **scitra-tun** \[**--config** config\] \[address\] \[interface\]
+| **scitra-tun** \[_Options_\] \[**--config** _config_\] \[_address_\] \[_interface_\]
 
 ## DESCRIPTION ##
 
@@ -91,11 +83,18 @@ IPv6 subnets with the same ISD-ASN and set up IPv6 routes between them.
 `--tui` Start with text/terminal user interface. If the TUI is enabled, log output should be
     redirected to a file (see -l, --log-file).
 
+`--daemon` Run as a systemd daemon. If this flag is set, Scitra-TUN will notify systemd when
+    initialization has been completed as required for services of type "notify".
+    See systemd.service(5).
+
+`--config` Path to a configuration file in ini or TOML format of command line options. Options
+    given on the command line override options in the configuration file.
+
 `-v, --version` Display program version and exit.
 
 ## OPTION FILE ##
 
-Command line options may be read from a file in ini or TOML syntax given by the `--conf` option.
+Command line options may be read from a file in ini or TOML syntax given by the `--config` option.
 An example option file may look likes this:
 ```
 interface   = eth
@@ -274,4 +273,4 @@ Lars-Christian Schulz <lschulz@ovgu.de>
 
 ## SEE ALSO ##
 
-scion2ip(1), ip(8), scitra-policy.json(5)
+scion2ip(1), ip(8), scitra-policy.json(5), systemd.service(5)

@@ -8,6 +8,7 @@ if (LINUX)
 find_package(PkgConfig)
 pkg_check_modules(libcap REQUIRED IMPORTED_TARGET libcap)
 pkg_check_modules(libpsx REQUIRED IMPORTED_TARGET libpsx)
+pkg_check_modules(libsystemd REQUIRED IMPORTED_TARGET libsystemd)
 
 configure_file("src/scitra-tun/version.cpp.in" "version.cpp")
 
@@ -19,6 +20,7 @@ target_sources(scitra-tun PRIVATE
     "src/scitra-tun/main_tun.cpp"
     "src/scitra-tun/netlink.cpp"
     "src/scitra-tun/scitra_tun.cpp"
+    "src/scitra-tun/service_systemd.cpp"
     "src/scitra-tun/socket.cpp"
     "src/scitra-tun/sys_net.cpp"
     "src/scitra-tun/tui.cpp"
@@ -37,6 +39,7 @@ target_link_libraries(scitra-tun PRIVATE
     imtui-ncurses
     PkgConfig::libcap
     PkgConfig::libpsx
+    PkgConfig::libsystemd
 )
 target_compile_definitions(scitra-tun PRIVATE
     SCION_NO_DEBUG=1
