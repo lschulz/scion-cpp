@@ -53,7 +53,7 @@ ip = IPv6(
 
 ip_clamped = IPv6(
     tc = 32,
-    fl = 0xddd6b,
+    fl = 0x2a3e5,
     hlim = 64,
     src = "fc00:10fb:f000::ffff:a00:1",
     dst = "fc00:20fb:f100::ffff:a00:2"
@@ -105,7 +105,7 @@ scion_clamped = IP(
     dport = 31002
 ) / SCION(
     qos = 32,
-    fl = 0x86c8b,
+    fl = 0x71205,
     dst_isd = 2,
     dst_asn = "64497",
     src_isd = 1,

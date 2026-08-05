@@ -121,7 +121,7 @@ struct ParsedPacket
         auto len = (std::uint16_t)(sci.plen - hbhSize - e2eSize);
         len -= (std::uint16_t)(2 * (hbhSize > 0) + 2 * (e2eSize > 0));
         checksum += sci.checksum(len, nh);
-        return hdr::details::internetChecksum(payload, checksum);
+        return hdr::details::onesComplementChecksum(payload, checksum);
     }
 };
 

@@ -81,7 +81,7 @@ public:
     }
 } isScion;
 
-TEST(ScitraCore, TranslatePrefix)
+TEST(Translation, TranslatePrefix)
 {
     using namespace scion::generic;
     using namespace scion::scitra;
@@ -102,7 +102,7 @@ TEST(ScitraCore, TranslatePrefix)
 }
 
 // Translate UDP/IPv6 to UDP/SCION with a UDP/IPv4 underlay.
-TEST(ScitraCore, TranslateIpUdpToScion4)
+TEST(Translation, TranslateIpUdpToScion4)
 {
     using namespace scion;
     using namespace scion::scitra;
@@ -140,7 +140,7 @@ TEST(ScitraCore, TranslateIpUdpToScion4)
 }
 
 // Translate UDP/SCION with a UDP/IPv4 underlay to UDP/IPv6.
-TEST(ScitraCore, TranslateScion4ToIpUdp)
+TEST(Translation, TranslateScion4ToIpUdp)
 {
     using namespace scion;
     using namespace scion::scitra;
@@ -174,7 +174,7 @@ TEST(ScitraCore, TranslateScion4ToIpUdp)
 }
 
 // Translate UDP/IPv6 to UDP/SCION with a UDP/IPv4 underlay and an empty path.
-TEST(ScitraCore, TranslateIpUdpToScion4Local)
+TEST(Translation, TranslateIpUdpToScion4Local)
 {
     using namespace scion;
     using namespace scion::scitra;
@@ -212,7 +212,7 @@ TEST(ScitraCore, TranslateIpUdpToScion4Local)
 }
 
 // Translate UDP/SCION with a UDP/IPv4 underlay and an empty path to UDP/IPv6.
-TEST(ScitraCore, TranslateScion4ToIpUdpLocal)
+TEST(Translation, TranslateScion4ToIpUdpLocal)
 {
     using namespace scion;
     using namespace scion::scitra;
@@ -246,7 +246,7 @@ TEST(ScitraCore, TranslateScion4ToIpUdpLocal)
 }
 
 // Translate UDP/IPv6 to UDP/SCION with a UDP/IPv6 underlay.
-TEST(ScitraCore, TranslateIpUdpToScion6)
+TEST(Translation, TranslateIpUdpToScion6)
 {
     using namespace scion;
     using namespace scion::scitra;
@@ -284,7 +284,7 @@ TEST(ScitraCore, TranslateIpUdpToScion6)
 }
 
 // Translate UDP/SCION with a UDP/IPv6 underlay to UDP/IPv6.
-TEST(ScitraCore, TranslateScion6ToIpUdp)
+TEST(Translation, TranslateScion6ToIpUdp)
 {
     using namespace scion;
     using namespace scion::scitra;
@@ -318,7 +318,7 @@ TEST(ScitraCore, TranslateScion6ToIpUdp)
 }
 
 // Translate UDP/IPv6 to UDP/SCION with a UDP/IPv6 underlay and an empty path.
-TEST(ScitraCore, TranslateIpUdpToScion6Local)
+TEST(Translation, TranslateIpUdpToScion6Local)
 {
     using namespace scion;
     using namespace scion::scitra;
@@ -356,7 +356,7 @@ TEST(ScitraCore, TranslateIpUdpToScion6Local)
 }
 
 // Translate UDP/SCION with a UDP/IPv6 underlay and an empty path to UDP/IPv6.
-TEST(ScitraCore, TranslateScion6ToIpUdpLocal)
+TEST(Translation, TranslateScion6ToIpUdpLocal)
 {
     using namespace scion;
     using namespace scion::scitra;
@@ -390,7 +390,7 @@ TEST(ScitraCore, TranslateScion6ToIpUdpLocal)
 }
 
 // Translate UDP/IPv6 to UDP/SCION without an underlay.
-TEST(ScitraCore, TranslateIpUdpToScionNoUnderlay)
+TEST(Translation, TranslateIpUdpToScionNoUnderlay)
 {
     using namespace scion;
     using namespace scion::scitra;
@@ -428,7 +428,7 @@ TEST(ScitraCore, TranslateIpUdpToScionNoUnderlay)
 }
 
 // Translate UDP/SCION without an underlay to UDP/IPv6.
-TEST(ScitraCore, TranslateScionNoUnderlayToIpUdp)
+TEST(Translation, TranslateScionNoUnderlayToIpUdp)
 {
     using namespace scion;
     using namespace scion::scitra;
@@ -462,7 +462,7 @@ TEST(ScitraCore, TranslateScionNoUnderlayToIpUdp)
 }
 
 // Translate TCP/IPv6 to TCP/SCION with a UDP/IPv4 underlay.
-TEST(ScitraCore, TranslateIpTcpToScion4)
+TEST(Translation, TranslateIpTcpToScion4)
 {
     using namespace scion;
     using namespace scion::scitra;
@@ -500,7 +500,7 @@ TEST(ScitraCore, TranslateIpTcpToScion4)
 }
 
 // Translate TCP/SCION with a UDP/IPv4 underlay to TCP/IPv6.
-TEST(ScitraCore, TranslateScion4ToIpTcp)
+TEST(Translation, TranslateScion4ToIpTcp)
 {
     using namespace scion;
     using namespace scion::scitra;
@@ -534,7 +534,7 @@ TEST(ScitraCore, TranslateScion4ToIpTcp)
 }
 
 // Translate ICMP/IPv6 to SCMP/SCION with a UDP/IPv4 underlay.
-TEST(ScitraCore, TranslateIcmpToScmp)
+TEST(Translation, TranslateIcmpToScmp)
 {
     using namespace scion;
     using namespace scion::scitra;
@@ -572,7 +572,7 @@ TEST(ScitraCore, TranslateIcmpToScmp)
 }
 
 // Translate SCMP/SCION with a UDP/IPv4 underlay to ICMP/IPv6.
-TEST(ScitraCore, TranslateScmpToIcmp)
+TEST(Translation, TranslateScmpToIcmp)
 {
     using namespace scion;
     using namespace scion::scitra;
@@ -606,7 +606,7 @@ TEST(ScitraCore, TranslateScmpToIcmp)
 }
 
 // Test ICMP Packet Too Big response
-TEST(ScitraCore, RespondPacketTooBig)
+TEST(Translation, RespondPacketTooBig)
 {
     using namespace scion;
     using namespace scion::scitra;
@@ -642,7 +642,7 @@ TEST(ScitraCore, RespondPacketTooBig)
 }
 
 // Test ICMP Packet Destination Unreachable (Address UNreachable) response
-TEST(ScitraCore, RespondAddressUnreachable)
+TEST(Translation, RespondAddressUnreachable)
 {
     using namespace scion;
     using namespace scion::scitra;
@@ -678,7 +678,7 @@ TEST(ScitraCore, RespondAddressUnreachable)
 }
 
 // Test ICMP Packet Destination Unreachable (No Route) response
-TEST(ScitraCore, RespondNoRouteToDestination)
+TEST(Translation, RespondNoRouteToDestination)
 {
     using namespace scion;
     using namespace scion::scitra;

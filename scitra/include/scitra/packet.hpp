@@ -33,6 +33,7 @@
 
 #include <cassert>
 #include <memory>
+#include <ranges>
 #include <span>
 #include <vector>
 
@@ -103,9 +104,10 @@ private:
     std::pmr::vector<std::byte> buffer;
     struct Span
     {
-        std::size_t offset;
-        std::size_t size;
+        std::size_t offset; // packet start offset from beginning of buffer
+        std::size_t size;   // packet length
     } packet;
+    // index into buffer one past the end of parsed headers
     std::size_t endOfHeader;
 
 public:
@@ -233,6 +235,30 @@ public:
             buffer.data() + endOfHeader,
             packet.size - (endOfHeader - packet.offset)
         );
+    }
+
+    /// \brief Removes the current payload. Does not update the headers.
+    void removePayload()
+    {
+        assert(packet.offset <= endOfHeader && endOfHeader <= (packet.offset + packet.size));
+        assert(packet.offset + packet.size <= buffer.size());
+        packet.size = endOfHeader - packet.offset;
+    }
+
+    /// \brief Replaces the payload. Does not update the headers.
+    /// \returns ErrorCode::BufferTooSmall if there is not enough space.
+    std::error_code setPayload(std::span<const std::byte> payload)
+    {
+        assert(packet.offset <= endOfHeader && endOfHeader <= (packet.offset + packet.size));
+        assert(packet.offset + packet.size <= buffer.size());
+        const auto available = buffer.size() - endOfHeader;
+        if (payload.size() > available) {
+            return ErrorCode::BufferTooSmall;
+        }
+        std::ranges::copy(payload, buffer.begin() + endOfHeader);
+        packet.size = (endOfHeader - packet.offset) + payload.size();
+        assert(packet.offset + packet.size <= buffer.size());
+        return ErrorCode::Ok;
     }
 
     /// \brief Returns the size of the current layer 4 protocol's headers.

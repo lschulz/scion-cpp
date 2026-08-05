@@ -221,7 +221,7 @@ bool PacketBuffer::emit(WriteStream& ws, bool noUnderlay, SCION_STREAM_ERROR& er
     if (!noUnderlay && outerUDPValid) {
         // Calculate outer UDP checksum
         auto offset = ws.getPos().first - outerUdpPos - 8;
-        std::span<const std::byte> data;
+        std::span<std::byte> data;
         if (!ws.lookback(data, offset, err)) return err.propagate();
         std::uint32_t hdrChksum = outerUDP.checksum();
         if (ipValid == IPValidity::IPv4) {

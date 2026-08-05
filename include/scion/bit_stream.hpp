@@ -153,11 +153,62 @@ struct std::formatter<scion::StreamError>
     }
 };
 
+namespace scion {
+
+/// \brief Serialize or deserialize an 8-bit value. Returns an error if the
+/// stream is reading and read value is not equal to `expected`.
+/// \param expected Expected value to be written or read depending on stream
+/// type.
+/// \param msg Pointer to static string that is used as error message if the
+/// read value does not match `expected`.
+template <typename Stream, typename Error>
+bool verifyByte(Stream& stream, std::uint8_t expected, const char* msg, Error& err)
+{
+    std::uint8_t value = expected;
+    if (!stream.serializeByte(value, err)) return err.propagate();
+    if constexpr (Stream::IsReading) {
+        if (value != expected) return err.error(msg);
+    }
+    return true;
+}
+
+/// \brief Serialize or deserialize a 16-bit value. Returns an error if the
+/// stream is reading and read value is not equal to `expected`.
+/// \param expected Expected value to be written or read depending on stream
+/// type.
+/// \param msg Pointer to static string that is used as error message if the
+/// read value does not match `expected`.
+template <typename Stream, typename Error>
+bool verifyUint16(Stream& stream, std::uint16_t expected, const char* msg, Error& err)
+{
+    std::uint16_t value = expected;
+    if (!stream.serializeUint16(value, err)) return err.propagate();
+    if constexpr (Stream::IsReading) {
+        if (value != expected) return err.error(msg);
+    }
+    return true;
+}
+
+/// \brief Serialize or deserialize a 32-bit value. Returns an error if the
+/// stream is reading and read value is not equal to `expected`.
+/// \param expected Expected value to be written or read depending on stream
+/// type.
+/// \param msg Pointer to static string that is used as error message if the
+/// read value does not match `expected`.
+template <typename Stream, typename Error>
+bool verifyUint32(Stream& stream, std::uint32_t expected, const char* msg, Error& err)
+{
+    std::uint32_t value = expected;
+    if (!stream.serializeUint32(value, err)) return err.propagate();
+    if constexpr (Stream::IsReading) {
+        if (value != expected) return err.error(msg);
+    }
+    return true;
+}
+
 ////////////////
 // ReadStream //
 ////////////////
-
-namespace scion {
 
 /// \brief Bit stream for reading from a packet.
 class ReadStream
@@ -177,6 +228,8 @@ public:
         : data(buffer), byteIter(buffer.begin()), bitPos(0)
     {}
 
+    /// \brief Get a pair of the current byte and bit offset from the beginning
+    /// of the underlying buffer.
     std::pair<std::size_t, std::size_t> getPos() const
     {
         return std::make_pair(byteIter - data.begin(), bitPos);
@@ -390,6 +443,8 @@ public:
     WriteStream(WriteStream&) = delete;
     WriteStream& operator=(WriteStream&) = delete;
 
+    /// \brief Get a pair of the current byte and bit offset from the beginning
+    /// of the underlying buffer.
     std::pair<std::size_t, std::size_t> getPos() const
     {
         return std::make_pair(byteIter - data.begin(), bitPos);
@@ -422,24 +477,24 @@ public:
         return byteIter != data.end();
     }
 
-    /// \brief Obtain a read-only view of the bytes already written relative to
-    /// the current write pointer. Can only be called when the write pointer
-    /// falls on a byte boundary.
+    /// \brief Obtain a view of the bytes already written relative to the
+    /// current write pointer. Can only be called when the write pointer falls
+    /// on a byte boundary.
     /// \param view View of the data.
     /// \param bytes Number of bytes to retrieve. If set to `npos` the
     /// resulting view contains all bytes from the beginning of the underlying
     /// buffer to the current write position.
     template <typename Error>
-    bool lookback(std::span<const std::byte>& view, std::size_t bytes, Error& err)
+    bool lookback(std::span<std::byte>& view, std::size_t bytes, Error& err)
     {
         if (bitPos != 0) return err.error("alignment error");
         if (bytes == npos) {
-            view = std::span<const std::byte>(data.begin(), byteIter);
+            view = std::span<std::byte>(data.begin(), byteIter);
             return true;
         }
         if (static_cast<std::size_t>(byteIter - data.begin()) < bytes)
             return err.error("attempted to read out of bounds");
-        view = std::span<const std::byte>(byteIter - bytes, byteIter);
+        view = std::span<std::byte>(byteIter - bytes, byteIter);
         return true;
     }
 

@@ -212,7 +212,7 @@ TEST(IPv4, ICMP)
     EXPECT_EQ(icmp.param1, 1337);
     EXPECT_EQ(icmp.param2, 1);
 
-    EXPECT_EQ(details::internetChecksum(std::span<std::byte>(), icmp.checksum()), 0xffff);
+    EXPECT_EQ(details::onesComplementChecksum(std::span<std::byte>(), icmp.checksum()), 0xffff);
 
     static const char* expected =
         "###[ IPv4 ]###\n"
@@ -377,7 +377,7 @@ TEST(IPv6, ICMPv6)
     EXPECT_EQ(icmp.param1, 1337);
     EXPECT_EQ(icmp.param2, 1);
 
-    EXPECT_EQ(details::internetChecksum(
+    EXPECT_EQ(details::onesComplementChecksum(
         std::span<std::byte>(), ip.checksum(ip.plen) + icmp.checksum()),
         0xffff);
 

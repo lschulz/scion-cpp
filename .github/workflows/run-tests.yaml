@@ -28,10 +28,15 @@ jobs:
           libncurses-dev
           libprotobuf-dev
           libre2-dev
+          libsystemd-dev
           libtomlplusplus-dev
           pandoc
           protobuf-compiler
           protobuf-compiler-grpc
+          iperf3
+          iproute2
+          iputils-ping
+          mptcpize
       - name: Configure
         run: |
           mkdir build
@@ -53,7 +58,7 @@ jobs:
         with:
           repository: 'scionproto/scion'
           path: 'scion'
-          ref: v0.14.0
+          ref: v0.15.0
       - name: Set up Bazel
         uses: bazel-contrib/setup-bazel@0.16.0
         with:
@@ -88,7 +93,7 @@ jobs:
   # See: https://github.com/microsoft/vcpkg/issues/43603
   unit-tests-windows:
     name: Run unit tests (Windows)
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     steps:
       - name: Check out the source repository
         uses: actions/checkout@v6
@@ -103,7 +108,7 @@ jobs:
       - name: Configure
         uses: lukka/run-cmake@v10
         with:
-          configurePreset: vcpkg-vs-17
+          configurePreset: vcpkg-vs-18
       - name: Build
         id: build
         run: cmake --build build --config Debug

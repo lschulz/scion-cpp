@@ -92,7 +92,7 @@ TEST(Stream, Lookback)
     WriteStream write(data);
     ASSERT_TRUE(write.serializeUint64(0x00010203'04050607ull, NullStreamError));
 
-    std::span<const std::byte> lookback;
+    std::span<std::byte> lookback;
     ASSERT_TRUE(write.lookback(lookback, 4, NullStreamError));
     EXPECT_THAT(lookback, testing::ElementsAre(0x04_b, 0x05_b, 0x06_b, 0x07_b));
 

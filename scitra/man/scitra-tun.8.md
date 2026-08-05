@@ -40,6 +40,9 @@ IPv6 subnets with the same ISD-ASN and set up IPv6 routes between them.
 `-d, --sciond` SCION daemon address. Is also read from the environment variable
     SCION_DAEMON_ADDRESS. Default: 127.0.0.1:30255
 
+`-e, --extra` _address_ \[_address_...\] Additional addresses assigned to the TUN interface for
+    MPTCP connections.
+
 `-h, --help` Show command syntax.
 
 `-l, --log-level` _level_ Log level as string or integer from the possible values trace(0),
@@ -253,6 +256,25 @@ in the local AS. The STUN port may be set using the `--stun-port` option. If STU
 the border router's internal interface, set `--stun-port 0`. The `--nat-timeout` option sets after
 how much time of inactivity a flow between Scitra-TUN and the border router may receive a new
 address mapping and therefore requires STUN address discovery to be repeated.
+
+## MULTIPATH TCP ##
+
+Scitra-TUN can route MPTCP subflows over SCION. Since MPTCP identifies possible paths by available
+addresses on multi-homed hosts, Scitra can assign *surrogate addresses* to the TUN interface in
+addition to the primary IPv6 address. For each surrogate address an additional subflow and
+therefore SCION path becomes available. You can assign surrogate addresses by invoking Scitra-TUN
+with the `-e/--extra` option that takes one or more IPv6 unicast addresses. Surrogate addresses
+should not be SCION-mapped IPv6 addresses, i.e., have a prefix different from `fc00::/8`, and should
+not be routed anywhere else than into the TUN interface. Using unique local addresses (ULAs) with a
+prefix under `fd00::/8` is recommended. In order for the addresses to be picked up by MPTCP, it is
+usually necessary to configure MPTCP's path manager. In Linux this is possible with the
+`ip mptcp endpoint` command, but may also be handled by a userspace daemon such as mptcpd or
+NetworkManager. Check your operating system documentation for details on how to configure MPTCP.
+
+Scitra-TUN can deal with MPTCP subflows even if not surrogate addresses are assigned. This can be
+useful for combining subflows over the Internet with a subflow over SCION. Note however, that the
+Linux implementation of MPTCP currently does not permit mixing address families, i.e., you can
+combine IPv6 routing with SCION routing, but not with IPv4.
 
 ## PATH POLICY ##
 

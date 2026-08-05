@@ -95,8 +95,8 @@ class ScitraBase:
     def tearDown(self):
         self.scitra_inst0.terminate()
         self.scitra_inst1.terminate()
-        self.scitra_inst0.wait()
-        self.scitra_inst1.wait()
+        self.scitra_inst0.communicate()
+        self.scitra_inst1.communicate()
 
 
 class Netcat(ScitraBase, unittest.TestCase):

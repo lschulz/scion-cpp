@@ -59,7 +59,7 @@ concept GetPathCallback = std::invocable<F,
     hdr::ScionProto, std::uint8_t>;
 
 template <typename F>
-concept GetMtuCallback = std::invocable<F, const hdr::SCION&, const RawPath&>;
+concept GetMtuCallback = std::invocable<F, const hdr::SCION&, RawPath&>;
 
 namespace details {
 
@@ -145,7 +145,7 @@ inline generic::IPAddress translateIPv6Prefix(
 /// address, or whether it should bre returned to the original sender
 /// (Verdict::Return). Verdict::Abort and Verdict::Drop both mean that the
 /// packet should be dropped, but Verdict::Abort additional alerts the caller
-/// of an unexpected problem during translation (i.e. the headers where
+/// of an unexpected problem during translation (i.e. the headers were
 /// invalid).
 template <GetPathCallback GetPath>
 std::tuple<Verdict, std::uint16_t, generic::IPEndpoint>
@@ -306,7 +306,7 @@ translateEgress(
 /// the packet buffer.
 /// Signature:
 /// ~~~
-/// std::uint16_t getMTU(const hdr::SCION& sci, const RawPath& rp);
+/// std::uint16_t getMTU(const hdr::SCION& sci, RawPath& rp);
 /// ~~~
 ///
 /// \return Whether the packet should be accepted (Verdict:Pass) or dropped

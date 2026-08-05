@@ -153,10 +153,15 @@
     "C_Cpp.default.cppStandard": "c++23",
     "C_Cpp.default.cStandard": "c17",
     "cSpell.words": [
+        "demultiplex",
         "drkey",
+        "MPTCP",
+        "mptcpd",
         "pmtu",
         "recvmmsg",
         "sendmmsg",
+        "subflow",
+        "subflows",
         "urgptr"
     ],
     "python.analysis.extraPaths": [

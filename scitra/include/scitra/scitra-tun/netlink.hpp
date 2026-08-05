@@ -76,11 +76,11 @@ public:
     static const std::uint8_t TABLE_MAIN;
 
     /// \brief Add a route to the IPv4/6 network `dst` via `interface dev` to
-    /// the routing table with index `table`. The gateway router can optionally
-    /// be set by supplying an IP address in `via`.
+    /// the routing table with index `table`. Optionally, the preferred source
+    /// address can be set by supplying an IP address in `src`.
     std::error_code addRoute(
         std::uint8_t table, const IPAddress& dst, PrefixLen prefixlen,
-        const std::string& dev, const IPAddress* via = nullptr);
+        const std::string& dev, const IPAddress* src = nullptr);
 
     /// \brief Remove all routes to the IPv4/6 network `dst` via `dev` from the
     /// routing table with index `table`.

@@ -7,9 +7,12 @@ ip netns add host1
 
 ip link add veth0 type veth peer name veth1
 ip link add veth2 type veth peer name veth3
+ip link add veth4 type veth peer name veth5
 
 ip link set veth1 netns host0
 ip link set veth3 netns host1
+ip link set veth4 netns host0
+ip link set veth5 netns host1
 
 ip addr add dev veth0 10.128.0.1/24
 ip addr add dev veth0 fc00:10fc:100::1/64
@@ -21,11 +24,19 @@ ip link set dev veth2 up
 ip netns exec host0 ip addr add dev lo ::1/128
 ip netns exec host0 ip addr add dev veth1 10.128.0.2/24
 ip netns exec host0 ip addr add dev veth1 fc00:10fc:100::2/64
+ip netns exec host0 ip addr add dev veth4 10.128.2.1/24
+ip netns exec host0 ip addr add dev veth4 fd01::1/64
+
 ip netns exec host0 ip link set dev lo up
 ip netns exec host0 ip link set dev veth1 up
+ip netns exec host0 ip link set dev veth4 up
 
 ip netns exec host1 ip addr add dev lo ::1/128
 ip netns exec host1 ip addr add dev veth3 10.128.1.2/24
 ip netns exec host1 ip addr add dev veth3 fc00:10fc:200::2/64
+ip netns exec host1 ip addr add dev veth5 10.128.2.2/24
+ip netns exec host1 ip addr add dev veth5 fd01::2/64
+
 ip netns exec host1 ip link set dev lo up
 ip netns exec host1 ip link set dev veth3 up
+ip netns exec host1 ip link set dev veth5 up

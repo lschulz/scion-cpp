@@ -26,23 +26,31 @@
 #include "scitra/packet.hpp"
 #include "scitra/scitra-tun/error_codes.hpp"
 
+#include <atomic>
 #include <cstdint>
 #include <mutex>
+#include <random>
 
 
 enum class FlowType
 {
-    Active, // Flow was initiated by this host
-    Passive // Flow was initiated by a remote host
+    Active,  // Flow was initiated by this host
+    Passive, // Flow was initiated by a remote host
 };
 
 enum class FlowState
 {
     CLOSED,      // no more packets expected
+    CLOSED_WAIT, // waiting for subflows to close
+    // values > CLOSED_WAIT indicate a closed connection
     OPEN,        // UDP send/received
-    SYN,         // TCP SYN sent or received
-    ESTABLISHED, // TCP w/o SYN, FIN, or RST
-    CLOSING,     // TCP FIN or RST send/received
+    SYN_SENT,    // TCP SCN sent
+    SYN_RCVD,    // TCP SYN received
+    ESTABLISHED, // TCP established
+    // values > ESTABLISHED indicate that the connection is being torn down
+    FIN,         // TCP FIN send/received
+    RST,         // TCP RST send/received
+    TIMEOUT,     // flow timeout
 };
 
 inline const char* protoToString(int proto)
@@ -81,14 +89,22 @@ inline const char* toString(FlowState state)
     switch (state) {
     case FlowState::CLOSED:
         return "CLOSED";
+    case FlowState::CLOSED_WAIT:
+        return "CLOSED_WAIT";
     case FlowState::OPEN:
         return "OPEN";
-    case FlowState::SYN:
-        return "SYN";
+    case FlowState::SYN_SENT:
+        return "SYN_SENT";
+    case FlowState::SYN_RCVD:
+        return "SYN_RCVD";
     case FlowState::ESTABLISHED:
         return "ESTABLISHED";
-    case FlowState::CLOSING:
-        return "CLOSING";
+    case FlowState::FIN:
+        return "FIN";
+    case FlowState::RST:
+        return "RST";
+    case FlowState::TIMEOUT:
+        return "TIMEOUT";
     default:
         return "error";
     }
@@ -169,26 +185,69 @@ struct std::hash<FlowID>
 
 class FlowProxy;
 
-class Flow
+/// \internal \brief State of a packet flow through the translator.
+///
+/// ### Multipath Support ###
+/// Multipath (i.e. MPTCP) connections consist of multiple subflows. Each
+/// subflow is represented by its own instance of Flow. Scitra-TUN manipulates
+/// flows so that all subflows of the same connection share the same 5-tuple but
+/// have different SCION paths.
+///
+/// The first subflow that hits the translator is considered the **lead flow**.
+/// This may or may not be the first subflow that has been established depending
+/// on when Scitra-TUN has been started and whether there are subflows that do
+/// not pass through Scitra-TUN. Additional subflows are stored in the
+/// `subflows` vector of the lead flow, so that all subflows are stored
+/// together. Non-lead flows should have an empty `subflows` vector.
+///
+/// The lead flow my be in a closed state while other subflows still exist. In
+/// this case the lead flow should must not be deleted yet.
+class Flow : public std::enable_shared_from_this<Flow>
 {
 private:
+    const scion::generic::IPEndpoint boundTo;
     const FlowType type;
     const std::uint32_t queue;
-    std::mutex mutex;
+    std::atomic<bool> multipath = false;
+
     FlowState state = FlowState::OPEN;
     FlowCounters counters = {};
     scion::PathPtr path;
     std::uint8_t tc = 0;
+    std::uint32_t mptcpToken = 0;
     std::chrono::steady_clock::time_point lastUsed;
+
+    std::mutex mutex;
+    std::vector<std::shared_ptr<Flow>> subflows;
 
     friend class FlowProxy;
 
 public:
     static inline const auto FLOW_TIMEOUT = std::chrono::seconds(120);
 
-    Flow(FlowType type, std::uint32_t queue)
-        : type(type), queue(queue)
+    Flow(const scion::generic::IPEndpoint& boundTo, FlowType type,
+        std::uint32_t queue, bool multipath)
+        : boundTo(boundTo), type(type), queue(queue), multipath(multipath)
     {}
+
+    /// \internal \brief Create a new flow or subflow.
+    /// \param boundTo Local IP endpoint fo the flow. Different subflows of
+    /// the same multipath flow must have different local IP endpoints.
+    /// \param type Flow type. Active or Passive.
+    /// \param multipath Initial state of the multipath flag.
+    static std::shared_ptr<Flow> Create(
+        const scion::generic::IPEndpoint& boundTo, FlowType type)
+    {
+        return std::make_shared<Flow>(boundTo, type, randomQueueId(), false);
+    }
+
+    static std::shared_ptr<Flow> CreateSubflow(
+        const scion::generic::IPEndpoint& boundTo, FlowType type, std::uint32_t token)
+    {
+        auto flow = std::make_shared<Flow>(boundTo, type, randomQueueId(), true);
+        flow->mptcpToken = token;
+        return flow;
+    }
 
     FlowType getType() const { return type; }
 
@@ -197,8 +256,111 @@ public:
         return queue % queues;
     }
 
+    /// \brief Returns the local IP address and port before translation.
+    const scion::generic::IPEndpoint& getLocalEp() const
+    {
+        return boundTo;
+    }
+
+    bool isMultipath() const
+    {
+        return multipath.load();
+    }
+
+    /// \internal \brief Find or create a subflow by looking for a matching
+    /// local IP end point. If this flow is not the lead flow of a multipath
+    /// connection, this method will always return a pointer to the flow it has
+    /// been called on.
+    /// \note For multipath connections, this should be called on the lead flow
+    /// of the connection.
+    /// \param localEp IP address and port of the local end point. Used for
+    /// differentiating between different subflows in multipath transport
+    /// protocols.
+    std::shared_ptr<Flow> getSubflowByAddr(const scion::generic::IPEndpoint& localEp)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        auto sf = findSubflowByAddr(localEp);
+        if (sf) return sf;
+        spdlog::debug("New {} subflow locally bound to {}", toString(type), localEp);
+        sf = CreateSubflow(localEp, FlowType::Active, mptcpToken);
+        subflows.push_back(sf);
+        return sf;
+    }
+
+    /// \internal \brief Find or create a subflow using the given path.
+    /// \note For multipath connections, this should be called on the lead flow
+    /// of the connection.
+    /// \param path Subflow path to search for.
+    /// \param addrPool Set of IP addresses to choose from if a new subflow is
+    /// created. If all addresses in the pool are already in use, no subflow
+    /// is created and the function returns nullptr.
+    std::shared_ptr<Flow> getSubflowByPath(
+        const scion::RawPath& path,
+        std::span<const scion::generic::IPAddress> addrPool)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        auto sf = findSubflowByPath(path);
+        if (sf) return sf;
+
+        for (auto& addr : addrPool) {
+            auto i = std::ranges::find_if(subflows, [&] (const auto& sf) {
+                return sf->boundTo.host() == addr;
+            });
+            if (i == subflows.end()) {
+                scion::generic::IPEndpoint ep(addr, boundTo.port());
+                spdlog::debug("New {} subflow locally bound to {}", toString(type), ep);
+                sf = CreateSubflow(ep, FlowType::Passive, mptcpToken);
+                subflows.push_back(sf);
+                return sf;
+            }
+        }
+        return nullptr; // error: all addresses in use
+    }
+
     // Acquire a lock on the flow.
     FlowProxy lock();
+
+private:
+    static std::uint32_t randomQueueId()
+    {
+        static std::mt19937 rng(std::random_device{}());
+        std::uniform_int_distribution<std::uint32_t> dist;
+        return dist(rng);
+    }
+
+    std::shared_ptr<Flow> findSubflowByAddr(const scion::generic::IPEndpoint& addr)
+    {
+        if (!multipath.load()) {
+            return shared_from_this();
+        } else {
+            if (boundTo == addr) return shared_from_this();
+            auto i = std::ranges::find_if(subflows, [&] (const auto& sf) {
+                return sf->boundTo == addr;
+            });
+            if (i != subflows.end()) {
+                return *i;
+            }
+        }
+        return nullptr;
+    }
+
+    std::shared_ptr<Flow> findSubflowByPath(const scion::RawPath& path)
+    {
+        if (!multipath.load()) {
+            return shared_from_this();
+        } else {
+            if (this->path->digest() == path.digest() && equalHops(*this->path, path))
+                return shared_from_this();
+            auto i = std::ranges::find_if(subflows, [&] (const auto& sf) {
+                if (!sf->path) return false;
+                return sf->path->digest() == path.digest() && equalHops(*sf->path, path);
+            });
+            if (i != subflows.end()) {
+                return *i;
+            }
+        }
+        return nullptr;
+    }
 };
 
 class FlowProxy
@@ -214,6 +376,54 @@ private:
     friend class Flow;
 
 public:
+    // Apply void f(Flow&) to all subflows, but not this flow itself.
+    template <typename F>
+    FlowProxy& applyToSubflows(F f)
+    {
+        for (auto& sf : flow.subflows) f(*sf);
+        return *this;
+    }
+
+    // Apply bool f(Flow&) to all subflows, but not this flow itself.
+    // If f returns true, the subflows is removed.
+    template <typename F>
+    FlowProxy& removeSubflows(F f)
+    {
+        for (auto i = flow.subflows.begin(); i != flow.subflows.end();) {
+            if (f(**i)) i = flow.subflows.erase(i);
+            else ++i;
+        }
+        return *this;
+    }
+
+    FlowProxy& getMptcpToken(std::uint32_t& token)
+    {
+        token = flow.mptcpToken;
+        return *this;
+    }
+
+    FlowProxy& setMptcpToken(std::uint32_t token)
+    {
+        flow.mptcpToken = token;
+        return *this;
+    }
+
+    // Writes pointers to the paths of this flow and all its subflows to
+    // paths. The previous contents of paths are overwritten. Takes temporary
+    // locks on the subflows.
+    FlowProxy& getAllPaths(std::vector<scion::PathPtr>& paths)
+    {
+        paths.resize(0);
+        paths.reserve(flow.subflows.size() + 1);
+        if (flow.path) paths.push_back(flow.path);
+        for (auto& sf : flow.subflows) {
+            scion::PathPtr path;
+            sf->lock().getPath(path);
+            if (path) paths.push_back(path);
+        }
+        return *this;
+    }
+
     // Get the path currently assigned to the flow.
     FlowProxy& getPath(scion::PathPtr& path)
     {
@@ -228,12 +438,21 @@ public:
         return *this;
     }
 
+    // Returns whether updatePassivePath() can accept a new path or not.
+    FlowProxy& acceptsPassivePath(bool& acceptsPath)
+    {
+        acceptsPath = flow.type == FlowType::Passive && (!flow.multipath || !flow.path);
+        return *this;
+    }
+
     // Replace the flow's current path with the given raw path if the flow is
     // passive and the new path is different from the current one or if the new
-    // path'S expiry is further in the future.
+    // path's expiry is further in the future.
+    // For multipath flows, this function sets the initial path, but does not
+    // allow updating the path afterwards.
     FlowProxy& updatePassivePath(const scion::RawPath& rp, const scion::generic::IPEndpoint& nh)
     {
-        if (flow.type == FlowType::Passive) {
+        if (flow.type == FlowType::Passive && (!flow.multipath || !flow.path)) {
             if (flow.path) {
                 if (flow.path->digest() != rp.digest() || flow.path->expiry() < rp.expiry()) {
                     flow.path = scion::makePath(rp, nh);
@@ -276,38 +495,108 @@ public:
     // Advances the flow state.
     FlowProxy& tick(const std::chrono::steady_clock::time_point& now)
     {
-        if (flow.state == FlowState::CLOSING)
-            flow.state = FlowState::CLOSED;
-        else if (flow.state == FlowState::OPEN || flow.state == FlowState::SYN) {
+        if ((int)flow.state > (int)FlowState::ESTABLISHED) {
+            if (flow.isMultipath())
+                flow.state = FlowState::CLOSED_WAIT;
+            else
+                flow.state = FlowState::CLOSED;
+        } else if (flow.state != FlowState::CLOSED
+                && flow.state != FlowState::ESTABLISHED) {
             if (now - flow.lastUsed > Flow::FLOW_TIMEOUT)
-                flow.state = FlowState::CLOSING;
+                flow.state = FlowState::TIMEOUT;
+        }
+        if (flow.state == FlowState::CLOSED_WAIT && flow.subflows.empty()) {
+            flow.state = FlowState::CLOSED;
         }
         return *this;
     }
 
-    // Update the flow state by analyzing the headers of the last observed
-    // packet and reset the last used timeout to `t`.
-    FlowProxy& updateState(
+    // Log the last outgoing packet at time `t` and update the flow state.
+    FlowProxy& updateStateEgress(
         const scion::scitra::PacketBuffer& pkt,
         const std::chrono::steady_clock::time_point& t)
     {
         using namespace scion::scitra;
         using scion::hdr::TCP;
         if (pkt.l4Valid == PacketBuffer::L4Type::TCP) {
-            if (pkt.tcp.flags & TCP::Flags::SYN) {
-                flow.state = FlowState::SYN;
-            } else if (pkt.tcp.flags & (TCP::Flags::FIN | TCP::Flags::RST)) {
-                flow.state = FlowState::CLOSING;
-            } else if (flow.state == FlowState::SYN) {
-                flow.state = FlowState::ESTABLISHED;
+            // Guess TCP connection state
+            if (pkt.tcp.flags & (TCP::Flags::FIN | TCP::Flags::RST)) {
+                if (pkt.tcp.flags & TCP::Flags::FIN)
+                    flow.state = FlowState::FIN;
+                else
+                    flow.state = FlowState::RST;
+            } else {
+                if (flow.state == FlowState::SYN_RCVD) {
+                    if (pkt.tcp.flags & TCP::Flags::ACK) {
+                        flow.state = FlowState::ESTABLISHED;
+                        if (pkt.tcp.optMask.MpCapable) flow.multipath.store(true);
+                    }
+                } else {
+                    if (pkt.tcp.flags & TCP::Flags::SYN) {
+                        flow.state = FlowState::SYN_SENT;
+                        if (pkt.tcp.optMask.MpJoin) flow.multipath.store(true);
+                    } else if (flow.state != FlowState::FIN && flow.state != FlowState::RST) {
+                        flow.state = FlowState::ESTABLISHED;
+                        if (pkt.tcp.optMask.MpCapable
+                            | pkt.tcp.optMask.MpDss
+                            | pkt.tcp.optMask.MpAddAddr
+                            | pkt.tcp.optMask.MpRemAddr
+                            | pkt.tcp.optMask.MpPrio) {
+                            flow.multipath.store(true);
+                        }
+                    }
+                }
             }
         } else {
+            // UDP or ICMP/SCMP
             flow.state = FlowState::OPEN;
         }
-        if (pkt.scionValid)
-            flow.tc = pkt.sci.qos >> 2;
-        else if (pkt.ipValid == scion::scitra::PacketBuffer::IPValidity::IPv6)
-            flow.tc = pkt.ipv6.tc >> 2;
+        assert(pkt.scionValid); // egress packet must be SCION
+        flow.tc = pkt.sci.qos >> 2;
+        flow.lastUsed = t;
+        return *this;
+    }
+
+    // Log the last incoming packet at time `t` and update the flow state.
+    FlowProxy& updateStateIngress(
+        const scion::scitra::PacketBuffer& pkt,
+        const std::chrono::steady_clock::time_point& t)
+    {
+        using namespace scion::scitra;
+        using scion::hdr::TCP;
+        if (pkt.l4Valid == PacketBuffer::L4Type::TCP) {
+            // Guess TCP connection state
+            if (pkt.tcp.flags & (TCP::Flags::FIN | TCP::Flags::RST)) {
+                if (pkt.tcp.flags & TCP::Flags::FIN)
+                    flow.state = FlowState::FIN;
+                else
+                    flow.state = FlowState::RST;
+            } else {
+                if (flow.state == FlowState::SYN_SENT) {
+                    if (pkt.tcp.flags[TCP::Flags::SYN] && pkt.tcp.flags[TCP::Flags::ACK]) {
+                        flow.state = FlowState::ESTABLISHED;
+                        if (pkt.tcp.optMask.MpCapable) flow.multipath.store(true);
+                    }
+                } else {
+                    if (pkt.tcp.flags & TCP::Flags::SYN) {
+                        flow.state = FlowState::SYN_RCVD;
+                        if (pkt.tcp.optMask.MpJoin) flow.multipath.store(true);
+                    } else if (flow.state != FlowState::FIN && flow.state != FlowState::RST) {
+                        flow.state = FlowState::ESTABLISHED;
+                        if (pkt.tcp.optMask.MpCapable
+                            | pkt.tcp.optMask.MpDss
+                            | pkt.tcp.optMask.MpAddAddr
+                            | pkt.tcp.optMask.MpRemAddr
+                            | pkt.tcp.optMask.MpPrio) {
+                            flow.multipath.store(true);
+                        }
+                    }
+                }
+            }
+        } else {
+            // UDP or ICMP/SCMP
+            flow.state = FlowState::OPEN;
+        }
         flow.lastUsed = t;
         return *this;
     }

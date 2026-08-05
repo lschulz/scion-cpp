@@ -112,7 +112,7 @@ TEST_F(ScmpFixture, ParseDstUnreach)
 
     std::span<const std::byte> payload;
     ASSERT_TRUE(stream.lookahead(payload, scion::ReadStream::npos, err)) << err;
-    auto chksum = details::internetChecksum(payload,
+    auto chksum = details::onesComplementChecksum(payload,
         scion.checksum((uint16_t)(scmp.size() + payload.size()), ScionProto::SCMP)
         + scmp.checksum());
     EXPECT_EQ(chksum, 0xffff);
@@ -137,7 +137,7 @@ TEST_F(ScmpFixture, ParsePacketTooBig)
 
     std::span<const std::byte> payload;
     ASSERT_TRUE(stream.lookahead(payload, scion::ReadStream::npos, err)) << err;
-    auto chksum = details::internetChecksum(payload,
+    auto chksum = details::onesComplementChecksum(payload,
         scion.checksum((uint16_t)(scmp.size() + payload.size()), ScionProto::SCMP)
         + scmp.checksum());
     EXPECT_EQ(chksum, 0xffff);
@@ -162,7 +162,7 @@ TEST_F(ScmpFixture, ParseParamProblem)
 
     std::span<const std::byte> payload;
     ASSERT_TRUE(stream.lookahead(payload, scion::ReadStream::npos, err)) << err;
-    auto chksum = details::internetChecksum(payload,
+    auto chksum = details::onesComplementChecksum(payload,
         scion.checksum((uint16_t)(scmp.size() + payload.size()), ScionProto::SCMP)
         + scmp.checksum());
     EXPECT_EQ(chksum, 0xffff);
@@ -188,7 +188,7 @@ TEST_F(ScmpFixture, ParseExtIfDown)
 
     std::span<const std::byte> payload;
     ASSERT_TRUE(stream.lookahead(payload, scion::ReadStream::npos, err)) << err;
-    auto chksum = details::internetChecksum(payload,
+    auto chksum = details::onesComplementChecksum(payload,
         scion.checksum((uint16_t)(scmp.size() + payload.size()), ScionProto::SCMP)
         + scmp.checksum());
     EXPECT_EQ(chksum, 0xffff);
@@ -215,7 +215,7 @@ TEST_F(ScmpFixture, ParseIntConnDown)
 
     std::span<const std::byte> payload;
     ASSERT_TRUE(stream.lookahead(payload, scion::ReadStream::npos, err)) << err;
-    auto chksum = details::internetChecksum(payload,
+    auto chksum = details::onesComplementChecksum(payload,
         scion.checksum((uint16_t)(scmp.size() + payload.size()), ScionProto::SCMP)
         + scmp.checksum());
     EXPECT_EQ(chksum, 0xffff);
@@ -241,7 +241,7 @@ TEST_F(ScmpFixture, ParseEchoRequest)
 
     std::span<const std::byte> payload;
     ASSERT_TRUE(stream.lookahead(payload, scion::ReadStream::npos, err)) << err;
-    auto chksum = details::internetChecksum(payload,
+    auto chksum = details::onesComplementChecksumScalar(payload,
         scion.checksum((uint16_t)(scmp.size() + payload.size()), ScionProto::SCMP)
         + scmp.checksum());
     EXPECT_EQ(chksum, 0xffff);
@@ -267,7 +267,7 @@ TEST_F(ScmpFixture, ParseEchoReply)
 
     std::span<const std::byte> payload;
     ASSERT_TRUE(stream.lookahead(payload, scion::ReadStream::npos, err)) << err;
-    auto chksum = details::internetChecksum(payload,
+    auto chksum = details::onesComplementChecksum(payload,
         scion.checksum((uint16_t)(scmp.size() + payload.size()), ScionProto::SCMP)
         + scmp.checksum());
     EXPECT_EQ(chksum, 0xffff);
@@ -293,7 +293,7 @@ TEST_F(ScmpFixture, ParseTraceRequest)
 
     std::span<const std::byte> payload;
     ASSERT_TRUE(stream.lookahead(payload, scion::ReadStream::npos, err)) << err;
-    auto chksum = details::internetChecksum(payload,
+    auto chksum = details::onesComplementChecksum(payload,
         scion.checksum((uint16_t)(scmp.size() + payload.size()), ScionProto::SCMP)
         + scmp.checksum());
     EXPECT_EQ(chksum, 0xffff);
@@ -321,7 +321,7 @@ TEST_F(ScmpFixture, ParseTraceReply)
 
     std::span<const std::byte> payload;
     ASSERT_TRUE(stream.lookahead(payload, scion::ReadStream::npos, err)) << err;
-    auto chksum = details::internetChecksum(payload,
+    auto chksum = details::onesComplementChecksum(payload,
         scion.checksum((uint16_t)(scmp.size() + payload.size()), ScionProto::SCMP)
         + scmp.checksum());
     EXPECT_EQ(chksum, 0xffff);
@@ -345,7 +345,7 @@ TEST_F(ScmpFixture, ParseUnknownError)
 
     std::span<const std::byte> payload;
     ASSERT_TRUE(stream.lookahead(payload, scion::ReadStream::npos, err)) << err;
-    auto chksum = details::internetChecksum(payload,
+    auto chksum = details::onesComplementChecksum(payload,
         scion.checksum((uint16_t)(scmp.size() + payload.size()), ScionProto::SCMP)
         + scmp.checksum());
     EXPECT_EQ(chksum, 0xffff);
@@ -386,7 +386,7 @@ void ScmpFixture::TestEmit(const std::vector<std::byte>& expected, scion::hdr::S
     ASSERT_TRUE(refUDP.serialize(stream, err)) << err;
     ASSERT_TRUE(stream.serializeBytes(refPayload, err)) << err;
 
-    std::span<const std::byte> payload;
+    std::span<std::byte> payload;
     auto lookback = stream.getPos().first - payloadBegin;
     ASSERT_TRUE(stream.lookback(payload, lookback, err)) << err;
     auto chksum = details::internetChecksum(

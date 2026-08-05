@@ -14,6 +14,7 @@ configure_file("src/scitra-tun/version.cpp.in" "version.cpp")
 
 add_executable(scitra-tun)
 target_sources(scitra-tun PRIVATE
+    "src/crypto.cpp"
     "src/packet.cpp"
     "src/translator.cpp"
     "src/scitra-tun/error_codes.cpp"
@@ -86,9 +87,12 @@ endif(LINUX)
 # ==========
 
 set(SRC_SCITRA_TEST
+    "src/crypto.cpp"
     "src/packet.cpp"
     "src/translator.cpp"
     "tests/main.cpp"
+    "tests/test_crypto.cpp"
+    "tests/test_packet.cpp"
     "tests/test_translation.cpp"
     "${CMAKE_SOURCE_DIR}/tests/utilities.cpp"
 )

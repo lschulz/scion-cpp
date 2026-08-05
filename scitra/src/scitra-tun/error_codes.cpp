@@ -56,6 +56,12 @@ struct ScitraErrorCategory : public std::error_category
                 return "interface not found";
             case ScitraError::InvalidPacket:
                 return "invalid packet";
+            case ScitraError::NotEnoughPaths:
+                return "not enough paths to establish subflow";
+            case ScitraError::NoLeadFlow:
+                return "no matching lead subflow";
+            case ScitraError::SubflowBroken:
+                return "subflow connectivity broken";
             default:
                 return "unexpected error code";
         }

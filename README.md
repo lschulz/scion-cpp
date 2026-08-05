@@ -133,6 +133,7 @@ test .............. scion++ and scionc unit tests
 For scitra-tun (Linux only):
 - libmnl >= 1.0.5
 - libcap >= 3.1.3
+- libsystemd-dev >= 255.4
 - [ImTui](https://github.com/ggerganov/imtui) (included as submodule)
 - [spdlog](https://github.com/gabime/spdlog) (included as submodule)
 
@@ -144,7 +145,8 @@ Most dependencies can be built and installed with vcpkg:
 ```bash
 vcpkg install
 ```
-In Linux, `libmnl` and `libcap` must be installed using the system's package manager.
+In Linux, `libmnl`, `libcap`, and `libsystemd-dev` must be installed using the system's package
+manager.
 
 All required build tools and dependencies can also be installed with apt (Ubuntu 24.04).
 ```bash
@@ -160,6 +162,7 @@ sudo apt-get install \
   libncurses-dev \
   libprotobuf-dev \
   libre2-dev \
+  libsystemd-dev \
   libtomlplusplus-dev \
   ninja-build \
   pandoc \
@@ -173,7 +176,7 @@ git submodule update --init --recursive
 ```
 
 ### Building with CMake ###
-Requires a C++23 compiler. gcc 13.3.0, clang 19.1.1 and MSVC 19.44.35209 work.
+Requires a C++23 compiler. gcc 13.3.0, clang 19.1.1 and MSVC 19.51.36252 work.
 
 Building with CMake and Ninja:
 ```bash
@@ -185,7 +188,7 @@ cmake --build build --config Release
 
 CMake preset for Windows:
 ```bash
-cmake --preset=vcpkg-vs-17 # or vcpkg-vs-18 for Visual Studio 2026
+cmake --preset=vcpkg-vs-18 # or vcpkg-vs-17 for Visual Studio 2022
 cmake --build build --config Debug
 cmake --build build --config Release
 ```
@@ -261,7 +264,18 @@ make test-data
 ### Integration Tests ###
 
 The integration tests require a copy of the [SCION source code](https://github.com/scionproto/scion).
-Set `SCION_ROOT` to the root of the repository.
+Additionally, the command line tools `ip`, `ping`, `ss`, `nc`, `iperf3`, and `mptcpize` must be
+available, which can be installed with apt on Ubuntu (24.04).
+```bash
+sudo apt-get install \
+  iperf3 \
+  iproute2 \
+  iputils-ping \
+  mptcpize
+```
+
+Set `SCION_ROOT` to the root of the repository and run the test through make or invoke the
+individual Python test files directly.
 ```bash
 make SCION_ROOT=~/scionproto-scion test-integration
 ```

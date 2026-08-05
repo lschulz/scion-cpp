@@ -7,7 +7,7 @@ BUILD_DIR := $(SRC_ROOT)/build
 PKG_DIR := $(SRC_ROOT)/out
 PYTHONPATH := $(PYTHONPATH):$(SRC_ROOT)/python
 
-DOCKER_TAG := 0.0.4
+DOCKER_TAG := 0.0.5
 HOST_UID := $(shell id -u):$(shell id -g)
 
 TEST_DATA=$(addsuffix .bin,$(basename $(shell find tests scitra/tests -name '*.py')))
@@ -52,6 +52,7 @@ test-integration:
 	$(PYTHON) integration-tests/all_tests.py -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
 	$(PYTHON) scitra/integration-test/run_ipv4_tests.py -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
 	$(PYTHON) scitra/integration-test/run_ipv6_tests.py -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
+	$(PYTHON) scitra/integration-test/multipath/run_tests.py -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
 
 # Make test data
 

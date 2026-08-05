@@ -1,4 +1,4 @@
-// Copyright (c) 2024-2025 Lars-Christian Schulz
+// Copyright (c) 2024-2026 Lars-Christian Schulz
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -59,6 +59,8 @@ static std::unique_ptr<Arguments> parseCommandLine(int argc, char* argv[])
     app.add_option("public_address,--address", args->publicAddress,
         "IP address for SCION. Must either be an IPv4 or SCION-mapped IPv6 address.")
         ->required();
+    app.add_option("-e,--extra", args->extraAddresses,
+        "Additional addresses assigned to the TUN interface for MPTCP connections.");
     app.add_option("-d,--sciond", args->sciond,
         "SCION daemon address (default \"127.0.0.1:30255\")")
         ->envname("SCION_DAEMON_ADDRESS");

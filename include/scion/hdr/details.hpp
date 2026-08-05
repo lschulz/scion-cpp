@@ -71,16 +71,13 @@ inline std::uint16_t onesComplementChecksum(
 }
 
 /// \brief Calculate the 16-bit one's complement of the one's complement sum of
-/// the given buffer. The result is returned in host byte order. A sum of zero
-/// is replaced by 0xffff.
+/// the given buffer. The result is returned in host byte order.
 /// \param buffer Input data the sum is computed over.
 /// \param inital Extra value added into the sum in host byte order.
 /// \return Checksum in host byte order.
 inline std::uint16_t internetChecksum(std::span<const std::byte> buffer, std::uint32_t inital = 0)
 {
-    std::uint16_t sum = ~onesComplementChecksum(buffer, inital);
-    if (sum == 0) sum = 0xffff;
-    return sum;
+    return ~onesComplementChecksum(buffer, inital);
 }
 
 /// \brief Update an internet checksum.
@@ -90,19 +87,19 @@ inline std::uint16_t internetChecksum(std::span<const std::byte> buffer, std::ui
 /// \return Updated header checksum in host byte order.
 inline std::uint16_t updateInternetChecksum(std::uint16_t chksum, std::uint32_t add, std::uint32_t sub)
 {
-    auto sum = (std::uint32_t)(~chksum & 0xffffu);
-    if (sum == 0xffffu) sum = 0;
-    sum += add;
-    while ((sum & ~0xffffu) != 0) {
-        sum = (sum >> 16) + (sum & 0xffffu);
-    }
-    sum += ~sub;
-    while ((sum & ~0xffffu) != 0) {
-        sum = (sum >> 16) + (sum & 0xffffu);
-    }
-    if (sum != 0xffff) sum = (~sum & 0xffffu);
-    return (std::uint16_t)sum;
+    auto sum = (std::uint32_t)(~chksum & 0xffff);
+    sum = sum + add - sub;
+    sum = (sum >> 16) + (sum & 0xffffu);
+    if (sum == 0) sum = 0xffff;
+    return (std::uint16_t)~sum;
 };
+
+/// \brief Compute sum of the four 16-bit words in the 64-bit integer `x`.
+inline std::uint32_t checksumUint64(std::uint64_t x)
+{
+    return (uint32_t)(((x >> 48) & 0xffff) + ((x >> 32) & 0xffff))
+        + (uint32_t)(((x >> 16) & 0xffff) + (x & 0xffff));
+}
 
 } // namespace details
 } // namespace hdr

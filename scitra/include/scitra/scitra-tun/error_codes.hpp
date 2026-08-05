@@ -37,7 +37,10 @@ enum class ScitraError : int
     ProtocolNotSupported,
     SocketClosed,
     InterfaceNotFound,
-    InvalidPacket
+    InvalidPacket,
+    NotEnoughPaths,
+    NoLeadFlow,
+    SubflowBroken,
 };
 
 const std::error_category& scitra_error_category();

@@ -69,8 +69,8 @@ This repository contains generic IP-SCION translation code and the following com
 applications:
 
 - [Scitra-TUN](docs/scitra-tun.md) A SCION-IP Translator for Linux hosts that enables all IPv6
-  applications ini the same host to communicate over a SCION network.Can be run as a daemon or with
-  an interactive user interface.
+  applications to communicate over a SCION network. Can be run as a daemon or with an interactive
+  user interface.
 
 Additional Resources
 --------------------

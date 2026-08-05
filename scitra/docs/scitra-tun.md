@@ -164,6 +164,28 @@ the border router's internal interface, set `--stun-port 0`. The `--nat-timeout`
 how much time of inactivity a flow between Scitra-TUN and the border router may receive a new
 address mapping and therefore requires STUN address discovery to be repeated.
 
+Multipath TCP
+-------------
+
+Scitra-TUN can route MPTCP subflows over SCION. Since MPTCP identifies possible paths by available
+addresses on multi-homed hosts, Scitra can assign *surrogate addresses* to the TUN interface in
+addition to the primary IPv6 address. For each surrogate address an additional subflow and
+therefore SCION path becomes available. You can assign surrogate addresses by invoking Scitra-TUN
+with the `-e/--extra` option that takes one or more IPv6 unicast addresses. Surrogate addresses
+should not be SCION-mapped IPv6 addresses, i.e., have a prefix different from `fc00::/8`, and should
+not be routed anywhere else than into the TUN interface. Using unique local addresses (ULAs) with a
+prefix under `fd00::/8` is recommended. In order for the addresses to be picked up by MPTCP, it is
+usually necessary to configure MPTCP's path manager. In Linux this is possible with the
+`ip mptcp endpoint` command, but may also be handled by a userspace daemon such as mptcpd or
+NetworkManager. Check your operating system documentation for details on how to configure MPTCP.
+
+Scitra-TUN can deal with MPTCP subflows even if not surrogate addresses are assigned. This can be
+useful for combining subflows over the Internet with a subflow over SCION. Note however, that the
+Linux implementation of MPTCP currently does not permit mixing address families, i.e., you can
+combine IPv6 routing with SCION routing, but not with IPv4.
+
+More technical details on MPTCP over SCION is available [in a separate file](scion-mptcp.md).
+
 Path Policy
 -----------
 
