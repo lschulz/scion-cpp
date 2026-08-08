@@ -241,7 +241,7 @@ public:
     template <typename Stream, typename Error>
     bool serialize(Stream& stream, Error& err)
     {
-        if (!stream.serializeByte((std::uint8_t&)flags, err)) return err.propagate();
+        if (!stream.serializeByte(flags.ref(), err)) return err.propagate();
         if (!stream.advanceBytes(1, err)) return err.propagate();
         if (!stream.serializeUint16(segid, err)) return err.propagate();
         if (!stream.serializeUint32(timestamp, err)) return err.propagate();

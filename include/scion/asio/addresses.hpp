@@ -172,11 +172,11 @@ struct AddressTraits<boost::asio::ip::address>
         if (addr.is_v4()) {
             if (bytes.size() < 4) return ErrorCode::BufferTooSmall;
             return AddressTraits<boost::asio::ip::address_v4>::toBytes(
-                addr.to_v4(), std::span<std::byte, 4>(bytes));
+                addr.to_v4(), std::span<std::byte, 4>(bytes.data(), 4));
         } else {
             if (bytes.size() < 16) return ErrorCode::BufferTooSmall;
             return AddressTraits<boost::asio::ip::address_v6>::toBytes(
-                addr.to_v6(), std::span<std::byte, 16>(bytes));
+                addr.to_v6(), std::span<std::byte, 16>(bytes.data(), 16));
         }
     }
 

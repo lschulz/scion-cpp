@@ -227,7 +227,7 @@ make deb
 ```
 
 By default, the packages have a pre-release version number of the format `major.minor.patch-commit`.
-Set the CMake cache variable `RELASE=YES` to build release packages. The deb packages can also be
+Set the CMake cache variable `RELEASE=YES` to build release packages. The deb packages can also be
 build in a Docker container by invoking the make target `deb-docker`. Packets build this way are
 marked as release versions.
 
@@ -277,5 +277,5 @@ sudo apt-get install \
 Set `SCION_ROOT` to the root of the repository and run the test through make or invoke the
 individual Python test files directly.
 ```bash
-make SCION_ROOT=~/scionproto-scion test-integration
+make SCION_ROOT=~/scion test-integration
 ```

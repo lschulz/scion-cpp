@@ -4,3 +4,4 @@
 .venv
 __pycache__
 *.gz
+cmake_test_discovery*

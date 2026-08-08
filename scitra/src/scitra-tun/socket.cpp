@@ -98,7 +98,7 @@ Socket::recvPacket(PacketBuffer& pkt, asio::ip::udp::endpoint& from)
                     m_localPort, from);
                 if (ec = respondToBindingReq(pkt, from); ec) {
                     spdlog::debug("Socket {}: Error sending STUN response to {}: {}",
-                        from, fmtError(ec));
+                        m_localPort, from, fmtError(ec));
                 }
                 co_return ScitraError::StunReceived;
             } else if (pkt.stun.type == hdr::StunMsgType::BindingResponse) {

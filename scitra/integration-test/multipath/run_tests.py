@@ -140,6 +140,7 @@ class MPNetcat(ScitraMultipathBase, unittest.TestCase):
             *self.command, "-6", "-l", "32000"
         ], stdin=PIPE, stdout=PIPE, stderr=DEVNULL)
         os.set_blocking(self.server.stdout.fileno(), False)
+        time.sleep(1)
 
     def tearDown(self):
         self.server.stdout.close()

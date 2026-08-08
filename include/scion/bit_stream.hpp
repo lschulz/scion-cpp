@@ -315,6 +315,9 @@ public:
     template <typename Error>
     bool advanceBits(std::size_t bits, Error& err)
     {
+        const std::size_t bytesTouched = (bits + bitPos + 7) / 8; // see serializeBits
+        if ((std::size_t)(data.end() - byteIter) < bytesTouched)
+            return err.error("out of data to read");
         std::uint32_t value;
         for (std::size_t i = 0; i < (bits / 32); ++i) {
             if (!serializeBits(value, 32, err)) return err.propagate();
@@ -549,6 +552,9 @@ public:
     template <typename Error>
     bool advanceBits(std::size_t bits, Error& err)
     {
+        const std::size_t bytesTouched = (bits + bitPos + 7) / 8; // see serializeBits
+        if ((std::size_t)(data.end() - byteIter) < bytesTouched)
+            return err.error("out of space");
         for (std::size_t i = 0; i < (bits / 32); ++i) {
             if (!serializeBits(0, 32, err)) return err.propagate();
         }

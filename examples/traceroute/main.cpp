@@ -183,7 +183,7 @@ int main(int argc, char* argv[])
 
         Socket::Endpoint from;
         Socket::UnderlayEp ulSource;
-        std::unique_ptr<RawPath> rp;
+        auto rp = std::make_unique<RawPath>();
         std::vector<std::byte> buffer(1024);
         hdr::ScmpMessage message;
         std::size_t responses = 0;

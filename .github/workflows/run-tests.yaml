@@ -7,8 +7,12 @@ on:
 
 jobs:
   tests-linux:
-    name: Run tests (Ubuntu)
-    runs-on: ubuntu-24.04
+    name: Run tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-26.04]
     steps:
       - name: Check out the source repository
         uses: actions/checkout@v6
@@ -58,7 +62,7 @@ jobs:
         with:
           repository: 'scionproto/scion'
           path: 'scion'
-          ref: v0.15.0
+          ref: v0.15.1
       - name: Set up Bazel
         uses: bazel-contrib/setup-bazel@0.16.0
         with:
@@ -78,7 +82,7 @@ jobs:
         run: cat tools/env/debian/pkgs.txt | sudo apt-get install -y $(xargs)
       - name: Disable Bazel remote cache
         working-directory: '${{ github.workspace }}/scion'
-        run: sed '/remote_cache/s/^/#/g' .bazelrc | sponge .bazelrc
+        run: sed -i '/remote_cache/s/^/#/g' .bazelrc
       - name: Build SCION
         working-directory: '${{ github.workspace }}/scion'
         run: |
@@ -86,6 +90,15 @@ jobs:
           bazel build //:scion-topo
           tar xf bazel-bin/scion.tar -C bin
           tar xf bazel-bin/scion-topo.tar -C bin
+      - name: Allow loading SCION interposer into AppArmor-confined netcat
+        run: |
+          set -eu
+          profile=/etc/apparmor.d/nc.openbsd
+          if [ -f "$profile" ]; then
+            sudo mkdir -p /etc/apparmor.d/local
+            echo '${{ github.workspace }}/build/** mr,' | sudo tee /etc/apparmor.d/local/nc.openbsd
+            sudo apparmor_parser -r "$profile"
+          fi
       - name: Run integration tests
         run: make SCION_ROOT=${{ github.workspace }}/scion test-integration
 

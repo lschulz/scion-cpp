@@ -25,7 +25,7 @@
                 "AGRPC_BOOST_ASIO"
             ],
             "intelliSenseMode": "linux-gcc-x64",
-            "compilerPath": "/usr/bin/g++-13"
+            "compilerPath": "/usr/bin/g++"
         },
         {
             "name": "Win32",

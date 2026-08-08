@@ -460,7 +460,7 @@ IPAddress toGenericAddr(const T& addr)
     [[maybe_unused]] auto ec = AddressTraits<T>::toBytes(addr, bytes);
     assert(!ec);
     if (AddressTraits<T>::type(addr) == HostAddrType::IPv4) {
-        return IPAddress::MakeIPv4(std::span<std::byte, 4>(bytes.data(), bytes.data() + 4));
+        return IPAddress::MakeIPv4(std::span<std::byte, 4>(bytes.data(), 4));
     } else {
         return IPAddress::MakeIPv6(bytes);
     }
@@ -499,7 +499,7 @@ IPEndpoint toGenericEp(const T& ep)
     if (AddressTraits<AddrType>::type(addr) == HostAddrType::IPv4) {
         return IPEndpoint(
             generic::IPAddress::MakeIPv4(
-                std::span<std::byte, 4>(bytes.data(), bytes.data() + 4)), port);
+                std::span<std::byte, 4>(bytes.data(), 4)), port);
     } else {
         return IPEndpoint(generic::IPAddress::MakeIPv6(bytes), port);
     }
