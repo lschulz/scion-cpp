@@ -210,10 +210,10 @@ public:
     bool isScion() const { return is6() && ((m_hi >> 56) & 0xff) == 0xfc; }
 
     /// \brief Tell whether this is a SCION-IPv4-mapped IPv6 address.
-    bool isScion4() const { return isScion() && (m_hi & 0xff'fffful) == 0 && (m_lo >> 32) == 0xffffull; }
+    bool isScion4() const;
 
     /// \brief Tell whether this is a SCION-IPv6-mapped IPv6 address.
-    bool isScion6() const { return isScion() && ((m_hi & 0xff'fffful) != 0 || (m_lo >> 32) != 0xffffull); }
+    bool isScion6() const;
 
     /// \brief Unmaps IPv4-mapped IPv6 addresses to regular IPv4. Returns a copy
     /// of the address if it is not a 4-in-6 address.

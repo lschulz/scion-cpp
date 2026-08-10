@@ -117,7 +117,7 @@ TEST(GetNameInfoTest, ShortBuffer)
     using namespace scion;
 
     sockaddr_in6 addr = EndpointTraits<sockaddr_in6>::fromHostPort(
-        unwrap(ScIPAddress::Parse("4095-2:7:ffff,fcff:ffff:ffaa:aabb:1234:5678:9abc:def0")
+        unwrap(ScIPAddress::Parse("4095-2:ffff:ffff,fcff:feff:ffff:ff00:1234:5678:9abc:def0")
         .and_then(mapToIPv6)
         .and_then([] (const scion::generic::IPAddress& x) {
             return generic::toUnderlay<in6_addr>(x);
@@ -135,7 +135,7 @@ TEST(GetNameInfoTest, ShortBuffer)
     res = interposer_getnameinfo(reinterpret_cast<sockaddr*>(&addr), sizeof(addr),
         host.data(), host.size(), nullptr, 0, 0);
     ASSERT_EQ(res, 0);
-    EXPECT_STREQ(host.data(), "4095-2:7:ffff,fcff:ffff:ffaa:aabb:1234:5678:9abc:def0");
+    EXPECT_STREQ(host.data(), "4095-2:ffff:ffff,fcff:feff:ffff:ff00:1234:5678:9abc:def0");
 }
 
 TEST(InetPtoNTest, NativeScion)
@@ -186,7 +186,7 @@ TEST(InetNtoPTest, MappedScion)
     using namespace scion;
 
     in6_addr addr = unwrap(
-        ScIPAddress::Parse("4095-2:7:ffff,fcff:ffff:ffaa:aabb:1234:5678:9abc:def0")
+        ScIPAddress::Parse("4095-2:ffff:ffff,fcff:feff:ffff:ff00:1234:5678:9abc:def0")
         .and_then(mapToIPv6)
         .and_then([] (const scion::generic::IPAddress& x) {
             return generic::toUnderlay<in6_addr>(x);
@@ -202,5 +202,5 @@ TEST(InetNtoPTest, MappedScion)
 
     res = interposer_inet_ntop(AF_INET6, &addr, host.data(), host.size());
     EXPECT_EQ(res, host.data());
-    EXPECT_STREQ(host.data(), "4095-2:7:ffff,fcff:ffff:ffaa:aabb:1234:5678:9abc:def0");
+    EXPECT_STREQ(host.data(), "4095-2:ffff:ffff,fcff:feff:ffff:ff00:1234:5678:9abc:def0");
 }

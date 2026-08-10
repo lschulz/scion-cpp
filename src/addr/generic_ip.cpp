@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include "scion/addr/generic_ip.hpp"
+#include "scion/addr/mapping.hpp"
 #include "scion/details/bit.hpp"
 
 #include <boost/algorithm/string.hpp>
@@ -120,6 +121,28 @@ unsigned int IPAddress::zoneId() const
     zone = zone.substr(0, std::min(zone.size(), (std::size_t)IF_NAMESIZE)-1);
     std::ranges::copy(zone, name);
     return if_nametoindex(name);
+}
+
+bool IPAddress::isScion4() const
+{
+    switch (classifyScionMappedIP(*this)) {
+    case ScionIPv6Class::BGP_IPV4:
+    case ScionIPv6Class::PUBLIC_SCION_IPV4:
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool IPAddress::isScion6() const
+{
+    switch (classifyScionMappedIP(*this)) {
+    case ScionIPv6Class::BGP_IPV6:
+    case ScionIPv6Class::PUBLIC_SCION_IPV6:
+        return true;
+    default:
+        return false;
+    }
 }
 
 static Maybe<uint32_t> parseIPv4(std::string_view text) noexcept

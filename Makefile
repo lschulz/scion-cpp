@@ -7,7 +7,7 @@ BUILD_DIR := $(SRC_ROOT)/build
 PKG_DIR := $(SRC_ROOT)/out
 PYTHONPATH := $(PYTHONPATH):$(SRC_ROOT)/python
 
-DOCKER_TAG := 0.0.5
+DOCKER_TAG := 0.1.0
 HOST_UID := $(shell id -u):$(shell id -g)
 
 TEST_DATA=$(addsuffix .bin,$(basename $(shell find tests scitra/tests -name '*.py')))

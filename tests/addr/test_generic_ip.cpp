@@ -260,8 +260,8 @@ TEST(GenericIP, ScionMappedIPv6)
 {
     using namespace scion::generic;
 
-    auto scion4 = IPAddress::MakeIPv6(0xfc01'0000'0100'0000ul, 0xffff'0aff'fffful);
-    auto scion6 = IPAddress::MakeIPv6(0xfc01'0000'0100'1234ul, 0x0aff'fffful);
+    auto scion4 = IPAddress::MakeIPv6(0xfc01'00fb'0000'0000ul, 0xffff'0aff'fffful);
+    auto scion6 = IPAddress::MakeIPv6(0xfc01'00fb'0000'1234ul, 0x0aff'fffful);
     auto notScion = IPAddress::MakeIPv6(0, 0xf9a7'f716'9f2c'95e2ul);
 
     EXPECT_TRUE(scion4.is6());
@@ -279,9 +279,43 @@ TEST(GenericIP, ScionMappedIPv6)
     EXPECT_FALSE(notScion.isScion4());
     EXPECT_FALSE(notScion.isScion6());
 
-    EXPECT_EQ(std::format("{}", scion4), "fc01:0:100::ffff:10.255.255.255");
-    EXPECT_EQ(std::format("{}", scion6), "fc01:0:100:1234::aff:ffff");
+    EXPECT_EQ(std::format("{}", scion4), "fc01:fb::ffff:10.255.255.255");
+    EXPECT_EQ(std::format("{}", scion6), "fc01:fb:0:1234::aff:ffff");
     EXPECT_EQ(std::format("{}", notScion), "::f9a7:f716:9f2c:95e2");
+}
+
+TEST(GenericIP, ClassifyScionMappedIPv6)
+{
+    using namespace scion;
+    using namespace scion::generic;
+
+    EXPECT_EQ(
+        classifyScionMappedIP(IPAddress::MakeIPv6(0, 0)),
+        ScionIPv6Class::INVALID);
+    EXPECT_EQ(
+        classifyScionMappedIP(IPAddress::MakeIPv6(0xfc00'10fb'0100'0000, 0xffff'0a000001)),
+        ScionIPv6Class::BGP_IPV4);
+    EXPECT_EQ(
+        classifyScionMappedIP(IPAddress::MakeIPv6(0xfc00'10fb'00ff'1234, 0x0a000001)),
+        ScionIPv6Class::BGP_IPV6);
+    EXPECT_EQ(
+        classifyScionMappedIP(IPAddress::MakeIPv6(0xfc00'10fb'0000'0000, 0)),
+        ScionIPv6Class::BGP_WILDCARD);
+    EXPECT_EQ(
+        classifyScionMappedIP(IPAddress::MakeIPv6(0xfc00'1000'00ff'1234, 0xabcd'abcd'abcd'abcd)),
+        ScionIPv6Class::WILDCARD_ASN);
+    EXPECT_EQ(
+        classifyScionMappedIP(IPAddress::MakeIPv6(0xfc00'1e00'0000'4a00, 0xffff'0a000001)),
+        ScionIPv6Class::PUBLIC_SCION_IPV4);
+    EXPECT_EQ(
+        classifyScionMappedIP(IPAddress::MakeIPv6(0xfc00'1e00'0000'4a01, 0xabcd'abcd'abcd'abcd)),
+        ScionIPv6Class::PUBLIC_SCION_IPV6);
+    EXPECT_EQ(
+        classifyScionMappedIP(IPAddress::MakeIPv6(0xfc00'1e00'0000'4a00, 0)),
+        ScionIPv6Class::PUBLIC_SCION_WILDCARD);
+    EXPECT_EQ(
+        classifyScionMappedIP(IPAddress::MakeIPv6(0xfc00'1f00'0000'0000, 0)),
+        ScionIPv6Class::RESERVED);
 }
 
 TEST(GenericIP, MapScionToIPv6)
@@ -289,28 +323,33 @@ TEST(GenericIP, MapScionToIPv6)
     using namespace scion;
     using namespace scion::generic;
 
-    // BGP-style ASN with IPv4 host
+    // BGP-derived ASN with IPv4 host
     auto opt = mapToIPv6(unwrap(ScIPAddress::Parse("1-64512,10.0.0.1")));
     ASSERT_TRUE(opt.has_value());
     ASSERT_EQ(*opt, unwrap(IPAddress::Parse("fc00:10fc::ffff:10.0.0.1")));
 
-    // SCION-style ASN with IPv6 host
-    opt = mapToIPv6(unwrap(ScIPAddress::Parse("1-2:0:0,10.0.0.1")));
+    // BGP-derived ASN with IPv6 host
+    opt = mapToIPv6(unwrap(ScIPAddress::Parse("1-64512,fc00:10fc::1")));
     ASSERT_TRUE(opt.has_value());
-    ASSERT_EQ(*opt, unwrap(IPAddress::Parse("fc00:1800::ffff:10.0.0.1")));
+    ASSERT_EQ(*opt, unwrap(IPAddress::Parse("fc00:10fc::1")));
+
+    // SCION ASN with IPv4 host
+    opt = mapToIPv6(unwrap(ScIPAddress::Parse("1-2:0:4a,10.0.0.1")));
+    ASSERT_TRUE(opt.has_value());
+    ASSERT_EQ(*opt, unwrap(IPAddress::Parse("fc00:1e00:0000:4a00::ffff:10.0.0.1")));
+
+    // SCION ASN with IPv6 host
+    opt = mapToIPv6(unwrap(ScIPAddress::Parse("1-2:0:4a,fc00:1e00:0000:4acc:abcd:abcd:abcd:abcd")));
+    ASSERT_TRUE(opt.has_value());
+    ASSERT_EQ(*opt, unwrap(IPAddress::Parse("fc00:1e00:0000:4acc:abcd:abcd:abcd:abcd")));
 
     // untranslatable ASN
     opt = mapToIPv6(unwrap(ScIPAddress::Parse("1-ff:0:0,10.0.0.1")));
     ASSERT_FALSE(opt.has_value());
 
     // IPv6 host that can't be reversibly translated
-    opt = mapToIPv6(unwrap(ScIPAddress::Parse("1-2:0:0,::1")));
+    opt = mapToIPv6(unwrap(ScIPAddress::Parse("1-2:0:4a,::1")));
     ASSERT_FALSE(opt.has_value());
-
-    // IPv6 host that is already SCION-mapped
-    opt = mapToIPv6(unwrap(ScIPAddress::Parse("1-2:0:0,fc00:1800:0:cc02::1")));
-    ASSERT_TRUE(opt.has_value());
-    ASSERT_EQ(*opt, unwrap(IPAddress::Parse("fc00:1800:0:cc02::1")));
 
     // v4-mapped IPv6
     opt = mapToIPv6(unwrap(ScIPAddress::Parse("1-64496,::ffff:7f00:1")));
@@ -323,15 +362,25 @@ TEST(GenericIP, UnmapIPv6ToScion)
     using namespace scion;
     using namespace scion::generic;
 
-    // BGP-style ASN with IPv4 host
+    // BGP-derived ASN with IPv4 host
     auto opt = unmapFromIPv6(unwrap(IPAddress::Parse("fc00:10fc::ffff:10.128.0.1")));
     ASSERT_TRUE(opt.has_value());
     ASSERT_EQ(*opt, unwrap(ScIPAddress::Parse("1-64512,10.128.0.1")));
 
-    // BGP-style ASN with IPv6 host
+    // BGP-derived ASN with IPv6 host
     opt = unmapFromIPv6(unwrap(IPAddress::Parse("fc00:10fc:200::1")));
     ASSERT_TRUE(opt.has_value());
     ASSERT_EQ(*opt, unwrap(ScIPAddress::Parse("1-64514,fc00:10fc:200::1")));
+
+    // SCION ASN with IPv4 host
+    opt = unmapFromIPv6(unwrap(IPAddress::Parse("fc00:1e00:0000:4a00::ffff:10.0.0.1")));
+    ASSERT_TRUE(opt.has_value());
+    ASSERT_EQ(*opt, unwrap(ScIPAddress::Parse("1-2:0:4a,10.0.0.1")));
+
+    // SCION ASN with IPv6 host
+    opt = unmapFromIPv6(unwrap(IPAddress::Parse("fc00:1e00:0000:4acc:abcd:abcd:abcd:abcd")));
+    ASSERT_TRUE(opt.has_value());
+    ASSERT_EQ(*opt, unwrap(ScIPAddress::Parse("1-2:0:4a,fc00:1e00:0000:4acc:abcd:abcd:abcd:abcd")));
 
     // v4-mapped IPv6
     opt = unmapFromIPv6(unwrap(IPAddress::Parse("fc00:10fb:f000::ffff:7f00:1")));
