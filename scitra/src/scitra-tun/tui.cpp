@@ -1155,7 +1155,7 @@ void ScitraTui::propertyWindow(const ImVec2& tabSize)
                     float expiry = std::numeric_limits<float>::infinity();
                     if (!flow->path->empty()) {
                         expiry = 1e-3f * (float)duration_cast<milliseconds>(
-                            flow->path->expiry() - utc_clock::now()).count();
+                            flow->path->expiry() - system_clock::now()).count();
                     }
                     ImGui::Text("%.1f s", expiry);
 

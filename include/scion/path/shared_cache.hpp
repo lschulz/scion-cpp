@@ -70,7 +70,7 @@ public:
         auto ec = update(r, std::forward<PathProvider>(queryPaths));
 
         if (auto i = inner.cache.find(r); i != inner.cache.end() && !i->second.paths.empty()) {
-            auto now = std::chrono::utc_clock::now();
+            auto now = std::chrono::system_clock::now();
             std::shared_lock<std::shared_mutex> lock(mutex);
             receive(i->second.paths | std::views::filter([now] (const auto& path) {
                 return path->expiry() > now;
@@ -171,7 +171,7 @@ private:
             if (auto i = inner.cache.find(r); i != inner.cache.end()) {
                 if (!refresh) {
                     refresh = !(i->second.refreshPending)
-                        && (i->second.nextRefresh < std::chrono::utc_clock::now());
+                        && (i->second.nextRefresh < std::chrono::steady_clock::now());
                 }
                 i->second.refreshPending = refresh;
             } else {

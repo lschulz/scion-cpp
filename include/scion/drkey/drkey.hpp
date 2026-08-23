@@ -35,7 +35,7 @@ namespace drkey {
 class Key
 {
 public:
-    using TimePoint = std::chrono::utc_clock::time_point;
+    using TimePoint = std::chrono::system_clock::time_point;
 
     std::array<std::byte, 16> key;
     TimePoint epochBegin;

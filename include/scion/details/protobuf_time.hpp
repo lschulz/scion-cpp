@@ -29,13 +29,14 @@
 namespace scion {
 namespace details {
 
-inline std::chrono::utc_clock::time_point timepointFromProtobuf(google::protobuf::Timestamp ts)
+/// \brief Get Unix timestamp from protobuf time.
+inline std::chrono::system_clock::time_point timepointFromProtobuf(google::protobuf::Timestamp ts)
 {
     using namespace std::chrono;
     auto seconds = ts.seconds();
     auto nanos = ts.nanos();
-    if (seconds < 0 || nanos < 0) return utc_clock::time_point{};
-    return utc_clock::time_point(duration_cast<utc_clock::duration>(nanoseconds(
+    if (seconds < 0 || nanos < 0) return system_clock::time_point{};
+    return system_clock::time_point(duration_cast<system_clock::duration>(nanoseconds(
         static_cast<std::uint64_t>(seconds) * std::nano::den
         + static_cast<std::uint64_t>(nanos))));
 }
@@ -51,15 +52,18 @@ inline std::chrono::nanoseconds durationFromProtobuf(google::protobuf::Duration 
         + static_cast<std::uint64_t>(nanos));
 }
 
-inline std::uint64_t timepointSeconds(std::chrono::utc_clock::time_point t)
+/// \brief Get seconds since the epoch from a Unix time point.
+inline std::uint64_t timepointSeconds(std::chrono::system_clock::time_point t)
 {
-    return std::chrono::duration_cast<std::chrono::seconds>(t.time_since_epoch()).count();
+    using namespace std::chrono;
+    return duration_cast<seconds>(t.time_since_epoch()).count();
 }
 
-inline std::uint64_t timepointNanos(std::chrono::utc_clock::time_point t)
+/// \brief Get fractional seconds since the epoch from a Unix time point.
+inline std::uint64_t timepointNanos(std::chrono::system_clock::time_point t)
 {
-    return std::chrono::duration_cast<std::chrono::nanoseconds>(
-        t.time_since_epoch()).count() % std::nano::den;
+    using namespace std::chrono;
+    return duration_cast<nanoseconds>(t.time_since_epoch()).count() % std::nano::den;
 }
 
 } // namespace details

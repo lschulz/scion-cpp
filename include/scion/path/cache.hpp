@@ -37,12 +37,12 @@ struct PathCacheOptions
 {
     /// \brief Minimum remaining path lifetime for a new path to be accepted
     /// into the cache.
-    std::chrono::utc_clock::duration minAcceptedLifetime;
+    std::chrono::system_clock::duration minAcceptedLifetime;
     /// \brief Remaining path lifetime at which paths are refreshed.
-    std::chrono::utc_clock::duration refreshAtRemaining;
+    std::chrono::system_clock::duration refreshAtRemaining;
     /// \brief Minimum path refresh interval. Paths are refreshed in this
     /// interval even if the would not expire within `refreshAtRemaining`.
-    std::chrono::utc_clock::duration refreshInterval;
+    std::chrono::steady_clock::duration refreshInterval;
 };
 
 /// \brief Container for path that keeps track of path expiration times and
@@ -68,16 +68,16 @@ protected:
 
     struct PathSet
     {
-        Path::Expiry nextRefresh;
+        std::chrono::steady_clock::time_point nextRefresh;
         bool refreshPending = false; // flag preventing multiple calls to path query callback
         std::vector<PathPtr> paths;
     };
 
     using Cache = std::unordered_map<Route, PathSet, RouteHasher>;
 
-    std::chrono::utc_clock::duration minAcceptedLifetime;
-    std::chrono::utc_clock::duration refreshAtRemaining;
-    std::chrono::utc_clock::duration refreshInterval;
+    std::chrono::system_clock::duration minAcceptedLifetime;
+    std::chrono::system_clock::duration refreshAtRemaining;
+    std::chrono::steady_clock::duration refreshInterval;
     Cache cache;
 
     friend class SharedPathCache;
@@ -154,7 +154,7 @@ public:
         auto ec = update(r, std::forward<PathProvider>(queryPaths));
 
         if (auto i = cache.find(r); i != cache.end() && !i->second.paths.empty()) {
-            auto now = std::chrono::utc_clock::now();
+            auto now = std::chrono::system_clock::now();
             receive(i->second.paths | std::views::filter([now] (const auto& path) {
                 return path->expiry() > now;
             }) | std::views::as_const);
@@ -206,7 +206,7 @@ public:
     {
         Route r{src, dst};
         if (auto i = cache.find(r); i != cache.end()) {
-            auto now = std::chrono::utc_clock::now();
+            auto now = std::chrono::system_clock::now();
             receive(i->second.paths | std::views::filter([now] (const auto& path) {
                 return path->expiry() > now;
             }) | std::views::as_const);
@@ -219,7 +219,7 @@ public:
         && std::same_as<std::ranges::range_value_t<T>, PathPtr>
     void store(IsdAsn src, IsdAsn dst, const T& paths)
     {
-        auto now = std::chrono::utc_clock::now();
+        auto now = std::chrono::system_clock::now();
         Route r{src, dst};
         auto& cached = cache[r];
         cached.paths.clear();
@@ -235,7 +235,7 @@ public:
     /// \brief Replace paths from `src` to `dst` with a new set of paths.
     void store(IsdAsn src, IsdAsn dst, std::vector<PathPtr>&& paths)
     {
-        auto now = std::chrono::utc_clock::now();
+        auto now = std::chrono::system_clock::now();
         Route r{src, dst};
         auto& cached = cache[r];
         cached.paths = std::move(paths);
@@ -295,7 +295,7 @@ private:
         if (auto i = cache.find(r); i != cache.end()) {
             if (!refresh) {
                 refresh = !(i->second.refreshPending)
-                    && (i->second.nextRefresh < std::chrono::utc_clock::now());
+                    && (i->second.nextRefresh < std::chrono::steady_clock::now());
             }
             i->second.refreshPending = refresh;
         } else {
@@ -313,13 +313,16 @@ private:
         return ErrorCode::Ok;
     }
 
-    void updateNextRefresh(std::chrono::utc_clock::time_point now, PathSet& set)
+    void updateNextRefresh(std::chrono::system_clock::time_point now, PathSet& set)
     {
-        auto nextExpiry = std::chrono::utc_clock::time_point::max();
+        using namespace std::chrono;
+        auto nextExpiry = system_clock::time_point::max();
         for (auto& path : set.paths) {
             nextExpiry = std::min(path->expiry(), nextExpiry);
         }
-        set.nextRefresh = std::min(nextExpiry - refreshAtRemaining, now + refreshInterval);
+        auto expiryRefresh = std::max(
+            (nextExpiry - refreshAtRemaining) - now, steady_clock::duration(0));
+        set.nextRefresh = steady_clock::now() + std::min(expiryRefresh, refreshInterval);
         set.refreshPending = false;
     }
 
@@ -327,7 +330,7 @@ private:
     {
         std::vector<PathPtr> v;
         v.reserve(i->second.paths.size());
-        auto now = std::chrono::utc_clock::now();
+        auto now = std::chrono::system_clock::now();
         std::ranges::copy_if(i->second.paths, std::back_inserter(v), [now] (auto& path) {
             return path->expiry() > now;
         });

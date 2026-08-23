@@ -207,13 +207,13 @@ typedef struct scion_timer_t scion_timer;
 /// \name Clock
 ///@{
 
-/// \brief Returns the current UTC time in nanoseconds since the UNIX epoch.
-/// This clock follows time adjustments of the host clock, if a steady clock is
-/// needed use `scion_time_steady()`.
+/// \brief Returns the current time as Unix timestamp with nanosecond precision.
+/// Use this time to check path expiry. This clock follows time adjustments of
+/// the host clock, if a steady clock is needed use `scion_time_steady()`.
 DLLEXPORT
-uint64_t scion_time_utc(void);
+uint64_t scion_time(void);
 
-/// \brief Retruns the number of nanoseconds elapsed since sum undefined epoch.
+/// \brief Retruns the number of nanoseconds elapsed since some undefined epoch.
 /// This clock is monotonically increasing.
 DLLEXPORT
 uint64_t scion_time_steady(void);
@@ -640,8 +640,7 @@ uint64_t scion_path_last_as(scion_path* path);
 DLLEXPORT
 scion_ptype scion_path_type(scion_path* path);
 
-/// \brief Returns the expiration time of the path in nanoseconds since the
-/// Unix epoch. The time is given in UTC.
+/// \brief Returns the expiration time of the path as Unix timestamp.
 DLLEXPORT
 uint64_t scion_path_expiry(scion_path* path);
 

@@ -141,8 +141,8 @@ bool scion_sel_select_cached(void* ctx, scion_native_handle socket,
     using namespace std::chrono;
     // Reuse previous path if not broken or expired.
     if (scion_path_broken(path)) return false;
-    auto now = duration_cast<nanoseconds>(utc_clock::now().time_since_epoch()).count();
-    if (scion_path_expiry(path) <= (uint64_t)now) return false;
+    auto now = scion_time();
+    if (scion_path_expiry(path) <= now) return false;
     return true;
 }
 

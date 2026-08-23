@@ -757,7 +757,7 @@ std::error_code ScitraTun::translateIPtoScion(TunQueue& tun)
             flow->lock().getPath(path);
 
             bool expiresSoon = false;
-            auto now = std::chrono::utc_clock::now();
+            auto now = std::chrono::system_clock::now();
             if (path) {
                 auto ttl = path->expiry() - now;
                 if (flow->getType() == FlowType::Active)

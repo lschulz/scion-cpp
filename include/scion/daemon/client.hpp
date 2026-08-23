@@ -91,7 +91,7 @@ enum class DRKeyProtocol : std::uint_fast16_t
 
 struct DRKeyHostASRequest
 {
-    std::chrono::utc_clock::time_point valTime;
+    std::chrono::system_clock::time_point valTime;
     DRKeyProtocol protocol;
     IsdAsn srcIA;
     IsdAsn dstIA;
@@ -100,7 +100,7 @@ struct DRKeyHostASRequest
 
 struct DRKeyASHostRequest
 {
-    std::chrono::utc_clock::time_point valTime;
+    std::chrono::system_clock::time_point valTime;
     DRKeyProtocol protocol;
     IsdAsn srcIA;
     IsdAsn dstIA;
@@ -109,7 +109,7 @@ struct DRKeyASHostRequest
 
 struct DRKeyHostHostRequest
 {
-    std::chrono::utc_clock::time_point valTime;
+    std::chrono::system_clock::time_point valTime;
     DRKeyProtocol protocol;
     IsdAsn srcIA;
     IsdAsn dstIA;

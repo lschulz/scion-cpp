@@ -31,7 +31,7 @@ TEST(Protobuf, timepointFromProtobuf)
 
     pb::Timestamp protoTs;
     auto ts = details::timepointFromProtobuf(protoTs);
-    EXPECT_EQ(ts, utc_clock::time_point{});
+    EXPECT_EQ(ts, system_clock::time_point{});
 
     protoTs.set_seconds(1'712'407'990);
     protoTs.set_nanos(999'999'000);
@@ -62,7 +62,7 @@ TEST(Protobuf, timepointToProtobuf)
     using namespace std::chrono;
     using namespace std::chrono_literals;
 
-    utc_clock::time_point tp(duration_cast<utc_clock::duration>(1'712'407'990'999'999'000ns));
+    system_clock::time_point tp(duration_cast<system_clock::duration>(1'712'407'990'999'999'000ns));
 
     EXPECT_EQ(details::timepointSeconds(tp), 1'712'407'990);
     EXPECT_EQ(details::timepointNanos(tp), 999'999'000);

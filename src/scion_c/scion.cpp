@@ -258,11 +258,11 @@ const char* scion_error_string(scion_error err)
 ///////////
 
 extern "C" DLLEXPORT
-uint64_t scion_time_utc()
+uint64_t scion_time()
 {
     using namespace std::chrono;
     return std::uint64_t(duration_cast<nanoseconds>(
-        utc_clock::now().time_since_epoch()).count());
+        system_clock::now().time_since_epoch()).count());
 }
 
 extern "C" DLLEXPORT

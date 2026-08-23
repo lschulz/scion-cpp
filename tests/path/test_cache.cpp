@@ -47,7 +47,7 @@ TYPED_TEST(PathCacheTest, Lookup)
 
     TypeParam cache;
     auto queryPaths = [] (TypeParam& cache, IsdAsn src, IsdAsn dst) -> std::error_code {
-        auto now = std::chrono::utc_clock::now();
+        auto now = std::chrono::system_clock::now();
         auto nh = unwrap(generic::IPEndpoint::Parse("10.0.0.1:31000"));
         static std::array<std::byte, 16> path = {};
         std::vector<PathPtr> paths = {
@@ -94,7 +94,7 @@ TYPED_TEST(PathCacheTest, Prefetch)
 
     TypeParam cache;
     auto queryPaths = [] (TypeParam& cache, IsdAsn src, IsdAsn dst) -> std::error_code {
-        auto now = std::chrono::utc_clock::now();
+        auto now = std::chrono::system_clock::now();
         auto nh = unwrap(generic::IPEndpoint::Parse("10.0.0.1:31000"));
         static std::array<std::byte, 16> path = {};
         std::vector<PathPtr> paths = {
@@ -126,7 +126,7 @@ TYPED_TEST(PathCacheTest, Refresh)
     TypeParam cache(opts);
 
     auto queryPaths = [] (TypeParam& cache, IsdAsn src, IsdAsn dst) -> std::error_code {
-        auto now = std::chrono::utc_clock::now();
+        auto now = std::chrono::system_clock::now();
         auto nh = unwrap(generic::IPEndpoint::Parse("10.0.0.1:31000"));
         static std::array<std::byte, 16> path = {};
         std::vector<PathPtr> paths = {
@@ -226,7 +226,7 @@ TYPED_TEST(PathCacheTest, SCMPHandler)
 
     auto src = unwrap(IsdAsn::Parse("1-ff00:0:1"));
     auto dst = unwrap(IsdAsn::Parse("2-ff00:0:2"));
-    auto now = std::chrono::utc_clock::now();
+    auto now = std::chrono::system_clock::now();
     auto nh = unwrap(generic::IPEndpoint::Parse("10.0.0.1:31000"));
     static std::array<std::byte, 16> dpPath = {};
     auto path1 = makePath(src, dst, hdr::PathType::SCION, now + 1h, 1420, nh, dpPath);

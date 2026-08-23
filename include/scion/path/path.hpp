@@ -53,7 +53,7 @@ PathDigest computeDigest(IsdAsn src, std::span<std::pair<std::uint16_t, std::uin
 class Path : public boost::intrusive_ref_counter<Path>
 {
 public:
-    using Expiry = std::chrono::utc_clock::time_point;
+    using Expiry = std::chrono::system_clock::time_point;
 
 private:
     struct Attribute

@@ -46,7 +46,7 @@ std::error_code reversePathInPlace(hdr::PathType type, std::span<std::byte> path
 class RawPath
 {
 public:
-    using Expiry = std::chrono::utc_clock::time_point;
+    using Expiry = std::chrono::system_clock::time_point;
 
 public:
     /// \brief Maximum path size in bytes. Calculated from the the maximum
