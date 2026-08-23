@@ -100,7 +100,7 @@ jobs:
             sudo apparmor_parser -r "$profile"
           fi
       - name: Run integration tests
-        run: make SCION_ROOT=${{ github.workspace }}/scion test-integration
+        run: make SCION_ROOT=${{ github.workspace }}/scion test-integration-ci
 
   # FIXME: Building gRPC with vcpkg takes a long time.
   # See: https://github.com/microsoft/vcpkg/issues/43603

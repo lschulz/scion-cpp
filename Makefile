@@ -54,6 +54,12 @@ test-integration:
 	$(PYTHON) scitra/integration-test/run_ipv6_tests.py -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
 	$(PYTHON) scitra/integration-test/multipath/run_tests.py -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
 
+.PHONY: test-integration
+test-integration-ci:
+	$(PYTHON) integration-tests/all_tests.py -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
+	$(PYTHON) scitra/integration-test/run_ipv4_tests.py -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
+	$(PYTHON) scitra/integration-test/run_ipv6_tests.py -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
+
 # Make test data
 
 .PHONY: test-data clean-test-data
