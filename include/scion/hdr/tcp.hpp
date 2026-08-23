@@ -22,9 +22,9 @@
 
 #include "scion/addr/generic_ip.hpp"
 #include "scion/details/flags.hpp"
+#include "scion/hash.hpp"
 #include "scion/hdr/details.hpp"
 #include "scion/hdr/proto.hpp"
-#include "scion/murmur_hash3.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -1229,7 +1229,7 @@ public:
     {
         auto key = (std::uint32_t(PROTO) << 16) | (sport ^ dport);
         std::uint32_t hash;
-        scion::details::MurmurHash3_x86_32(&key, sizeof(key), 0, &hash);
+        scion::hash32(&key, sizeof(key), 0, &hash);
         return hash;
     }
 

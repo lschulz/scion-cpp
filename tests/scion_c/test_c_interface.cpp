@@ -618,10 +618,16 @@ TEST_F(CInterfacePathFixture, MetadataHops)
 
 TEST_F(CInterfacePathFixture, Digest)
 {
-    scion_digest digest = {};
-    scion_path_digest(path, &digest);
-    EXPECT_EQ(digest.value[0], 0x78761e9ce11d0564ull);
-    EXPECT_EQ(digest.value[1], 0x1640e338635f659bull);
+    scion_digest digest1 = {}, digest2 = {};
+    scion_path_digest(path, &digest1);
+    scion_path_digest(path, &digest2);
+    EXPECT_EQ(digest1.value[0], digest2.value[0]);
+    EXPECT_EQ(digest1.value[1], digest2.value[1]);
+
+    auto empty = scion::makeEmptyPath(scion::IsdAsn(scion_path_first_as(path)));
+    scion_path_digest(reinterpret_cast<scion_path*>(empty.get()), &digest2);
+    EXPECT_NE(digest1.value[0], digest2.value[0]);
+    EXPECT_NE(digest1.value[1], digest2.value[1]);
 }
 
 TEST_F(CInterfacePathFixture, Print)

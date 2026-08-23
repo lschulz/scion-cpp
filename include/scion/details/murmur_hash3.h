@@ -7,8 +7,9 @@
 // compile and run any of them on any platform, but your performance with the
 // non-native version will be less than optimal.
 
-#include "scion/murmur_hash3.h"
-#include <random>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 //-----------------------------------------------------------------------------
 // Platform-specific functions and macros
@@ -19,7 +20,9 @@
 
 #define FORCE_INLINE	__forceinline
 
-#include <stdlib.h>
+typedef unsigned char uint8_t;
+typedef unsigned int uint32_t;
+typedef unsigned __int64 uint64_t;
 
 #define ROTL32(x,y)	_rotl(x,y)
 #define ROTL64(x,y)	_rotl64(x,y)
@@ -33,12 +36,14 @@
 #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
 #define	FORCE_INLINE inline __attribute__((always_inline))
 
-inline uint32_t rotl32 ( uint32_t x, int8_t r )
+#include <stdint.h>
+
+static inline uint32_t rotl32 ( uint32_t x, int8_t r )
 {
   return (x << r) | (x >> (32 - r));
 }
 
-inline uint64_t rotl64 ( uint64_t x, int8_t r )
+static inline uint64_t rotl64 ( uint64_t x, int8_t r )
 {
   return (x << r) | (x >> (64 - r));
 }
@@ -54,12 +59,12 @@ inline uint64_t rotl64 ( uint64_t x, int8_t r )
 // Block read - if your platform needs to do endian-swapping or can only
 // handle aligned reads, do the conversion here
 
-FORCE_INLINE uint32_t getblock32 ( const uint32_t * p, int i )
+static FORCE_INLINE uint32_t getblock32 ( const uint32_t * p, int i )
 {
   return p[i];
 }
 
-FORCE_INLINE uint64_t getblock64 ( const uint64_t * p, int i )
+static FORCE_INLINE uint64_t getblock64 ( const uint64_t * p, int i )
 {
   return p[i];
 }
@@ -67,7 +72,7 @@ FORCE_INLINE uint64_t getblock64 ( const uint64_t * p, int i )
 //-----------------------------------------------------------------------------
 // Finalization mix - force all bits of a hash block to avalanche
 
-FORCE_INLINE uint32_t fmix32 ( uint32_t h )
+static FORCE_INLINE uint32_t fmix32 ( uint32_t h )
 {
   h ^= h >> 16;
   h *= 0x85ebca6b;
@@ -80,7 +85,7 @@ FORCE_INLINE uint32_t fmix32 ( uint32_t h )
 
 //----------
 
-FORCE_INLINE uint64_t fmix64 ( uint64_t k )
+static FORCE_INLINE uint64_t fmix64 ( uint64_t k )
 {
   k ^= k >> 33;
   k *= BIG_CONSTANT(0xff51afd7ed558ccd);
@@ -93,10 +98,7 @@ FORCE_INLINE uint64_t fmix64 ( uint64_t k )
 
 //-----------------------------------------------------------------------------
 
-namespace scion {
-namespace details {
-
-void MurmurHash3_x86_32 ( const void * key, int len,
+static void MurmurHash3_x86_32 ( const void * key, int len,
                           uint32_t seed, void * out )
 {
   const uint8_t * data = (const uint8_t*)key;
@@ -152,7 +154,7 @@ void MurmurHash3_x86_32 ( const void * key, int len,
 
 //-----------------------------------------------------------------------------
 
-void MurmurHash3_x86_128 ( const void * key, const int len,
+static void MurmurHash3_x86_128 ( const void * key, const int len,
                            uint32_t seed, void * out )
 {
   const uint8_t * data = (const uint8_t*)key;
@@ -257,7 +259,7 @@ void MurmurHash3_x86_128 ( const void * key, const int len,
 
 //-----------------------------------------------------------------------------
 
-void MurmurHash3_x64_128 ( const void * key, const int len,
+static void MurmurHash3_x64_128 ( const void * key, const int len,
                            const uint32_t seed, void * out )
 {
   const uint8_t * data = (const uint8_t*)key;
@@ -336,17 +338,8 @@ void MurmurHash3_x64_128 ( const void * key, const int len,
   ((uint64_t*)out)[1] = h2;
 }
 
-uint32_t randomSeed()
-{
-#ifdef NDEBUG
-  static std::uint32_t seed = std::random_device{}();
-  return seed;
-#else
-  return 0;
-#endif
-}
-
-} // namespace details
-} // namespace scion
-
 //-----------------------------------------------------------------------------
+
+#ifdef __cplusplus
+}
+#endif

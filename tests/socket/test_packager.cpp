@@ -121,8 +121,9 @@ TEST_F(PacketSocketFixture, PrepareSendUDP)
     EXPECT_EQ(udp.len, 16);
     EXPECT_EQ(udp.chksum, 0xbfb7u);
 
-    auto expected = truncate(packets.at(0), -8);
-    EXPECT_TRUE(std::ranges::equal(hdr.get(), expected)) << printBufferDiff(hdr.get(), expected);
+    auto actual = clearScionFlowLabel(hdr.get());
+    auto expected = clearScionFlowLabel(truncate(packets.at(0), -8));
+    EXPECT_TRUE(std::ranges::equal(actual, expected)) << printBufferDiff(actual, expected);
 }
 
 TEST_F(PacketSocketFixture, PrepareSendUDPConnected)
@@ -165,8 +166,9 @@ TEST_F(PacketSocketFixture, PrepareSendUDPConnected)
     EXPECT_EQ(udp.len, 16);
     EXPECT_EQ(udp.chksum, 0xbfb7u);
 
-    auto expected = truncate(packets.at(0), -8);
-    EXPECT_TRUE(std::ranges::equal(hdr.get(), expected)) << printBufferDiff(hdr.get(), expected);
+    auto actual = clearScionFlowLabel(hdr.get());
+    auto expected = clearScionFlowLabel(truncate(packets.at(0), -8));
+    EXPECT_TRUE(std::ranges::equal(actual, expected)) << printBufferDiff(actual, expected);
 }
 
 TEST_F(PacketSocketFixture, PrepareSendUDPUpdate)
@@ -204,8 +206,9 @@ TEST_F(PacketSocketFixture, PrepareSendUDPUpdate)
     EXPECT_EQ(udp.len, 24);
     EXPECT_EQ(udp.chksum, 0xbfafu);
 
-    auto expected = truncate(packets.at(1), -16);
-    EXPECT_TRUE(std::ranges::equal(hdr.get(), expected)) << printBufferDiff(hdr.get(), expected);
+    auto actual = clearScionFlowLabel(hdr.get());
+    auto expected = clearScionFlowLabel(truncate(packets.at(1), -16));
+    EXPECT_TRUE(std::ranges::equal(actual, expected)) << printBufferDiff(actual, expected);
 }
 
 TEST_F(PacketSocketFixture, ReceiveUDP)

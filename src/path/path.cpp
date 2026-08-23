@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 #include "scion/details/bit.hpp"
-#include "scion/murmur_hash3.h"
+#include "scion/hash.hpp"
 #include "scion/path/digest.hpp"
 #include "scion/path/path.hpp"
 #include "scion/path/raw.hpp"
@@ -43,10 +43,10 @@ PathDigest computeDigest(IsdAsn src, std::span<std::pair<std::uint16_t, std::uin
 {
     uint64_t haddr[2] = {};
     uint64_t hpath[2] = {};
-    auto seed = randomSeed();
+    auto seed = randomSeed32();
     auto ia = (uint64_t)src;
-    MurmurHash3_x64_128(&ia, sizeof(ia), seed, &haddr);
-    MurmurHash3_x64_128(path.data(), (int)(path.size_bytes()), seed, &hpath);
+    hash128(&ia, sizeof(ia), seed, haddr);
+    hash128(path.data(), (int)(path.size_bytes()), seed, hpath);
     return PathDigest(haddr[0] ^ hpath[0], haddr[1] ^ hpath[1]);
 }
 

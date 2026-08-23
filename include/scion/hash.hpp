@@ -1,4 +1,4 @@
-// Copyright (c) 2024-2025 Lars-Christian Schulz
+// Copyright (c) 2024-2026 Lars-Christian Schulz
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -18,15 +18,26 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "gtest/gtest.h"
-#include "scion/hash.hpp"
-#include "utilities.hpp"
+#pragma once
+
+#include <cstdint>
 
 
-int main(int argc, char* argv[])
-{
-    testing::InitGoogleTest(&argc, argv);
-    scion::details::setRandomSeed32(0);
-    setTestBasePath(argc, argv);
-    return RUN_ALL_TESTS();
-};
+namespace scion {
+namespace details {
+// Override the random seed. Must be called before any other function from this
+// file is called. Setting seed to -1 causes a random seed to be chosen.
+void setRandomSeed32(std::uint32_t seed);
+}
+
+/// \brief Hash seed drawn at process start. Remains constant for the duration
+/// of the program.
+std::uint32_t randomSeed32();
+
+/// \brief Computes a 32-bit hash from an input of up to 2^31 - 1 bytes.
+void hash32(const void* input, std::size_t len, std::uint32_t seed, std::uint32_t* output);
+
+/// \brief Computes a 128-bit hash from an input of up to 2^31 - 1 bytes.
+void hash128(const void* input, std::size_t len, std::uint32_t seed, std::uint64_t output[2]);
+
+} // namespace scion

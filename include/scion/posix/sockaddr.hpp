@@ -20,10 +20,11 @@
 
 #pragma once
 
-#include "scion/error_codes.hpp"
 #include "scion/addr/address.hpp"
 #include "scion/addr/endpoint.hpp"
 #include "scion/details/bit.hpp"
+#include "scion/error_codes.hpp"
+#include "scion/hash.hpp"
 
 #if _WIN32
 #include <Winsock2.h>
@@ -204,14 +205,14 @@ struct std::hash<in_addr>
 {
     std::size_t operator()(const in_addr& addr) const noexcept
     {
-        auto seed = scion::details::randomSeed();
+        auto seed = scion::randomSeed32();
         if constexpr (sizeof(std::size_t) == 4) {
             std::uint32_t h = 0;
-            scion::details::MurmurHash3_x86_32(&addr, sizeof(addr), seed, &h);
+            scion::hash32(&addr, sizeof(addr), seed, &h);
             return h;
         } else {
             std::uint64_t h[2] = {};
-            scion::details::MurmurHash3_x64_128(&addr, sizeof(addr), seed, &h);
+            scion::hash128(&addr, sizeof(addr), seed, h);
             return h[0] ^ h[1];
         }
     }
@@ -222,14 +223,14 @@ struct std::hash<sockaddr_in>
 {
     std::size_t operator()(const sockaddr_in& sockaddr) const noexcept
     {
-        auto seed = scion::details::randomSeed();
+        auto seed = scion::randomSeed32();
         if constexpr (sizeof(std::size_t) == 4) {
             std::uint32_t h = 0;
-            scion::details::MurmurHash3_x86_32(&sockaddr, sizeof(sockaddr), seed, &h);
+            scion::hash32(&sockaddr, sizeof(sockaddr), seed, &h);
             return h;
         } else {
             std::uint64_t h[2] = {};
-            scion::details::MurmurHash3_x64_128(&sockaddr, sizeof(sockaddr), seed, &h);
+            scion::hash128(&sockaddr, sizeof(sockaddr), seed, h);
             return h[0] ^ h[1];
         }
     }
@@ -417,14 +418,14 @@ struct std::hash<in6_addr>
 {
     std::size_t operator()(const in6_addr& addr) const noexcept
     {
-        auto seed = scion::details::randomSeed();
+        auto seed = scion::randomSeed32();
         if constexpr (sizeof(std::size_t) == 4) {
             std::uint32_t h = 0;
-            scion::details::MurmurHash3_x86_32(&addr, sizeof(addr), seed, &h);
+            scion::hash32(&addr, sizeof(addr), seed, &h);
             return h;
         } else {
             std::uint64_t h[2] = {};
-            scion::details::MurmurHash3_x64_128(&addr, sizeof(addr), seed, &h);
+            scion::hash128(&addr, sizeof(addr), seed, h);
             return h[0] ^ h[1];
         }
     }
@@ -435,14 +436,14 @@ struct std::hash<sockaddr_in6>
 {
     std::size_t operator()(const sockaddr_in6& sockaddr) const noexcept
     {
-        auto seed = scion::details::randomSeed();
+        auto seed = scion::randomSeed32();
         if constexpr (sizeof(std::size_t) == 4) {
             std::uint32_t h = 0;
-            scion::details::MurmurHash3_x86_32(&sockaddr, sizeof(sockaddr), seed, &h);
+            scion::hash32(&sockaddr, sizeof(sockaddr), seed, &h);
             return h;
         } else {
             std::uint64_t h[2] = {};
-            scion::details::MurmurHash3_x64_128(&sockaddr, sizeof(sockaddr), seed, &h);
+            scion::hash128(&sockaddr, sizeof(sockaddr), seed, h);
             return h[0] ^ h[1];
         }
     }
@@ -678,13 +679,13 @@ struct std::hash<scion::posix::IPEndpoint>
 {
     std::size_t operator()(const scion::posix::IPEndpoint& ep) const noexcept
     {
-        auto seed = scion::details::randomSeed();
+        auto seed = scion::randomSeed32();
         if constexpr (sizeof(std::size_t) == 4) {
             std::uint32_t h = 0;
             if (ep.data.generic.sa_family == AF_INET) {
-                scion::details::MurmurHash3_x86_32(&ep.data.v4, sizeof(ep.data.v4), seed, &h);
+                scion::hash32(&ep.data.v4, sizeof(ep.data.v4), seed, &h);
             } else if (ep.data.generic.sa_family == AF_INET6) {
-                scion::details::MurmurHash3_x86_32(&ep.data.v6, sizeof(ep.data.v6), seed, &h);
+                scion::hash32(&ep.data.v6, sizeof(ep.data.v6), seed, &h);
             } else {
                 assert(false && "unexpected address family in scion::posix::IPEndpoint");
             }
@@ -692,9 +693,9 @@ struct std::hash<scion::posix::IPEndpoint>
         } else {
             std::uint64_t h[2] = {};
             if (ep.data.generic.sa_family == AF_INET) {
-                scion::details::MurmurHash3_x64_128(&ep.data.v4, sizeof(ep.data.v4), seed, &h);
+                scion::hash128(&ep.data.v4, sizeof(ep.data.v4), seed, h);
             } else if (ep.data.generic.sa_family == AF_INET6) {
-                scion::details::MurmurHash3_x64_128(&ep.data.v6, sizeof(ep.data.v6), seed, &h);
+                scion::hash128(&ep.data.v6, sizeof(ep.data.v6), seed, h);
             } else {
                 assert(false && "unexpected address family in scion::posix::IPEndpoint");
             }

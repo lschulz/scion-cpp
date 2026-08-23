@@ -26,6 +26,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <format>
 #include <source_location>
 #include <span>
@@ -96,7 +97,7 @@ std::vector<std::vector<std::byte>> loadPackets(const char* path);
 template <std::output_iterator<char> OutIter>
 OutIter formatBuffer(OutIter out, std::span<const std::byte> buffer)
 {
-    constexpr size_t ROW_LENGTH = 16;
+    constexpr std::size_t ROW_LENGTH = 16;
     const auto len = buffer.size();
 
     for (unsigned long i = 0; i < len; i += ROW_LENGTH) {
@@ -133,7 +134,7 @@ template <std::output_iterator<char> OutIter>
 OutIter formatBufferDiff(
     OutIter out, std::span<const std::byte> buffer, std::span<const std::byte> ref)
 {
-    constexpr size_t ROW_LENGTH = 16;
+    constexpr std::size_t ROW_LENGTH = 16;
     const auto len = buffer.size();
 
     if (len != ref.size()) {
@@ -208,7 +209,23 @@ std::string printHeader(const T& hdr, int indent = 0)
     return str;
 }
 
-inline auto truncate(const std::vector<std::byte>& packet, int length)
+// Returns a copy of the packet with the flow label zeroed out. Assumes that the
+// buffer starts with a SCION header.
+inline std::vector<std::byte> clearScionFlowLabel(std::span<const std::byte> packet)
+{
+    std::vector<std::byte> copy(packet.begin(), packet.end());
+    if (copy.size() >= 4) {
+        copy[1] &= 0xf0_b;
+        copy[2] = 0_b;
+        copy[3] = 0_b;
+    }
+    return copy;
+}
+
+// Returns a truncated view into the given packet buffer.
+// If length is negative, truncates by -length bytes. If length is positive,
+// truncate to length bytes.
+inline auto truncate(std::span<const std::byte> packet, int length)
 {
     if (length < 0) {
         length = (int)packet.size() + length;

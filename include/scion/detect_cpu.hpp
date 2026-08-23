@@ -1,4 +1,4 @@
-// Copyright (c) 2024-2025 Lars-Christian Schulz
+// Copyright (c) 2024-2026 Lars-Christian Schulz
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -18,15 +18,46 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "gtest/gtest.h"
-#include "scion/hash.hpp"
-#include "utilities.hpp"
+#include <cstdint>
 
 
-int main(int argc, char* argv[])
+namespace scion {
+
+enum CpuArch
 {
-    testing::InitGoogleTest(&argc, argv);
-    scion::details::setRandomSeed32(0);
-    setTestBasePath(argc, argv);
-    return RUN_ALL_TESTS();
+    Unknown = 0,
+    x86_64,
 };
+
+struct UnknownCpuFeatures {};
+
+struct X86CpuFeatures
+{
+    std::uint32_t invariantTsc : 1;
+    std::uint64_t sse : 1;
+    std::uint64_t sse2 : 1;
+    std::uint64_t sse3 : 1;
+    std::uint64_t sse4_1 : 1;
+    std::uint64_t sse4_2 : 1;
+    std::uint64_t avx : 1;
+    std::uint64_t avx2 : 1;
+    std::uint64_t avx512f : 1;
+    std::uint64_t aes : 1;
+    std::uint64_t rdrand : 1;
+    std::uint64_t rdseed : 1;
+    std::uint64_t sha : 1;
+};
+
+struct CpuFeatures
+{
+    CpuArch arch;
+    union {
+        UnknownCpuFeatures unknown;
+        X86CpuFeatures x86;
+    };
+};
+
+/// \brief Get CPU architecture and supported features.
+CpuFeatures getCpuFeatures();
+
+} // namespace scion

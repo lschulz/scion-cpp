@@ -305,7 +305,7 @@ inline PathPtr makePath(const RawPath& rp, const generic::IPEndpoint& nh)
     return makePath(rp.firstAS(), rp.lastAS(), rp.type(), rp.expiry(), 0, nh, rp.encoded());
 }
 
-/// \brief Helper for creating an empty path on the heap.
+/// \brief Helper for creating an empty path.
 inline PathPtr makeEmptyPath(IsdAsn isdAsn)
 {
     return PathPtr(new Path(isdAsn, isdAsn, hdr::PathType::Empty,

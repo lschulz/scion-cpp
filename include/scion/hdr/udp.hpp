@@ -23,9 +23,9 @@
 #include "scion/addr/generic_ip.hpp"
 #include "scion/bit_stream.hpp"
 #include "scion/details/flags.hpp"
+#include "scion/hash.hpp"
 #include "scion/hdr/details.hpp"
 #include "scion/hdr/proto.hpp"
-#include "scion/murmur_hash3.h"
 
 #include <array>
 #include <concepts>
@@ -68,7 +68,7 @@ public:
         | (std::uint32_t(sport) << 8)
         | (std::uint32_t)(dport);
         std::uint32_t hash;
-        scion::details::MurmurHash3_x86_32(&key, sizeof(key), 0, &hash);
+        scion::hash32(&key, sizeof(key), 0, &hash);
         return hash;
     }
 

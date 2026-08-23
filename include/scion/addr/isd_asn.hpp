@@ -22,7 +22,7 @@
 
 #include "scion/bit_stream.hpp"
 #include "scion/error_codes.hpp"
-#include "scion/murmur_hash3.h"
+#include "scion/hash.hpp"
 
 #include <cassert>
 #include <cstdint>
@@ -221,14 +221,14 @@ struct std::hash<scion::Isd>
     std::size_t operator()(const scion::Isd& isd) const noexcept
     {
         std::uint64_t value = isd;
-        auto seed = scion::details::randomSeed();
+        auto seed = scion::randomSeed32();
         if constexpr (sizeof(std::size_t) == 4) {
             std::uint32_t h = 0;
-            scion::details::MurmurHash3_x86_32(&value, sizeof(value), seed, &h);
+            scion::hash32(&value, sizeof(value), seed, &h);
             return h;
         } else {
             std::uint64_t h[2] = {};
-            scion::details::MurmurHash3_x64_128(&value, sizeof(value), seed, &h);
+            scion::hash128(&value, sizeof(value), seed, h);
             return h[0] ^ h[1];
         }
     }
@@ -240,14 +240,14 @@ struct std::hash<scion::Asn>
     std::size_t operator()(const scion::Asn& asn) const noexcept
     {
         std::uint64_t value = asn;
-        auto seed = scion::details::randomSeed();
+        auto seed = scion::randomSeed32();
         if constexpr (sizeof(std::size_t) == 4) {
             std::uint32_t h = 0;
-            scion::details::MurmurHash3_x86_32(&value, sizeof(value), seed, &h);
+            scion::hash32(&value, sizeof(value), seed, &h);
             return h;
         } else {
             std::uint64_t h[2] = {};
-            scion::details::MurmurHash3_x64_128(&value, sizeof(value), seed, &h);
+            scion::hash128(&value, sizeof(value), seed, h);
             return h[0] ^ h[1];
         }
     }
@@ -261,8 +261,8 @@ struct std::hash<scion::IsdAsn>
         if constexpr (sizeof(std::size_t) == 4) {
             std::uint64_t ia = isdAsn;
             std::uint32_t h = 0;
-            auto seed = scion::details::randomSeed();
-            scion::details::MurmurHash3_x86_32(&ia, sizeof(ia), seed, &h);
+            auto seed = scion::randomSeed32();
+            scion::hash32(&ia, sizeof(ia), seed, &h);
             return h;
         } else {
             // identify hash

@@ -24,7 +24,6 @@
 #include "scion/addr/endpoint.hpp"
 #include "scion/addr/isd_asn.hpp"
 #include "scion/error_codes.hpp"
-#include "scion/murmur_hash3.h"
 
 #include <boost/asio.hpp>
 

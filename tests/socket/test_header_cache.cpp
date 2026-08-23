@@ -102,8 +102,9 @@ TEST_F(HeaderCacheFixture, BuildUDP)
     auto err = hdr.build(64, to, from, rp, ext::NoExtensions, hdr::UDP{}, payload);
     ASSERT_FALSE(err);
 
-    auto expected = truncate(packets.at(0), -8);
-    EXPECT_TRUE(std::ranges::equal(hdr.get(), expected)) << printBufferDiff(hdr.get(), expected);
+    auto actual = clearScionFlowLabel(hdr.get());
+    auto expected = clearScionFlowLabel(truncate(packets.at(0), -8));
+    EXPECT_TRUE(std::ranges::equal(actual, expected)) << printBufferDiff(actual, expected);
 }
 
 TEST_F(HeaderCacheFixture, UpdatePayload)
@@ -127,8 +128,9 @@ TEST_F(HeaderCacheFixture, UpdatePayload)
     err = hdr.updatePayload(udp, newPayload);
     ASSERT_FALSE(err);
 
-    auto expected = truncate(packets.at(1), -16);
-    EXPECT_TRUE(std::ranges::equal(hdr.get(), expected)) << printBufferDiff(hdr.get(), expected);
+    auto actual = clearScionFlowLabel(hdr.get());
+    auto expected = clearScionFlowLabel(truncate(packets.at(1), -16));
+    EXPECT_TRUE(std::ranges::equal(actual, expected)) << printBufferDiff(actual, expected);
 }
 
 TEST_F(HeaderCacheFixture, BuildSCMP)
@@ -147,8 +149,9 @@ TEST_F(HeaderCacheFixture, BuildSCMP)
     auto err = hdr.build(64, to, from, rp, ext::NoExtensions, scmp, payload);
     ASSERT_FALSE(err);
 
-    auto expected = truncate(packets.at(2), -8);
-    EXPECT_TRUE(std::ranges::equal(hdr.get(), expected)) << printBufferDiff(hdr.get(), expected);
+    auto actual = clearScionFlowLabel(hdr.get());
+    auto expected = clearScionFlowLabel(truncate(packets.at(2), -8));
+    EXPECT_TRUE(std::ranges::equal(actual, expected)) << printBufferDiff(actual, expected);
 }
 
 TEST_F(HeaderCacheFixture, UpdateL4Type)
@@ -169,8 +172,9 @@ TEST_F(HeaderCacheFixture, UpdateL4Type)
     err = hdr.updatePayload(scmp, std::span<std::byte>());
     ASSERT_FALSE(err);
 
-    auto expected = packets.at(3);
-    EXPECT_TRUE(std::ranges::equal(hdr.get(), expected)) << printBufferDiff(hdr.get(), expected);
+    auto actual = clearScionFlowLabel(hdr.get());
+    auto expected = clearScionFlowLabel(packets.at(3));
+    EXPECT_TRUE(std::ranges::equal(actual, expected)) << printBufferDiff(actual, expected);
 }
 
 TEST_F(HeaderCacheFixture, BuildIdInt)
@@ -191,6 +195,7 @@ TEST_F(HeaderCacheFixture, BuildIdInt)
     auto err = hdr.build(64, to, from, rp, extensions, hdr::UDP{}, payload);
     ASSERT_FALSE(err);
 
-    auto expected = truncate(packets.at(4), -8);
-    EXPECT_TRUE(std::ranges::equal(hdr.get(), expected)) << printBufferDiff(hdr.get(), expected);
+    auto actual = clearScionFlowLabel(hdr.get());
+    auto expected = clearScionFlowLabel(truncate(packets.at(4), -8));
+    EXPECT_TRUE(std::ranges::equal(actual, expected)) << printBufferDiff(actual, expected);
 }

@@ -23,6 +23,7 @@
 #include "scion/addr/address.hpp"
 #include "scion/addr/endpoint.hpp"
 #include "scion/error_codes.hpp"
+#include "scion/hash.hpp"
 
 #include <boost/smart_ptr/intrusive_ptr.hpp>
 #include <boost/smart_ptr/intrusive_ref_counter.hpp>
@@ -672,23 +673,23 @@ struct std::hash<scion::generic::IPAddress>
 {
     std::size_t operator()(const scion::generic::IPAddress& ip) const noexcept
     {
-        auto seed = scion::details::randomSeed();
+        auto seed = scion::randomSeed32();
         if constexpr (sizeof(std::size_t) == 4) {
             std::uint32_t h = 0;
             if (ip.is4()) {
-                scion::details::MurmurHash3_x86_32(&ip.m_lo, sizeof(ip.m_lo), seed, &h);
+                scion::hash32(&ip.m_lo, sizeof(ip.m_lo), seed, &h);
             } else {
                 std::uint64_t value[] = {ip.m_hi, ip.m_lo};
-                scion::details::MurmurHash3_x86_32(&value, sizeof(value), seed, &h);
+                scion::hash32(&value, sizeof(value), seed, &h);
             }
             return h;
         } else {
             std::uint64_t h[2] = {};
             if (ip.is4()) {
-                scion::details::MurmurHash3_x64_128(&ip.m_lo, sizeof(ip.m_lo), seed, &h);
+                scion::hash128(&ip.m_lo, sizeof(ip.m_lo), seed, h);
             } else {
                 std::uint64_t value[] = {ip.m_hi, ip.m_lo};
-                scion::details::MurmurHash3_x64_128(&value, sizeof(value), seed, &h);
+                scion::hash128(&value, sizeof(value), seed, h);
             }
             return h[0] ^ h[1];
         }
@@ -700,25 +701,25 @@ struct std::hash<scion::generic::IPEndpoint>
 {
     std::size_t operator()(const scion::generic::IPEndpoint& ep) const noexcept
     {
-        auto seed = scion::details::randomSeed();
+        auto seed = scion::randomSeed32();
         if constexpr (sizeof(std::size_t) == 4) {
             std::uint32_t h = 0;
             if (ep.m_host.is4()) {
                 std::uint64_t value[] = {ep.m_host.m_lo, ep.m_port};
-                scion::details::MurmurHash3_x86_32(&value, sizeof(value), seed, &h);
+                scion::hash32(&value, sizeof(value), seed, &h);
             } else {
                 std::uint64_t value[] = {ep.m_host.m_hi, ep.m_host.m_lo, ep.m_port};
-                scion::details::MurmurHash3_x86_32(&value, sizeof(value), seed, &h);
+                scion::hash32(&value, sizeof(value), seed, &h);
             }
             return h;
         } else {
             std::uint64_t h[2] = {};
             if (ep.m_host.is4()) {
                 std::uint64_t value[] = {ep.m_host.m_lo, ep.m_port};
-                scion::details::MurmurHash3_x64_128(&value, sizeof(value), seed, &h);
+                scion::hash128(&value, sizeof(value), seed, h);
             } else {
                 std::uint64_t value[] = {ep.m_host.m_hi, ep.m_host.m_lo, ep.m_port};
-                scion::details::MurmurHash3_x64_128(&value, sizeof(value), seed, &h);
+                scion::hash128(&value, sizeof(value), seed, h);
             }
             return h[0] ^ h[1];
         }

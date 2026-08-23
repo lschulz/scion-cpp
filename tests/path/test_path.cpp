@@ -243,12 +243,20 @@ TEST_F(PathFixture, Digest)
 {
     using namespace scion;
 
-    EXPECT_EQ(makeEmptyPath(path->firstAS())->digest(),
-        PathDigest(0xe7cc783a3f31d342ull, 0x32437bfd0d34741aull));
-    EXPECT_EQ(path->digest(), PathDigest(0x78761e9ce11d0564ull, 0x1640e338635f659bull));
+    auto empty1 = makeEmptyPath(src);
+    auto empty2 = makeEmptyPath(dst);
+    EXPECT_EQ(empty1->digest(), empty1->digest());
+    EXPECT_NE(empty1->digest(), empty2->digest());
+    EXPECT_NE(path->digest(), empty2->digest());
 
+    // Hash of path and corresponding raw path must match
     scion::RawPath rp(*path);
     EXPECT_EQ(path->digest(), rp.digest());
+
+    // Metadata is not part of the path hash
+    auto pathWithMeta = daemon::details::pathFromProtobuf(src, dst, pb, NoFlags);
+    ASSERT_TRUE(pathWithMeta.has_value());
+    EXPECT_EQ(path->digest(), (*pathWithMeta)->digest());
 }
 
 TEST_F(PathFixture, ContainsInterface)

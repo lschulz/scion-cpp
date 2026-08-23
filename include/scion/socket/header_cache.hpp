@@ -230,9 +230,9 @@ private:
         return true;
     }
 
-    /// \brief Deterministically compute the flow label from the source and
-    /// destination addresses in the SCION header, the L4 header type, and the
-    /// source and destination ports if available.
+    /// \brief Compute the flow label from the source and destination addresses
+    /// in the SCION header, the L4 header type, and the source and destination
+    /// ports if available.
     template <typename L4>
     static std::uint32_t computeFlowLabel(const hdr::SCION& scHdr, const L4& l4)
     {
