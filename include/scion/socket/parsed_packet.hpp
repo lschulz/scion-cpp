@@ -36,25 +36,6 @@
 
 namespace scion {
 
-/// \brief Dummy transport layer options for protocols like UDP that don't have
-/// option headers.
-template <typename L4>
-struct NoL4Opts
-{
-    template <typename Stream, typename Error>
-    bool serialize(Stream& stream, L4& l4, Error& err)
-    {
-        return true;
-    }
-};
-
-// Specialize this template to bind header options to a transport herader type.
-template <typename L4>
-struct L4Opts
-{
-    using type = NoL4Opts<L4>;
-};
-
 /// \brief Parser for SCION packets that decodes the main SCION header, address
 /// headers, and transport header. The path header, SCION extension headers, and
 /// payload are located but not parsed.
@@ -67,7 +48,6 @@ struct ParsedPacket
     std::span<const std::byte> hbhOpts;
     std::span<const std::byte> e2eOpts;
     std::variant<hdr::SCMP, L4> l4;
-    typename L4Opts<L4>::type l4opts; // L4 options, e.g., for TCP
     std::span<const std::byte> payload;
 
     template <typename Error = StreamError>
@@ -97,7 +77,6 @@ struct ParsedPacket
         } else if (nh == L4::PROTO) {
             l4.template emplace<L4>();
             if (!std::get<L4>(l4).serialize(rs, err)) return err.propagate();
-            if (!l4opts.serialize(rs, std::get<L4>(l4), err)) return err.propagate();
         } else {
             return err.error("unexpected transport header");
         }
