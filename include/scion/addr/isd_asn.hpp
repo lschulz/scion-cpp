@@ -54,7 +54,7 @@ public:
     static constexpr std::size_t BITS = 16;
 
     /// \brief Maximum possible ISD number.
-    static constexpr std::size_t MAX_VALUE = (1ull << BITS) - 1;
+    static constexpr std::size_t MAX_VALUE = (1uz << BITS) - 1;
 
     /// \brief Check whether the ISD is unspecified (equal to zero).
     bool isUnspecified() const { return m_isd == 0; }
@@ -85,10 +85,10 @@ public:
     static constexpr std::size_t BITS = 48;
 
     /// \brief Maximum possible AS number.
-    static constexpr std::size_t MAX_VALUE = (1ull << BITS) - 1;
+    static constexpr std::size_t MAX_VALUE = (1uz << BITS) - 1;
 
     /// \brief Largest AS number that is considered compatible with BGP.
-    static constexpr std::size_t MAX_BGP_VALUE = (1ull << 32) - 1;
+    static constexpr std::size_t MAX_BGP_VALUE = (1uz << 32) - 1;
 
     /// \brief Check whether the ASN is unspecified (equal to zero).
     bool isUnspecified() const { return m_asn == 0; }
@@ -124,7 +124,7 @@ public:
     static constexpr std::size_t BITS = 48;
 
     /// \brief Maximum possible ISD-ASN value.
-    static constexpr std::size_t MAX_VALUE = (1ull << BITS) - 1;
+    static constexpr std::size_t MAX_VALUE = (1uz << BITS) - 1;
 
     constexpr operator std::uint64_t() const { return m_ia; }
 
