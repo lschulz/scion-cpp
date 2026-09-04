@@ -75,7 +75,7 @@ TEST(GetNameInfoTest, MappedScion)
         unwrap(ScIPAddress::Parse("1-64496,127.0.0.1")
         .and_then(mapToIPv6)
         .and_then([] (const scion::generic::IPAddress& x) {
-            return generic::toUnderlay<in6_addr>(x);
+            return Maybe<in6_addr>(generic::toUnderlay<in6_addr>(x));
         })),
         0
     );
@@ -120,7 +120,7 @@ TEST(GetNameInfoTest, ShortBuffer)
         unwrap(ScIPAddress::Parse("4095-2:ffff:ffff,fcff:feff:ffff:ff00:1234:5678:9abc:def0")
         .and_then(mapToIPv6)
         .and_then([] (const scion::generic::IPAddress& x) {
-            return generic::toUnderlay<in6_addr>(x);
+            return Maybe<in6_addr>(generic::toUnderlay<in6_addr>(x));
         })),
         0
     );
@@ -189,7 +189,7 @@ TEST(InetNtoPTest, MappedScion)
         ScIPAddress::Parse("4095-2:ffff:ffff,fcff:feff:ffff:ff00:1234:5678:9abc:def0")
         .and_then(mapToIPv6)
         .and_then([] (const scion::generic::IPAddress& x) {
-            return generic::toUnderlay<in6_addr>(x);
+            return Maybe<in6_addr>(generic::toUnderlay<in6_addr>(x));
         })
     );
 

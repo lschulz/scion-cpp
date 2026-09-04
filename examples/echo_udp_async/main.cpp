@@ -266,7 +266,7 @@ int runClient(
             std::uniform_int_distribution<> dist(0, (int)(paths->size() - 1));
             path = (*paths)[dist(rng)];
         }
-        auto nextHop = toUnderlay<Socket::UnderlayEp>(path->nextHop(remote->localEp())).value();
+        auto nextHop = toUnderlay<Socket::UnderlayEp>(path->nextHop(remote->localEp()));
 
         if (args.stun) {
             boost::asio::ip::udp::endpoint server(nextHop.address(), 3478);

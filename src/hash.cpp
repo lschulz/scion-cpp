@@ -78,7 +78,7 @@ std::uint32_t randomSeed32()
 void hash32(const void* input, std::size_t len, std::uint32_t seed, std::uint32_t* output)
 {
     if (len > std::numeric_limits<int>::max()) {
-        assert("Hash input too large");
+        assert(0 && "hash input too large");
         std::abort();
     }
     getHashConfig().hash32(input, (int)len, seed, output);
@@ -87,7 +87,7 @@ void hash32(const void* input, std::size_t len, std::uint32_t seed, std::uint32_
 void hash128(const void* input, std::size_t len, std::uint32_t seed, std::uint64_t output[2])
 {
     if (len > std::numeric_limits<int>::max()) {
-        assert("Hash input too large");
+        assert(0 && "hash input too large");
         std::abort();
     }
     getHashConfig().hash128(input, (int)len, seed, output);

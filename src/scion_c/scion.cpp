@@ -839,23 +839,17 @@ scion_error scion_path_next_hop(scion_path* path, sockaddr* next_hop, socklen_t*
     if (reinterpret_cast<Path*>(path)->empty()) return SCION_PATH_IS_EMPTY;
     auto nh = reinterpret_cast<Path*>(path)->nextHop();
     if (nh.host().is4()) {
-        if (auto underlay = toUnderlay<sockaddr_in>(nh); isError(underlay)) {
-            return SCION_LOGIC_ERROR;
-        } else {
-            size_t out_len =* next_hop_len;
-            scion_error status = copy_out(next_hop, &out_len, &(*underlay), sizeof(*underlay));
-            *next_hop_len = (socklen_t)out_len;
-            return status;
-        }
+        auto underlay = toUnderlay<sockaddr_in>(nh);
+        size_t out_len =* next_hop_len;
+        scion_error status = copy_out(next_hop, &out_len, &underlay, sizeof(underlay));
+        *next_hop_len = (socklen_t)out_len;
+        return status;
     } else {
-        if (auto underlay = toUnderlay<sockaddr_in6>(nh); isError(underlay)) {
-            return SCION_LOGIC_ERROR;
-        } else {
-            size_t out_len =* next_hop_len;
-            scion_error status = copy_out(next_hop, &out_len, &(*underlay), sizeof(*underlay));
-            *next_hop_len = (socklen_t)out_len;
-            return status;
-        }
+        auto underlay = toUnderlay<sockaddr_in6>(nh);
+        size_t out_len =* next_hop_len;
+        scion_error status = copy_out(next_hop, &out_len, &underlay, sizeof(underlay));
+        *next_hop_len = (socklen_t)out_len;
+        return status;
     }
 }
 

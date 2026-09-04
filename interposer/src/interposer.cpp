@@ -346,8 +346,7 @@ int scion_to_addrinfo(scion::Resolver::AddressSet& addresses, const char* servic
                 auto* sa = reinterpret_cast<sockaddr_in6*>(out->ai_addr);
                 sa->sin6_family = AF_INET6;
                 auto in6 = scion::generic::toUnderlay<in6_addr>(*mapped);
-                assert(in6.has_value());
-                sa->sin6_addr = *in6;
+                sa->sin6_addr = in6;
                 sa->sin6_port = port;
             } else {
                 out->ai_family = AF_INET6;
@@ -358,8 +357,7 @@ int scion_to_addrinfo(scion::Resolver::AddressSet& addresses, const char* servic
                 sa->sin6_family = AF_INET6;
                 auto surrogate = get_interposer()->surrogates.makeSurrogate(addr);
                 auto in6 = scion::generic::toUnderlay<in6_addr>(surrogate);
-                assert(in6.has_value());
-                sa->sin6_addr = *in6;
+                sa->sin6_addr = in6;
                 sa->sin6_port = port;
             }
         }
@@ -1609,7 +1607,7 @@ static ssize_t send_dgram_impl(Socket& socket, const void* buf, size_t size, sci
             errno = EMSGSIZE;
             return -1;
         }
-        auto nh = *generic::toUnderlay<posix::IPEndpoint>(path->nextHop(ep.localEp()));
+        auto nh = generic::toUnderlay<posix::IPEndpoint>(path->nextHop(ep.localEp()));
         sent = std::get<posix::IpUdpSocket>(socket.s).sendTo(
             socket.headerCache, ep, *path, nh,
             std::span<const std::byte>(reinterpret_cast<const std::byte*>(buf), size), flags);

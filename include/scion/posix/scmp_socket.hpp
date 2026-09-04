@@ -93,7 +93,7 @@ public:
             auto err = socket.bind_range(underlayEp, firstPort, lastPort);
             if (err) return err;
         } else {
-            auto underlayEp = generic::toUnderlay<UnderlayEp>(ep.localEp());
+            auto underlayEp = generic::toUnderlayChecked<UnderlayEp>(ep.localEp());
             if (isError(underlayEp)) return getError(underlayEp);
             if constexpr (std::is_same_v<UnderlayAddr, sockaddr_in6>) {
                 underlayEp->sin6_scope_id = scion::details::byteswapBE(

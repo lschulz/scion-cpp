@@ -122,7 +122,7 @@ TEST_F(ScmpSocketFixture, SendToRecvFrom)
     };
     auto msg = hdr::ScmpEchoRequest{0, 1};
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
+    auto nh = toUnderlay<Socket::UnderlayEp>(ep2.localEp());
     auto sent = sock1.sendScmpTo(headers, ep2, RawPath(), nh, msg, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
     ASSERT_THAT(get(sent), testing::ElementsAreArray(payload));
@@ -151,7 +151,7 @@ TEST_F(ScmpSocketFixture, SendToRecvFromExt)
     std::array<ext::Extension*, 1> hbhExt = {&idint};
     auto& e2eExt = ext::NoExtensions;
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
+    auto nh = toUnderlay<Socket::UnderlayEp>(ep2.localEp());
     auto sent = sock1.sendScmpToExt(headers, ep2, RawPath(), nh, hbhExt, msg, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
     ASSERT_THAT(get(sent), testing::ElementsAreArray(payload));

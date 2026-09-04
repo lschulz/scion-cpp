@@ -53,11 +53,11 @@ TEST(InAddr, ConvertFromGeneric)
     auto ip6 = IPAddress::MakeIPv6(0xfd00'0102'0304'0506ul, 0x0708'090a'0b0c'0d0eul);
 
     EXPECT_EQ(
-        unwrap(toUnderlay<in_addr>(ip4)),
+        toUnderlay<in_addr>(ip4),
         unwrap(AddressTraits<in_addr>::fromString("10.255.255.255")));
 
     EXPECT_EQ(
-        unwrap(toUnderlay<in6_addr>(ip6)),
+        toUnderlay<in6_addr>(ip6),
         unwrap(AddressTraits<in6_addr>::fromString("fd00:102:304:506:708:90a:b0c:d0e")));
 }
 
@@ -101,7 +101,7 @@ TEST(SockAddr, ConvertFromGeneric)
     IPEndpoint ep6(ip6, 80);
 
     EXPECT_EQ(
-        unwrap(toUnderlay<sockaddr_in>(ep4)),
+        toUnderlay<sockaddr_in>(ep4),
         EndpointTraits<sockaddr_in>::fromHostPort(
             unwrap(AddressTraits<in_addr>::fromString("10.255.255.255")),
             80
@@ -109,7 +109,7 @@ TEST(SockAddr, ConvertFromGeneric)
     );
 
     EXPECT_EQ(
-        unwrap(toUnderlay<sockaddr_in6>(ep6)),
+        toUnderlay<sockaddr_in6>(ep6),
         EndpointTraits<sockaddr_in6>::fromHostPort(
             unwrap(AddressTraits<in6_addr>::fromString(
                 "fd00:102:304:506:708:90a:b0c:d0e"

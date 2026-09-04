@@ -204,7 +204,7 @@ void encryptSourceEntry(
     e.setMAC(calcSourceMAC(e, header, key));
     auto err = crypto::aesCtrMode(key.key, e.nonce, e.metadataWithMAC());
     if (err) {
-        assert("implementation error in crypto module");
+        assert(0 && "implementation error in crypto module");
         std::abort();
     }
 }
@@ -219,7 +219,7 @@ MAC decryptAndMAC(
     if (e.flags & hdr::IdIntEntry::Flags::Encrypted) {
         auto err = crypto::aesCtrMode(key.key, e.nonce, e.metadataWithMAC());
         if (err) {
-            assert("implementation error in crypto module");
+            assert(0 && "implementation error in crypto module");
             std::abort();
         }
     }

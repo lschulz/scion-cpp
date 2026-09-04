@@ -438,12 +438,8 @@ Maybe<std::shared_ptr<Socket>> ScitraTun::openSocket(std::uint16_t port, bool pe
         return i->second;
     }
     auto socket = std::make_shared<Socket>(ioCtx, port, persistent);
-    if (auto ip = generic::toUnderlay<asio::ip::address>(publicIP); ip) {
-        if (auto ec = socket->open(*ip); ec) {
-            return Error(ec);
-        }
-    } else {
-        return Error(ip.error());
+    if (auto ec = socket->open(generic::toUnderlay<asio::ip::address>(publicIP)); ec) {
+        return Error(ec);
     }
     auto [_, ok] = sockets.insert(std::make_pair(port, socket));
     if (!ok) return Error(ScitraError::LogicError);
@@ -832,8 +828,7 @@ std::error_code ScitraTun::translateIPtoScion(TunQueue& tun)
                     .updateStateEgress(pkt, recvd)
                     .countEgress(1, (std::uint32_t)pkt.payload().size());
                 auto nh = generic::toUnderlay<asio::ip::udp::endpoint>(nextHop);
-                if (!nh.has_value()) continue; // this should never happen
-                auto ec = socket->sendPacket(pkt, *nh, recvd); // blocking
+                auto ec = socket->sendPacket(pkt, nh, recvd); // blocking
                 if (ec) {
                     if (ec == std::errc::message_size) {
                         // MTU to next hop is lower than expected AS-internal MTU. Fall back to
@@ -842,12 +837,12 @@ std::error_code ScitraTun::translateIPtoScion(TunQueue& tun)
                         spdlog::warn("IP->SCION Translated packet too big to send to next hop '{}'."
                             " Falling back to minimum safe MTU. Consider setting --underlay-mtu",
                             " to a more conservative value.",
-                            *nh);
+                            nh);
                         pmtu->updateMtu(pkt.sci.dst.host(), pkt.path,
                             nextHop.host().is4() ? SAFE_MTU_IPV4 : SAFE_MTU_IPV6);
                     } else {
                         spdlog::error("IP->SCION Error sending packet to next hop '{}': {}",
-                            *nh, fmtError(ec));
+                            nh, fmtError(ec));
                     }
                 }
             }

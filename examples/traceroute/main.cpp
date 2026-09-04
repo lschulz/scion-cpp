@@ -120,7 +120,7 @@ int main(int argc, char* argv[])
         std::uniform_int_distribution<> dist(0, (int)(paths.size() - 1));
         path = paths[dist(rng)];
     }
-    auto nextHop = toUnderlay<Socket::UnderlayEp>(path->nextHop()).value();
+    auto nextHop = toUnderlay<Socket::UnderlayEp>(path->nextHop());
 
     // Decode data plane path, so we can set the router alert flags
     DecodedScionPath decoded(path->firstAS(), path->lastAS());

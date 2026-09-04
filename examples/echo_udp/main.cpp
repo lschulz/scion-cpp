@@ -249,11 +249,11 @@ int runClient(
         path = (*paths)[dist(rng)];
     }
     auto nextHop = path->nextHop(remote->localEp());
-    auto underlayDst = toUnderlay<Socket::UnderlayEp>(nextHop).value();
+    auto underlayDst = toUnderlay<Socket::UnderlayEp>(nextHop);
 
     if (args.stun) {
         auto stunServer = toUnderlay<Socket::UnderlayEp>(
-            generic::IPEndpoint(nextHop.host(), 3478)).value();
+            generic::IPEndpoint(nextHop.host(), 3478));
         if (auto mapped = getStunMapping(s, stunServer, 100ms); mapped) {
             std::cerr << "SNAT mapped address: " << mapped->localEp() << '\n';
         } else {

@@ -510,7 +510,7 @@ public:
         if (m_cfg.client.stun) {
             auto nextHop = path->nextHop(m_cfg.client.remote.localEp());
             auto stunServer = toUnderlay<Socket::UnderlayEp>(
-                generic::IPEndpoint(nextHop.host(), 3478)).value();
+                generic::IPEndpoint(nextHop.host(), 3478));
             auto future = co_spawn(m_ioCtx,
                 getStunMapping(m_socket, stunServer, 100ms), use_future);
             m_ioCtx.run();
@@ -616,7 +616,7 @@ private:
 
         // Send one packet
         auto nextHop = via.nextHop(m_cfg.client.remote.localEp());
-        auto underlayDst = toUnderlay<Socket::UnderlayEp>(nextHop).value();
+        auto underlayDst = toUnderlay<Socket::UnderlayEp>(nextHop);
         std::array<ext::Extension*, 1> ext = {&telemetry};
         std::span<std::byte, 0> payload;
         constexpr auto token = boost::asio::use_awaitable;

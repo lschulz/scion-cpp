@@ -46,7 +46,7 @@ TEST(UdpSocket, BindIPv4)
         unwrap(ScIPAddress::Parse("1-64496,127.0.0.1")
         .and_then(mapToIPv6)
         .and_then([] (const scion::generic::IPAddress& x) {
-            return generic::toUnderlay<in6_addr>(x);
+            return Maybe<in6_addr>(generic::toUnderlay<in6_addr>(x));
         })),
         0
     );
@@ -79,7 +79,7 @@ TEST(UdpSocket, BindIPv6)
     sockaddr_in6 ep1 = EndpointTraits<sockaddr_in6>::fromHostPort(
         unwrap(generic::IPAddress::Parse("fc00::1000")
         .and_then([] (const scion::generic::IPAddress& x) {
-            return generic::toUnderlay<in6_addr>(x);
+            return Maybe<in6_addr>(generic::toUnderlay<in6_addr>(x));
         })),
         0
     );
@@ -247,7 +247,7 @@ TEST_F(UdpSocketFixture, Read)
         1_b, 2_b, 3_b, 4_b, 5_b, 6_b, 7_b, 8_b
     };
 
-    auto nh = unwrap(toUnderlay<posix::IpUdpSocket::UnderlayEp>(nativeEp.localEp()));
+    auto nh = toUnderlay<posix::IpUdpSocket::UnderlayEp>(nativeEp.localEp());
     ASSERT_FALSE(isError(scionSocket.send(headers, RawPath(), nh, payload)));
 
     std::vector<std::byte> buffer(1024);
@@ -273,7 +273,7 @@ TEST_F(UdpSocketFixture, Recv)
     ASSERT_TRUE(errno == EAGAIN || errno == EWOULDBLOCK);
 
     // Send a datagram to the socket
-    auto nh = unwrap(toUnderlay<posix::IpUdpSocket::UnderlayEp>(nativeEp.localEp()));
+    auto nh = toUnderlay<posix::IpUdpSocket::UnderlayEp>(nativeEp.localEp());
     ASSERT_FALSE(isError(scionSocket.send(headers, RawPath(), nh, payload)));
 
     // Peek at receive queue
@@ -301,7 +301,7 @@ TEST_F(UdpSocketFixture, RecvTruncate)
     };
 
     // Send a datagram to the socket
-    auto nh = unwrap(toUnderlay<posix::IpUdpSocket::UnderlayEp>(nativeEp.localEp()));
+    auto nh = toUnderlay<posix::IpUdpSocket::UnderlayEp>(nativeEp.localEp());
     ASSERT_FALSE(isError(scionSocket.send(headers, RawPath(), nh, payload)));
 
     // Buffer too small, but without MSG_TRUNC
@@ -325,7 +325,7 @@ TEST_F(UdpSocketFixture, RecvFrom)
         1_b, 2_b, 3_b, 4_b, 5_b, 6_b, 7_b, 8_b
     };
 
-    auto nh = unwrap(toUnderlay<posix::IpUdpSocket::UnderlayEp>(nativeEp.localEp()));
+    auto nh = toUnderlay<posix::IpUdpSocket::UnderlayEp>(nativeEp.localEp());
     ASSERT_FALSE(isError(scionSocket.send(headers, RawPath(), nh, payload)));
 
     std::vector<std::byte> buffer(1024);
@@ -359,7 +359,7 @@ TEST_F(UdpSocketFixture, RecvMsg)
         return std::byte{(std::uint8_t)std::rand()};
     });
 
-    auto nh = unwrap(toUnderlay<posix::IpUdpSocket::UnderlayEp>(nativeEp.localEp()));
+    auto nh = toUnderlay<posix::IpUdpSocket::UnderlayEp>(nativeEp.localEp());
     ASSERT_FALSE(isError(scionSocket.send(headers, RawPath(), nh, payload)));
 
     sockaddr_storage from;
@@ -545,7 +545,7 @@ TEST_F(UdpSocketFixture, SendMMsg)
         });
     }
 
-    auto nh = unwrap(toUnderlay<posix::IpUdpSocket::UnderlayEp>(nativeEp.localEp()));
+    auto nh = toUnderlay<posix::IpUdpSocket::UnderlayEp>(nativeEp.localEp());
     for (int i = 0; i < 3; ++i) {
         ASSERT_FALSE(isError(scionSocket.send(headers, RawPath(), nh, payload[i])));
     }

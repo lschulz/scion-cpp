@@ -167,14 +167,12 @@ std::error_code NetlinkRoute::addRoute(
     } else {
         rtm->rtm_family = AF_INET6;
         auto ip = scion::generic::toUnderlay<in6_addr>(dst);
-        if (scion::isError(ip)) return ScitraError::LogicError;
-        if (!mnl_attr_put_check(nlh, bufsize, RTA_DST, sizeof(in6_addr), &(*ip)))
+        if (!mnl_attr_put_check(nlh, bufsize, RTA_DST, sizeof(in6_addr), &ip))
             return ScitraError::LogicError;
         if (src) {
             if (!src->is6()) return ScitraError::InvalidArgument;
             ip = scion::generic::toUnderlay<in6_addr>(*src);
-            if (scion::isError(ip)) return ScitraError::LogicError;
-            if (!mnl_attr_put_check(nlh, bufsize, RTA_PREFSRC, sizeof(in6_addr), &(*ip)))
+            if (!mnl_attr_put_check(nlh, bufsize, RTA_PREFSRC, sizeof(in6_addr), &ip))
                 return ScitraError::LogicError;
         }
     }
@@ -211,8 +209,7 @@ std::error_code NetlinkRoute::delRoute(
     } else {
         rtm->rtm_family = AF_INET6;
         auto ip = scion::generic::toUnderlay<in6_addr>(dst);
-        if (scion::isError(ip)) return ScitraError::LogicError;
-        if (!mnl_attr_put_check(nlh, bufsize, RTA_DST, sizeof(in6_addr), &(*ip)))
+        if (!mnl_attr_put_check(nlh, bufsize, RTA_DST, sizeof(in6_addr), &ip))
             return ScitraError::LogicError;
     }
 
@@ -245,8 +242,7 @@ std::error_code NetlinkRoute::addSourceRoutingRule(
     } else {
         rtm->rtm_family = AF_INET6;
         auto ip = scion::generic::toUnderlay<in6_addr>(src);
-        if (scion::isError(ip)) return ScitraError::LogicError;
-        if (!mnl_attr_put_check(nlh, bufsize, RTA_SRC, sizeof(in6_addr), &(*ip)))
+        if (!mnl_attr_put_check(nlh, bufsize, RTA_SRC, sizeof(in6_addr), &ip))
             return ScitraError::LogicError;
     }
 
@@ -277,7 +273,7 @@ std::error_code NetlinkRoute::modAddress(
     } else {
         msg->ifa_family = AF_INET6;
         auto ip = scion::generic::toUnderlay<in6_addr>(addr);
-        if (!mnl_attr_put_check(nlh, bufsize, IFA_ADDRESS, sizeof(in6_addr), &(*ip)))
+        if (!mnl_attr_put_check(nlh, bufsize, IFA_ADDRESS, sizeof(in6_addr), &ip))
             return ScitraError::LogicError;
     }
     msg->ifa_index = iface;

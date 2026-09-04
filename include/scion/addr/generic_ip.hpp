@@ -467,9 +467,36 @@ IPAddress toGenericAddr(const T& addr)
     }
 }
 
-/// \brief Convert a generic IP address to an underlay-specific one.
+/// \brief Convert a generic IP address to an underlay-specific one. The caller
+/// must ensure converting `addr` to an instance of `T` is possible.
 template <typename T>
-Maybe<T> toUnderlay(const IPAddress& addr)
+T toUnderlay(const IPAddress& addr)
+{
+    if (addr.is4()) {
+        std::array<std::byte, 4> bytes;
+        addr.toBytes4(bytes);
+        auto res = AddressTraits<T>::fromBytes(bytes);
+        if (isError(res)) {
+            assert(0 && "address type error in toUnderlay");
+            std::abort();
+        }
+        return *res;
+    } else {
+        std::array<std::byte, 16> bytes;
+        addr.toBytes16(bytes);
+        auto res = AddressTraits<T>::fromBytes(bytes);
+        if (isError(res)) {
+            assert(0 && "address type error in toUnderlay");
+            std::abort();
+        }
+        return *res;
+    }
+}
+
+/// \brief Convert a generic IP address to an underlay-specific one. Returns an
+/// error if the conversion is not possible.
+template <typename T>
+Maybe<T> toUnderlayChecked(const IPAddress& addr)
 {
     if (addr.is4()) {
         std::array<std::byte, 4> bytes;
@@ -506,12 +533,23 @@ IPEndpoint toGenericEp(const T& ep)
     }
 }
 
-/// \brief Convert a generic endpoint to an underlay-specific one.
+/// \brief Convert a generic endpoint to an underlay-specific one. The caller
+/// must ensure converting `ep` to an instance of `T` is possible.
 template <typename T>
-Maybe<T> toUnderlay(const IPEndpoint& ep)
+T toUnderlay(const IPEndpoint& ep)
 {
     using AddrType = EndpointTraits<T>::HostAddr;
     auto host = toUnderlay<AddrType>(ep.host());
+    return EndpointTraits<T>::fromHostPort(host, ep.port());
+}
+
+/// \brief Convert a generic endpoint to an underlay-specific one. Returns an
+/// error if the conversion is not possible.
+template <typename T>
+Maybe<T> toUnderlayChecked(const IPEndpoint& ep)
+{
+    using AddrType = EndpointTraits<T>::HostAddr;
+    auto host = toUnderlayChecked<AddrType>(ep.host());
     if (isError(host)) return propagateError(host);
     return EndpointTraits<T>::fromHostPort(get(host), ep.port());
 }

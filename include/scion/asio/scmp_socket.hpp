@@ -87,12 +87,11 @@ public:
             if (err) return err;
         } else {
             auto underlayEp = generic::toUnderlay<posix::IPEndpoint>(ep.localEp());
-            if (isError(underlayEp)) return getError(underlayEp);
-            if (underlayEp->data.generic.sa_family == AF_INET6) {
-                underlayEp->data.v6.sin6_scope_id = details::byteswapBE(
+            if (underlayEp.data.generic.sa_family == AF_INET6) {
+                underlayEp.data.v6.sin6_scope_id = details::byteswapBE(
                     ep.address().host().zoneId());
             }
-            auto err = s.bind_range(*underlayEp, firstPort, lastPort);
+            auto err = s.bind_range(underlayEp, firstPort, lastPort);
             if (err) return err;
         }
 

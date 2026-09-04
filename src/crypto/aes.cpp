@@ -752,7 +752,7 @@ void aesCbcMacBotan(
 {
     const auto cipher = Botan::BlockCipher::create("AES-128");
     if (!cipher) {
-        assert("can't get AES-128 from Botan");
+        assert(0 && "can't get AES-128 from Botan");
         std::abort();
     }
     cipher->set_key(std::span<const uint8_t>(

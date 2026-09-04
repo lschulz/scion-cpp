@@ -113,7 +113,7 @@ int main(int argc, char* argv[])
         std::uniform_int_distribution<> dist(0, (int)(paths->size() - 1));
         path = (*paths)[dist(rng)];
     }
-    auto nextHop = toUnderlay<Socket::UnderlayEp>(path->nextHop(remote->localEp())).value();
+    auto nextHop = toUnderlay<Socket::UnderlayEp>(path->nextHop(remote->localEp()));
 
     // Open socket
     Socket s;

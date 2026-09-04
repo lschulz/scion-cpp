@@ -338,7 +338,7 @@ TEST_F(CInterfaceFixture, Recv)
     };
     HeaderCache headers;
     RawPath path;
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep1.localEp()));
+    auto nh = toUnderlay<Socket::UnderlayEp>(ep1.localEp());
     auto sent = socket2.sendTo(headers, ep1, path, nh, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
 
@@ -369,7 +369,7 @@ TEST_F(CInterfaceFixture, SCMPHandler)
     };
     HeaderCache headers;
     RawPath path;
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep1.localEp()));
+    auto nh = toUnderlay<Socket::UnderlayEp>(ep1.localEp());
 
     struct Handler {
         static void callback(const scion_scmp_message* message, void* user_ptr) {
@@ -475,7 +475,7 @@ TEST_F(CInterfaceFixture, AsyncRecv)
         1_b, 2_b, 3_b, 4_b, 5_b, 6_b, 7_b, 8_b
     };
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep1.localEp()));
+    auto nh = toUnderlay<Socket::UnderlayEp>(ep1.localEp());
     auto sent = socket2.send(headers, RawPath(), nh, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
 
@@ -514,7 +514,7 @@ TEST_F(CInterfaceFixture, AsyncRecvFromVia)
         1_b, 2_b, 3_b, 4_b, 5_b, 6_b, 7_b, 8_b
     };
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep1.localEp()));
+    auto nh = toUnderlay<Socket::UnderlayEp>(ep1.localEp());
     auto sent = socket2.send(headers, RawPath(), nh, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
 
@@ -658,8 +658,8 @@ TEST_F(CInterfacePathFixture, NextHopp)
     ASSERT_EQ(len, sizeof(sockaddr_in6));
     ASSERT_EQ(nh.ss_family, AF_INET6);
     auto inet6 = reinterpret_cast<sockaddr_in6*>(&nh);
-    sockaddr_in6 expected = unwrap(toUnderlay<sockaddr_in6>(
-        unwrap(generic::IPEndpoint::Parse("[fd00:f00d:cafe::7f00:19]:31024"))));
+    sockaddr_in6 expected = toUnderlay<sockaddr_in6>(
+        unwrap(generic::IPEndpoint::Parse("[fd00:f00d:cafe::7f00:19]:31024")));
     ASSERT_EQ(inet6->sin6_family, expected.sin6_family);
     ASSERT_EQ(inet6->sin6_port, expected.sin6_port);
     ASSERT_EQ(inet6->sin6_flowinfo, expected.sin6_flowinfo);

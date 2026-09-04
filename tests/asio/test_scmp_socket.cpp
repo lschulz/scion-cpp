@@ -124,7 +124,7 @@ TEST_F(AsioScmpSocketFixture, SendToRecvFrom)
     };
     auto msg = hdr::ScmpEchoRequest{0, 1};
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
+    auto nh = toUnderlay<Socket::UnderlayEp>(ep2.localEp());
     auto sent = sock1->sendScmpTo(headers, ep2, RawPath(), nh, msg, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
     ASSERT_THAT(get(sent), testing::ElementsAreArray(payload));
@@ -160,7 +160,7 @@ TEST_F(AsioScmpSocketFixture, SendToRecvFromAsync)
         ASSERT_THAT(get(recvd), testing::ElementsAreArray(payload));
     };
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
+    auto nh = toUnderlay<Socket::UnderlayEp>(ep2.localEp());
     auto sendCompletion = [&](Maybe<std::span<const std::byte>> sent) {
         ASSERT_FALSE(isError(sent)) << getError(sent);
         ASSERT_THAT(get(sent), testing::ElementsAreArray(payload));
@@ -187,7 +187,7 @@ TEST_F(AsioScmpSocketFixture, SendToRecvFromExt)
     std::array<ext::Extension*, 1> hbhExt = {&idint};
     auto& e2eExt = ext::NoExtensions;
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
+    auto nh = toUnderlay<Socket::UnderlayEp>(ep2.localEp());
     auto sent = sock1->sendScmpToExt(headers, ep2, RawPath(), nh, hbhExt, msg, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
     ASSERT_THAT(get(sent), testing::ElementsAreArray(payload));
@@ -227,7 +227,7 @@ TEST_F(AsioScmpSocketFixture, SendToRecvFromExtAsync)
         ASSERT_THAT(get(recvd), testing::ElementsAreArray(payload));
     };
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
+    auto nh = toUnderlay<Socket::UnderlayEp>(ep2.localEp());
     auto sendCompletion = [&](Maybe<std::span<const std::byte>> sent) {
         ASSERT_FALSE(isError(sent)) << getError(sent);
         ASSERT_THAT(get(sent), testing::ElementsAreArray(payload));

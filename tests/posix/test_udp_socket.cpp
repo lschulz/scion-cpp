@@ -134,7 +134,7 @@ TEST_F(UdpSocketFixture, SendRecv)
         1_b, 2_b, 3_b, 4_b, 5_b, 6_b, 7_b, 8_b
     };
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
+    auto nh = toUnderlay<Socket::UnderlayEp>(ep2.localEp());
     auto sent = sock1.send(headers, RawPath(), nh, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
     ASSERT_THAT(get(sent), testing::ElementsAreArray(payload));
@@ -158,7 +158,7 @@ TEST_F(UdpSocketFixture, SendRecvExt)
     std::array<ext::Extension*, 1> hbhExt = {&idint};
     auto& e2eExt = ext::NoExtensions;
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
+    auto nh = toUnderlay<Socket::UnderlayEp>(ep2.localEp());
     auto sent = sock1.sendExt(headers, RawPath(), nh, hbhExt, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
     ASSERT_THAT(get(sent), testing::ElementsAreArray(payload));
@@ -178,7 +178,7 @@ TEST_F(UdpSocketFixture, SendToRecvFrom)
         1_b, 2_b, 3_b, 4_b, 5_b, 6_b, 7_b, 8_b
     };
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
+    auto nh = toUnderlay<Socket::UnderlayEp>(ep2.localEp());
     auto sent = sock1.sendTo(headers, ep2, RawPath(), nh, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
     ASSERT_THAT(get(sent), testing::ElementsAreArray(payload));
@@ -204,7 +204,7 @@ TEST_F(UdpSocketFixture, SendToRecvFromExt)
     std::array<ext::Extension*, 1> hbhExt = {&idint};
     auto& e2eExt = ext::NoExtensions;
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
+    auto nh = toUnderlay<Socket::UnderlayEp>(ep2.localEp());
     auto sent = sock1.sendToExt(headers, ep2, RawPath(), nh, hbhExt, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
     ASSERT_THAT(get(sent), testing::ElementsAreArray(payload));
@@ -226,7 +226,7 @@ TEST_F(UdpSocketFixture, SendToRecvFromVia)
         1_b, 2_b, 3_b, 4_b, 5_b, 6_b, 7_b, 8_b
     };
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
+    auto nh = toUnderlay<Socket::UnderlayEp>(ep2.localEp());
     auto sent = sock1.sendTo(headers, ep2, RawPath(), nh, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
     ASSERT_THAT(get(sent), testing::ElementsAreArray(payload));
@@ -258,7 +258,7 @@ TEST_F(UdpSocketFixture, SendToRecvFromViaExt)
     std::array<ext::Extension*, 1> hbhExt = {&idint};
     auto& e2eExt = ext::NoExtensions;
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
+    auto nh = toUnderlay<Socket::UnderlayEp>(ep2.localEp());
     auto sent = sock1.sendToExt(headers, ep2, RawPath(), nh, hbhExt, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
     ASSERT_THAT(get(sent), testing::ElementsAreArray(payload));
@@ -291,7 +291,7 @@ TEST_F(UdpSocketFixture, SendCached)
     };
 
     // create headers from scratch
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
+    auto nh = toUnderlay<Socket::UnderlayEp>(ep2.localEp());
     auto sent = sock1.send(headers, RawPath(), nh, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
     ASSERT_THAT(get(sent), testing::ElementsAreArray(payload));
@@ -350,7 +350,7 @@ TEST(UdpSocket, NotConnected)
     sock.bind(local);
 
     HeaderCache headers;
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(local.localEp()));
+    auto nh = toUnderlay<Socket::UnderlayEp>(local.localEp());
     auto sent = sock.send(headers, RawPath(), nh, payload);
     ASSERT_TRUE(isError(sent));
     ASSERT_EQ(getError(sent), ErrorCode::InvalidArgument);
@@ -403,7 +403,7 @@ TEST(UdpSocket, SCMPHandler)
     EXPECT_CALL(handler, handleScmpCallback(from, rp, msg, _)).Times(1);
     sock2.setNextScmpHandler(&handler);
 
-    auto nh = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
+    auto nh = toUnderlay<Socket::UnderlayEp>(ep2.localEp());
     auto sent = sock1.sendScmpTo(headers, ep2, rp, nh, msg, payload);
     ASSERT_FALSE(isError(sent)) << getError(sent);
     // send a normal packet so recv doesn't wait for the timeout
