@@ -26,6 +26,7 @@
 #include "scion/path/path.hpp"
 
 #include <concepts>
+#include <concepts>
 #include <cstdint>
 #include <optional>
 
@@ -52,14 +53,25 @@ enum class Verdict
     Return ///< Return on the same interface the packet was received on
 };
 
-template <typename F>
-concept GetPathCallback = std::invocable<F,
-    const ScIPAddress&, const ScIPAddress&,
-    std::uint16_t, std::uint16_t,
-    hdr::ScionProto, std::uint8_t>;
+namespace concepts {
 
 template <typename F>
-concept GetMtuCallback = std::invocable<F, const hdr::SCION&, RawPath&>;
+concept GetPathCallback = requires(F& f,
+    const ScIPAddress& src, const ScIPAddress& dst,
+    std::uint16_t sport, std::uint16_t dport,
+    hdr::ScionProto proto, std::uint8_t tc)
+{
+    { f(src, dst, sport, dport, proto, tc) } ->
+        std::convertible_to<std::tuple<Maybe<PathPtr>, std::uint16_t>>;
+};
+
+template <typename F>
+concept GetMtuCallback = requires(F& f, const hdr::SCION& sci, RawPath& rp)
+{
+    { f(sci, rp) } -> std::convertible_to<std::uint16_t>;
+};
+
+} // namespace concepts
 
 namespace details {
 
@@ -129,15 +141,9 @@ inline generic::IPAddress translateIPv6Prefix(
 ///
 /// \param getPath A callable that produces a SCION path and the expected SCION
 /// MTU for that path. The callable's parameters are the 5-tuple of the
-/// translated SCION packet. If getPath returns an error or null, an appropriate
-/// ICMP error is returned to the packet's sender.
-/// Signature:
-/// ~~~
-/// std::tuple<Maybe<PathPtr>, std::uint16_t> getPath(
-///     const ScIPAddress& src, const ScIPAddress& dst,
-///     std::uint16_t sport, std::uint16_t dport,
-///     hdr::ScionProto proto);
-/// ~~~
+/// translated SCION packet and the value of the traffic class field. If getPath
+/// returns an error or null, an appropriate ICMP error is returned to the
+/// packet's sender.
 ///
 /// \return A tuple of the verdict, the UDP port to send the packet from, and
 /// the next hop ot send to. The verdict indicates whether the packet should be
@@ -147,7 +153,7 @@ inline generic::IPAddress translateIPv6Prefix(
 /// packet should be dropped, but Verdict::Abort additional alerts the caller
 /// of an unexpected problem during translation (i.e. the headers were
 /// invalid).
-template <GetPathCallback GetPath>
+template <concepts::GetPathCallback GetPath>
 std::tuple<Verdict, std::uint16_t, generic::IPEndpoint>
 translateEgress(
     PacketBuffer& pkt, const generic::IPAddress& sourcePrefix, unsigned prefixLen,
@@ -304,14 +310,10 @@ translateEgress(
 /// \param prefixLen Prefix length of `publicIP` and `translatedPrefix`.
 /// \param getMTU A callable that should provide an MTU usable with the path in
 /// the packet buffer.
-/// Signature:
-/// ~~~
-/// std::uint16_t getMTU(const hdr::SCION& sci, RawPath& rp);
-/// ~~~
 ///
 /// \return Whether the packet should be accepted (Verdict:Pass) or dropped
 /// (Verdict::Abort, Verdict::Drop).
-template <GetMtuCallback GetMTU>
+template <concepts::GetMtuCallback GetMTU>
 Verdict translateIngress(
     PacketBuffer& pkt, const generic::IPAddress& acceptPrefix,
     const generic::IPAddress& dstPrefix, unsigned prefixLen, GetMTU getMTU)

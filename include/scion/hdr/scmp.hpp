@@ -27,6 +27,7 @@
 
 #include <cstdint>
 #include <format>
+#include <string_view>
 #include <variant>
 
 
@@ -93,6 +94,9 @@ public:
     static constexpr ScmpType type = ScmpType::DstUnreach;
     Code code = NoRoute;
 
+    /// \brief Returns a short string explaining the meaning of `code`.
+    static std::string_view explainCode(Code code);
+
     ScmpDstUnreach() = default;
     explicit ScmpDstUnreach(std::uint8_t code) : code((Code)code) {};
 
@@ -116,7 +120,7 @@ public:
     {
         using namespace details;
         out = std::format_to(out, "###[ SCMP Destination Unreachable ]###\n");
-        out = formatIndented(out, indent, "code = {}\n", (unsigned)code);
+        out = formatIndented(out, indent, "code = {} ({})\n", (unsigned)code, explainCode(code));
         return out;
     }
 };
@@ -187,6 +191,9 @@ public:
     Code code = ErrHdrField;
     std::uint16_t pointer = 0;
 
+    /// \brief Returns a short string explaining the meaning of `code`.
+    static std::string_view explainCode(Code code);
+
     ScmpParamProblem() = default;
     explicit ScmpParamProblem(std::uint8_t code, std::uint16_t pointer = 0)
         : code((Code)code), pointer(pointer)
@@ -213,7 +220,8 @@ public:
     {
         using namespace details;
         out = std::format_to(out, "###[ SCMP Parameter Problem ]###\n");
-        out = formatIndented(out, indent, "code    = {}\n", (unsigned)code);
+        out = formatIndented(out, indent, "code    = {} ({})\n",
+            (unsigned)code, explainCode(code));
         out = formatIndented(out, indent, "pointer = {}\n", pointer);
         return out;
     }
@@ -597,3 +605,137 @@ public:
 
 } // namespace hdr
 } // namespace scion
+
+template <>
+struct std::formatter<scion::hdr::ScmpMessage>
+{
+    constexpr auto parse(auto& ctx)
+    {
+        return ctx.begin();
+    }
+
+    auto format(const scion::hdr::ScmpMessage& msg, auto& ctx) const
+    {
+        using namespace scion::hdr;
+        return std::visit([&](auto&& arg) -> auto {
+            return std::format_to(ctx.out(), "{}", arg);
+        }, msg);
+    }
+};
+
+template <>
+struct std::formatter<scion::hdr::ScmpUnknownError>
+{
+    constexpr auto parse(auto& ctx) { return ctx.begin(); }
+
+    auto format(const scion::hdr::ScmpUnknownError& msg, auto& ctx) const
+    {
+        return std::format_to(ctx.out(), "unknown error (code {})", msg.code);
+    }
+};
+
+template <>
+struct std::formatter<scion::hdr::ScmpDstUnreach>
+{
+    constexpr auto parse(auto& ctx) { return ctx.begin(); }
+
+    auto format(const scion::hdr::ScmpDstUnreach& msg, auto& ctx) const
+    {
+        using namespace scion::hdr;
+        return std::format_to(ctx.out(), "destination unreachable ({})",
+            ScmpDstUnreach::explainCode(msg.code));
+    }
+};
+
+template <>
+struct std::formatter<scion::hdr::ScmpPacketTooBig>
+{
+    constexpr auto parse(auto& ctx) { return ctx.begin(); }
+
+    auto format(const scion::hdr::ScmpPacketTooBig& msg, auto& ctx) const
+    {
+        return std::format_to(ctx.out(), "packet too big, recommended MTU is {} octets", msg.mtu);
+    }
+};
+
+template <>
+struct std::formatter<scion::hdr::ScmpParamProblem>
+{
+    constexpr auto parse(auto& ctx) { return ctx.begin(); }
+
+    auto format(const scion::hdr::ScmpParamProblem& msg, auto& ctx) const
+    {
+        using namespace scion::hdr;
+        return std::format_to(ctx.out(), "paramater problem ({}) at offset {}",
+            ScmpParamProblem::explainCode(msg.code), msg.pointer);
+    }
+};
+
+template <>
+struct std::formatter<scion::hdr::ScmpExtIfDown>
+{
+    constexpr auto parse(auto& ctx) { return ctx.begin(); }
+
+    auto format(const scion::hdr::ScmpExtIfDown& msg, auto& ctx) const
+    {
+        return std::format_to(ctx.out(),
+            "external interface {} down at {}", msg.iface, msg.sender);
+    }
+};
+
+template <>
+struct std::formatter<scion::hdr::ScmpIntConnDown>
+{
+    constexpr auto parse(auto& ctx) { return ctx.begin(); }
+
+    auto format(const scion::hdr::ScmpIntConnDown& msg, auto& ctx) const
+    {
+        return std::format_to(ctx.out(),
+            "internal connectivity down at {} between interface {} and {}",
+            msg.sender, msg.ingress, msg.egress);
+    }
+};
+
+template <>
+struct std::formatter<scion::hdr::ScmpEchoRequest>
+{
+    constexpr auto parse(auto& ctx) { return ctx.begin(); }
+
+    auto format(const scion::hdr::ScmpEchoRequest& msg, auto& ctx) const
+    {
+        return std::format_to(ctx.out(), "echo request (id {}, seq {})", msg.id, msg.seq);
+    }
+};
+
+template <>
+struct std::formatter<scion::hdr::ScmpEchoReply>
+{
+    constexpr auto parse(auto& ctx) { return ctx.begin(); }
+
+    auto format(const scion::hdr::ScmpEchoReply& msg, auto& ctx) const
+    {
+        return std::format_to(ctx.out(), "echo reply (id {}, seq {})", msg.id, msg.seq);
+    }
+};
+
+template <>
+struct std::formatter<scion::hdr::ScmpTraceRequest>
+{
+    constexpr auto parse(auto& ctx) { return ctx.begin(); }
+
+    auto format(const scion::hdr::ScmpTraceRequest& msg, auto& ctx) const
+    {
+        return std::format_to(ctx.out(), "traceroute request (id {}, seq {})", msg.id, msg.seq);
+    }
+};
+
+template <>
+struct std::formatter<scion::hdr::ScmpTraceReply>
+{
+    constexpr auto parse(auto& ctx) { return ctx.begin(); }
+
+    auto format(const scion::hdr::ScmpTraceReply& msg, auto& ctx) const
+    {
+        return std::format_to(ctx.out(), "traceroute reply (id {}, seq {})", msg.id, msg.seq);
+    }
+};

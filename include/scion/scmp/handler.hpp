@@ -48,10 +48,18 @@ public:
     }
 
     virtual ~ScmpHandler() = default;
+
+    /// \brief Get the next handler in the chain.
     virtual ScmpHandler* nextScmpHandler() = 0;
-    virtual void setNextScmpHandler(ScmpHandler* handler) = 0;
+
+    /// \brief Set the next handler in the chain.
+    /// \return The new next handler, i.e., the argument `handler`.
+    virtual ScmpHandler* setNextScmpHandler(ScmpHandler* handler) = 0;
 
 private:
+    /// \brief Callback that is invoked when an SCMP packet has been received.
+    /// \return Return true to continue with the next handler (if any), or false
+    /// to stop processing.
     virtual bool handleScmpCallback(
         const ScIPAddress& from,
         const RawPath& path,
@@ -71,9 +79,10 @@ public:
         return nextHandler;
     }
 
-    void setNextScmpHandler(ScmpHandler* handler) override
+    ScmpHandler* setNextScmpHandler(ScmpHandler* handler) override
     {
         nextHandler = handler;
+        return handler;
     }
 };
 

@@ -20,6 +20,8 @@
 
 #include "scion/error_codes.hpp"
 
+#include <boost/asio/error.hpp>
+
 #include <format>
 
 
@@ -48,7 +50,7 @@ struct ScionErrorCategory : public std::error_category
             case ErrorCode::StunReceived:
                 return "received a STUN packet";
             case ErrorCode::LogicError:
-                return "expected precondition failed";
+                return "internal error";
             case ErrorCode::NotImplemented:
                 return "not implemented ";
             case ErrorCode::InvalidArgument:
@@ -71,6 +73,12 @@ struct ScionErrorCategory : public std::error_category
                 return "remote machine returned an error";
             case ErrorCode::FileNotFound:
                 return "file not found";
+            case ErrorCode::Expired:
+                return "data is expired";
+            case ErrorCode::NoKey:
+                return "no valid key for cryptographic operation";
+            case ErrorCode::InvalidMAC:
+                return "MAC validation failed";
             case ErrorCode::InvalidPacket:
                 return "received an invalid packet";
             case ErrorCode::ChecksumError:
@@ -122,7 +130,7 @@ struct ScionErrorCondition : std::error_category
             case ErrorCondition::AltSuccess:
                 return "no error or alternate success";
             case ErrorCondition::LogicError:
-                return "expected precondition failed";
+                return "internal error";
             case ErrorCondition::NotImplemented:
                 return "not implemented ";
             case ErrorCondition::InvalidArgument:
@@ -145,6 +153,12 @@ struct ScionErrorCondition : std::error_category
                 return "remote machine returned an error";
             case ErrorCondition::FileNotFound:
                 return "file not found";
+            case ErrorCondition::Expired:
+                return "data is expired";
+            case ErrorCondition::NoKey:
+                return "no valid key for cryptographic operation";
+            case ErrorCondition::InvalidMAC:
+                return "MAC validation failed";
             case ErrorCondition::InvalidPacket:
                 return "received an invalid packet";
             case ErrorCondition::ChecksumError:
@@ -164,12 +178,13 @@ struct ScionErrorCondition : std::error_category
 
     bool equivalent(const std::error_code& ec, int condition) const noexcept
     {
-        if (ec.category() == scionErrorCategory) {
+        const auto& cat = ec.category();
+        if (cat == scionErrorCategory) {
             if (static_cast<ErrorCondition>(condition) == ErrorCondition::AltSuccess) {
                 return ec.value() <= static_cast<int>(ErrorCondition::AltSuccess);
             }
             return ec.value() == condition;
-        } else if (ec.category() == std::system_category()) {
+        } else if (cat == std::system_category() || cat == boost::system::system_category()) {
             auto value = ec.value();
             switch (static_cast<ErrorCondition>(condition)) {
             case ErrorCondition::Ok:

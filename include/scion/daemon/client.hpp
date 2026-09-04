@@ -83,12 +83,6 @@ struct AsInfo
 
 using PortRange = std::pair<std::uint16_t, std::uint16_t>;
 
-enum class DRKeyProtocol : std::uint_fast16_t
-{
-    Generic = 0,
-    SCMP = 1,
-};
-
 struct DRKeyHostASRequest
 {
     std::chrono::system_clock::time_point valTime;

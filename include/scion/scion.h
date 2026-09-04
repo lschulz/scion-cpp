@@ -133,7 +133,7 @@ typedef enum scion_error_t
     SCION_NO_METADATA = 64,   ///< no path metadata available
     SCION_PATH_IS_EMPTY = 65, ///< path is empty
     // errors
-    SCION_LOGIC_ERROR = 128,  ///< expected precondition failed
+    SCION_LOGIC_ERROR = 128,  ///< internal error
     SCION_NOT_IMPLEMENTED,    ///< not implemented (yet)
     SCION_INVALID_ARGUMENT,   ///< invalid argument
     SCION_SYNTAX_ERROR,       ///< input contains syntax error(s)

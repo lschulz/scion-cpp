@@ -1,4 +1,4 @@
-// Copyright (c) 2024-2025 Lars-Christian Schulz
+// Copyright (c) 2024-2026 Lars-Christian Schulz
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -23,6 +23,7 @@
 #include "scion/addr/address.hpp"
 #include "scion/addr/isd_asn.hpp"
 #include "scion/bit_stream.hpp"
+#include "scion/extensions/idint_instr.hpp"
 #include "scion/hdr/scion.hpp"
 
 #include <array>
@@ -32,72 +33,6 @@
 namespace scion {
 namespace hdr {
 
-/// \brief ID-INT instruction flags.
-enum class IdIntInstFlags : std::uint8_t
-{
-    NodeID  = 1 << 3,
-    NodeCnt = 1 << 2,
-    IgrIf   = 1 << 1,
-    EgrIf   = 1 << 0,
-};
-using IdIntInstBitmap = scion::details::FlagSet<IdIntInstFlags>;
-
-inline IdIntInstBitmap operator|(IdIntInstFlags lhs, IdIntInstFlags rhs)
-{
-    return IdIntInstBitmap(lhs) | rhs;
-}
-
-/// \brief ID-INT telemetry instructions.
-enum class IdIntInstruction : std::uint8_t
-{
-    Nop             = 0x00,
-    Isd             = 0x01,
-    BrLinkType      = 0x02,
-    DeviceTypeRole  = 0x03,
-    CpuMemUsage     = 0x04,
-    CpuTemp         = 0x05,
-    AsicTemp        = 0x06,
-    FanSpeed        = 0x07,
-    TotalPower      = 0x08,
-    EnergyMix       = 0x09,
-    DeviceVendor    = 0x41,
-    DeviceModel     = 0x42,
-    SoftwareVersion = 0x43,
-    NodeIpv4Addr    = 0x44,
-    IngressIfSpeed  = 0x45,
-    EgressIfSpeed   = 0x46,
-    GpsLat          = 0x47,
-    GpsLong         = 0x48,
-    Uptime          = 0x49,
-    FwdEnergy       = 0x4a,
-    Co2Emission     = 0x4b,
-    IngressLinkRx   = 0x4c,
-    EgressLinkTx    = 0x4d,
-    QueueId         = 0x4e,
-    InstQueueLen    = 0x4f,
-    AvgQueueLen     = 0x50,
-    BufferId        = 0x51,
-    InstBufferOcc   = 0x52,
-    AvgBufferOcc    = 0x53,
-    Asn             = 0x81,
-    IngressTstamp   = 0x82,
-    EgressTstamp    = 0x83,
-    IgScifPktCnt    = 0x84,
-    EgScifPktCnt    = 0x85,
-    IgScifPktDrop   = 0x86,
-    EgScifPktDrop   = 0x87,
-    IgScifBytes     = 0x88,
-    EgScifBytes     = 0x89,
-    IgPktCnt        = 0x8a,
-    EgPktCnt        = 0x8b,
-    IgPktDrop       = 0x8c,
-    EgPktDrop       = 0x8d,
-    IgBytes         = 0x8e,
-    EgBytes         = 0x8f,
-    NodeIpv6AddrH   = 0xc1,
-    NodeIpv6AddrL   = 0xc2,
-};
-
 /// \brief ID-INT main hop-by-hop option.
 class IdIntOpt
 {
@@ -106,58 +41,33 @@ public:
     {
         InfraMode    = 1 << 4,
         Discard      = 1 << 3,
-        Encrypted    = 1 << 2,
+        Encrypt      = 1 << 2,
         SizeExceeded = 1 << 1,
     };
     using FlagSet = scion::details::FlagSet<Flags>;
 
-    enum class AgrMode : std::uint8_t
-    {
-        Off      = 0,
-        AS       = 1,
-        Border   = 2,
-        Internal = 3,
-    };
-
-    enum class Verifier : std::uint8_t
-    {
-        ThirdParty,
-        Destination,
-        Source,
-    };
-
-    enum class AgrFunction : std::uint8_t
-    {
-        First   = 0,
-        Last    = 1,
-        Minimum = 2,
-        Maximum = 3,
-        Sum     = 4,
-    };
-
-    static const std::size_t minDataLen = 22;
+    static const std::size_t minDataLen = 20;
     static constexpr OptType type = OptType::IdInt;
     static constexpr std::uint8_t version = 0;
 
-    std::uint8_t dataLen = 0;
     FlagSet flags;
-    AgrMode agrMode = AgrMode::Off;
-    Verifier vtype = Verifier::Destination;
+    idint::AM agrMode = idint::AM::Off;
+    idint::Verifier vtype = idint::Verifier::Destination;
     std::uint8_t stackLen = 0;
     std::uint8_t tos = 0;
     std::uint8_t delayHops = 0;
-    IdIntInstBitmap bitmap;
-    std::array<AgrFunction, 4> agrFunc = {};
-    std::array<IdIntInstruction, 4> instr = {};
+    idint::InstrBitmap bitmap;
+    std::array<idint::AF, 4> agrFuncs = {};
+    std::array<idint::Instr, 4> instr = {};
     std::uint64_t sourceTS = 0;
     std::uint16_t sourcePort = 0;
     ScIPAddress verifier;
 
-    /// \brief Compute the correct value for `dataLen`.
+    /// \brief Returns the size of the option including type and length fields.
     std::size_t size() const
     {
-        std::size_t size = minDataLen;
-        if (vtype == Verifier::ThirdParty) size += verifier.size();
+        std::size_t size = 2 + minDataLen;
+        if (vtype == idint::Verifier::ThirdParty) size += verifier.size();
         return size;
     }
 
@@ -169,10 +79,8 @@ public:
         if constexpr (Stream::IsReading) {
             if (type != OptType::IdInt) return err.error("incorrect option type");
         }
+        std::uint8_t dataLen = (std::uint8_t)(size() - 2);
         if (!stream.serializeByte(dataLen, err)) return err.propagate();
-        if constexpr (Stream::IsReading) {
-            if (dataLen < minDataLen) return err.error("invalid option");
-        }
         auto ver = version;
         if (!stream.serializeBits(ver, 3, err)) return err.propagate();
         if constexpr (Stream::IsReading) {
@@ -186,7 +94,7 @@ public:
         if (!stream.serializeBits((std::uint8_t&)vtype, 2, err)) return err.propagate();
         auto verifAddrType = HostAddrType::IPv4;
         if constexpr (Stream::IsWriting) {
-            if (vtype == Verifier::ThirdParty) {
+            if (vtype == idint::Verifier::ThirdParty) {
                 verifAddrType = AddressTraits<generic::IPAddress>::type(verifier.host());
             }
         }
@@ -196,7 +104,7 @@ public:
         if (!stream.serializeBits(delayHops, 6, err)) return err.propagate();
         if (!stream.advanceBits(10, err)) return err.propagate();
         if (!stream.serializeBits(bitmap.ref(), 4, err)) return err.propagate();
-        for (auto& func : agrFunc) {
+        for (auto& func : agrFuncs) {
             if (!stream.serializeBits((std::uint8_t&)func, 3, err)) return err.propagate();
         }
         for (auto& inst : instr) {
@@ -204,10 +112,15 @@ public:
         }
         if (!stream.serializeBits(sourceTS, 48, err)) return err.propagate();
         if (!stream.serializeUint16(sourcePort, err)) return err.propagate();
-        if (vtype == Verifier::ThirdParty) {
+        if (vtype == idint::Verifier::ThirdParty) {
             if (!verifier.isdAsn().serialize(stream, err)) return err.propagate();
             if (!verifier.host().serialize(stream, verifAddrType == HostAddrType::IPv4, err))
                 return err.propagate();
+        }
+        if constexpr (Stream::IsReading) {
+            if (dataLen < (size() - 2)) {
+                return err.error("invalid ID-INT main option length");
+            }
         }
         return true;
     }
@@ -217,7 +130,7 @@ public:
         using namespace details;
         out = std::format_to(out, "###[ ID-INT Option ]###\n");
         out = formatIndented(out, indent, "type       = {}\n", (unsigned)type);
-        out = formatIndented(out, indent, "dataLen    = {}\n", dataLen);
+        out = formatIndented(out, indent, "dataLen    = {}\n", size() - 2);
         out = formatIndented(out, indent, "flags      = {:#02x}\n", (std::uint8_t)flags);
         out = formatIndented(out, indent, "agrMode    = {}\n", (unsigned)agrMode);
         out = formatIndented(out, indent, "vtype      = {}\n", (unsigned)vtype);
@@ -225,7 +138,7 @@ public:
         out = formatIndented(out, indent, "tos        = {}\n", tos);
         out = formatIndented(out, indent, "delayHops  = {}\n", delayHops);
         for (int i = 0; i < 4; ++i) {
-            out = formatIndented(out, indent, "agrFunc{}   = {}\n", i + 1, (unsigned)agrFunc[i]);
+            out = formatIndented(out, indent, "agrFuncs{}   = {}\n", i + 1, (unsigned)agrFuncs[i]);
             out = formatIndented(out, indent, "instr{}     = {:#02x}\n", i + 1, (unsigned)instr[i]);
         }
         out = formatIndented(out, indent, "sourceTS   = {}\n", sourceTS);
@@ -254,46 +167,84 @@ public:
     };
     using FlagSet = scion::details::FlagSet<Flags>;
 
-    static const std::size_t minDataLen = 12;
+    static const std::size_t minDataLen = 10;
+    static constexpr std::size_t maxDataAndMacLen = 48;
     static constexpr OptType type = OptType::IdIntEntry;
 
-    std::uint8_t dataLen = 0;
     FlagSet flags;
     std::uint8_t hop = 0;
-    IdIntInstBitmap mask;
+    idint::InstrBitmap mask;
     std::array<std::uint8_t, 4> ml = {};
     std::array<std::byte, 12> nonce = {};
-    std::array<std::byte, 4> mac = {};
-    std::array<std::byte, 44> metadata = {};
+    std::array<std::byte, maxDataAndMacLen> dataAndMac = {};
 
     /// \brief Get the metadata field size in bytes including necessary padding.
     std::size_t mdSize() const
     {
+        using namespace idint;
         std::size_t size = 0;
-        if (mask[IdIntInstFlags::NodeID]) size += 4;
-        if (mask[IdIntInstFlags::NodeCnt]) size += 2;
-        if (mask[IdIntInstFlags::IgrIf]) size += 2;
-        if (mask[IdIntInstFlags::EgrIf]) size += 2;
+        if (mask[InstrFlag::NodeID]) size += 4;
+        if (mask[InstrFlag::NodeCnt]) size += 2;
+        if (mask[InstrFlag::IgPort]) size += 2;
+        if (mask[InstrFlag::EgPort]) size += 2;
         for (auto& length : ml) size += std::min(length << 1, 8);
         auto padding = -(size + 2u) & 0x03ul;
         return size + padding;
     }
 
-    /// \brief Get a view of the valid range of `metadata`.
-    std::span<const std::byte> getMetadata() const
+    /// \brief Get a view of the valid range of `metadata` including padding
+    /// if applicable.
+    std::span<const std::byte> metadata() const
     {
-        auto n = std::min(mdSize(), metadata.size());
-        return std::span<const std::byte>(metadata.data(), n);
+        auto n = std::min(mdSize(), dataAndMac.size());
+        return std::span<const std::byte>(dataAndMac.data(), n);
     }
 
-    /// \brief Get a view of the valid range of `metadata`.
-    std::span<std::byte> getMetadata()
+    /// \brief Get a view of the valid range of `metadata` including padding
+    /// if applicable.
+    std::span<std::byte> metadata()
     {
-        auto n = std::min(mdSize(), metadata.size());
-        return std::span<std::byte>(metadata.data(), n);
+        auto n = std::min(mdSize(), dataAndMac.size());
+        return std::span<std::byte>(dataAndMac.data(), n);
     }
 
-    /// \brief Compute the correct value for `dataLen`.
+    /// \brief Returns a view of the valid metadata, metadata padding, and MAC
+    /// as one continuous block.
+    std::span<const std::byte> metadataWithMAC() const
+    {
+        auto n = std::min(mdSize() + 4, dataAndMac.size());
+        return std::span<const std::byte>(dataAndMac.data(), n);
+    }
+
+    /// \brief Returns a view of the valid metadata, metadata padding, and MAC
+    /// as one continuous block.
+    std::span<std::byte> metadataWithMAC()
+    {
+        auto n = std::min(mdSize() + 4, dataAndMac.size());
+        return std::span<std::byte>(dataAndMac.data(), n);
+    }
+
+    /// \brief Returns a copy of the telemetry MAC.
+    idint::MAC mac() const {
+        const auto n = mdSize() + 4;
+        if (n < 4) return idint::MAC{};
+        return idint::MAC{
+            dataAndMac[n-4],
+            dataAndMac[n-3],
+            dataAndMac[n-2],
+            dataAndMac[n-1],
+        };
+    }
+
+    /// \brief Set a new MAC. Must be called after the telemetry data been set.
+    void setMAC(idint::MAC mac) {
+        const auto m = mdSize();
+        assert((m + 4) < dataAndMac.size());
+        std::ranges::copy(mac, dataAndMac.begin() + m);
+    }
+
+    /// \brief Returns the size of the option including the TLV header and
+    /// padding.
     std::size_t size() const
     {
         return 10 + mdSize() + flags[Flags::Encrypted] * nonce.size();
@@ -307,10 +258,11 @@ public:
         if constexpr (Stream::IsReading) {
             if (type != OptType::IdIntEntry) return err.error("incorrect option type");
         }
-        if (!stream.serializeByte(dataLen, err)) return err.propagate();
-        if constexpr (Stream::IsReading) {
-            if (dataLen < minDataLen) return err.error("invalid option");
+        std::uint8_t dataLen = 0;
+        if constexpr (Stream::IsWriting) {
+            dataLen = (std::uint8_t)(size() - 2);
         }
+        if (!stream.serializeByte(dataLen, err)) return err.propagate();
         if (!stream.serializeBits(flags.ref(), 5, err)) return err.propagate();
         if (!stream.advanceBits(3, err)) return err.propagate();
         if (!stream.serializeBits(hop, 6, err)) return err.propagate();
@@ -325,8 +277,12 @@ public:
         if (flags[Flags::Encrypted]) {
             if (!stream.serializeBytes(nonce, err)) return err.propagate();
         }
-        if (!stream.serializeBytes(getMetadata(), err)) return err.propagate();
-        if (!stream.serializeBytes(mac, err)) return err.propagate();
+        if (!stream.serializeBytes(metadataWithMAC(), err)) return err.propagate();
+        if constexpr (Stream::IsReading) {
+            if (dataLen < (size() - 2)) {
+                return err.error("invalid ID-INT stack entry option length");
+            }
+        }
         return true;
     }
 
@@ -335,7 +291,7 @@ public:
         using namespace details;
         out = std::format_to(out, "###[ ID-INT Entry ]###\n");
         out = formatIndented(out, indent, "type     = {}\n", (unsigned)type);
-        out = formatIndented(out, indent, "dataLen  = {}\n", dataLen);
+        out = formatIndented(out, indent, "dataLen  = {}\n", size() - 2);
         out = formatIndented(out, indent, "flags    = {:#02x}\n", (std::uint8_t)flags);
         out = formatIndented(out, indent, "hop      = {}\n", hop);
         out = formatIndented(out, indent, "mask     = {:#02x}\n", (std::uint8_t)mask);
@@ -348,10 +304,10 @@ public:
             out = std::format_to(out, "\n");
         }
         out = formatIndented(out, indent, "metadata = ");
-        out = formatBytes(out, std::span(metadata.data(), mdSize()));
+        out = formatBytes(out, metadata());
         out = std::format_to(out, "\n");
         out = formatIndented(out, indent, "mac      = ");
-        out = formatBytes(out, mac);
+        out = formatBytes(out, mac());
         return std::format_to(out, "\n");
     }
 };

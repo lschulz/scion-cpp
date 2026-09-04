@@ -16,11 +16,13 @@ RUN apt-get update && apt-get -y upgrade && apt-get -y install \
     libncurses-dev \
     libprotobuf-dev \
     libre2-dev \
+    libsystemd-dev \
     libtomlplusplus-dev \
     ninja-build \
     pandoc \
     protobuf-compiler \
-    protobuf-compiler-grpc
+    protobuf-compiler-grpc \
+    python3
 
 # Build scripts expects source in /scion-cpp and writes output to /out
 COPY build.sh /

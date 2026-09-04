@@ -20,12 +20,11 @@
 
 #include <scion/path/path.hpp>
 
+#include <cstdint>
 #include <format>
 #include <span>
 #include <string>
 
-
-std::size_t promptForPath(const std::vector<scion::PathPtr>& paths);
 
 // Format a buffer side-by-side as hexadecimal values and decoded string.
 template <std::output_iterator<char> OutIter>

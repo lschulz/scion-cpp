@@ -48,17 +48,30 @@ TYPED_TEST(TypedStreamTest, Seek)
     std::array<std::byte, 8> data = {};
 
     TypeParam stream(data);
+    ASSERT_EQ(stream.remaining(), 8);
+
     ASSERT_TRUE(stream.seek(2, 7));
+    ASSERT_EQ(stream.remaining(), 5);
     ASSERT_EQ(stream.getPos(), std::make_pair((size_t)2, (size_t)7));
+
     ASSERT_FALSE(stream.seek(0, 9));
+    ASSERT_EQ(stream.remaining(), 5);
     ASSERT_EQ(stream.getPos(), std::make_pair((size_t)2, (size_t)7));
+
     ASSERT_FALSE(stream.seek(8, 1));
+    ASSERT_EQ(stream.remaining(), 5);
     ASSERT_EQ(stream.getPos(), std::make_pair((size_t)2, (size_t)7));
+
     ASSERT_FALSE(stream.seek(9, 0));
+    ASSERT_EQ(stream.remaining(), 5);
     ASSERT_EQ(stream.getPos(), std::make_pair((size_t)2, (size_t)7));
+
     ASSERT_TRUE(stream.seek(TypeParam::npos, 0));
+    ASSERT_EQ(stream.remaining(), 0);
     ASSERT_EQ(stream.getPos(), std::make_pair((size_t)8, (size_t)0));
+
     ASSERT_FALSE(stream.seek(TypeParam::npos, 4));
+    ASSERT_EQ(stream.remaining(), 0);
     ASSERT_EQ(stream.getPos(), std::make_pair((size_t)8, (size_t)0));
 }
 

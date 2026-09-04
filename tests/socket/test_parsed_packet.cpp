@@ -149,7 +149,7 @@ TEST_F(ParsedPacketFixture, ParseIdInt)
     EXPECT_EQ(pkt.sci.hlen, 46);
     EXPECT_EQ(pkt.sci.nh, ScionProto::HBHOpt);
     EXPECT_EQ(pkt.sci.ptype, PathType::SCION);
-    EXPECT_EQ(pkt.sci.plen, 104);
+    EXPECT_EQ(pkt.sci.plen, 424);
     EXPECT_EQ(pkt.sci.fl, 0x05'4b20u);
     EXPECT_EQ(pkt.sci.dst, dst);
     EXPECT_EQ(pkt.sci.src, src);
@@ -158,7 +158,7 @@ TEST_F(ParsedPacketFixture, ParseIdInt)
     EXPECT_TRUE(std::ranges::equal(pkt.path, pathBytes)) << printBufferDiff(pkt.path, pathBytes);
 
     // Extensions
-    EXPECT_EQ(pkt.hbhOpts.size(), 86);
+    EXPECT_EQ(pkt.hbhOpts.size(), 406);
     EXPECT_TRUE(pkt.e2eOpts.empty());
 
     // UDP

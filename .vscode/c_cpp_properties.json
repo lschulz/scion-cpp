@@ -19,7 +19,8 @@
                 "${workspaceFolder}/interposer/src",
                 "${workspaceFolder}/scitra/include",
                 "${workspaceFolder}/src",
-                "${workspaceFolder}/tests"
+                "${workspaceFolder}/tests",
+                "${workspaceFolder}/build/botan/build/include/public"
             ],
             "defines": [
                 "AGRPC_BOOST_ASIO"

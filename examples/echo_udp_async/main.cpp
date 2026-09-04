@@ -18,7 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include "coroutine_stun.hpp"
 #include "format.hpp"
+#include "path_prompt.hpp"
 
 #include <CLI/CLI.hpp>
 #include <boost/asio.hpp>
@@ -196,49 +198,6 @@ int runServer(
     return EXIT_SUCCESS;
 }
 
-boost::asio::awaitable<scion::Maybe<scion::ScIPEndpoint>> getStunMapping(
-    const boost::asio::io_context::executor_type& executor,
-    scion::asio::UdpSocket& socket, const scion::asio::UdpSocket::UnderlayEp& router,
-    std::chrono::milliseconds rto, unsigned int retry = 5)
-{
-    using namespace scion;
-    using namespace boost::asio::experimental::awaitable_operators;
-    using boost::asio::use_awaitable;
-    using boost::asio::redirect_error;
-
-    // This coroutine cancels all waiting asynchronous operations on the socket if no STUN response
-    // is received within rto milliseconds. It should be possible to cancel just the
-    // recvStunResponseAsync operation (the || operator should take care of that), but so far I was
-    // not able to get it working with a composed asynchronous operation. In the present case it
-    // should be fine to cancel all operations anyway, as only one operation should be waiting on
-    // the socket. Otherwise multiple concurrent receive operations would receive STUN replies in
-    // random order. Asynchronous sending in parallel makes no sense either since we can't begin to
-    // send data before the NAT mapping has been obtained.
-    auto timeout = [&] (std::chrono::milliseconds rto) -> boost::asio::awaitable<void> {
-        boost::asio::steady_timer timer(executor, rto);
-        boost::system::error_code ec;
-        co_await timer.async_wait(redirect_error(use_awaitable, ec));
-        if (ec != boost::asio::error::operation_aborted) {
-            socket.cancel();
-        }
-    };
-
-    for (unsigned int i = 0; i <= retry; ++i)
-    {
-        auto ec = co_await socket.requestStunMappingAsync(router, use_awaitable);
-        if (ec) co_return Error(ec);
-
-        auto res = co_await (timeout(rto) || socket.recvStunResponseAsync(use_awaitable));
-        if (res.index() == 1) {
-            ec = std::get<1>(res);
-            if (ec == ErrorCode::StunReceived) co_return socket.mappedEp();
-            else if (ec != ErrorCondition::Timeout) co_return Error(ec);
-        }
-        rto *= 2;
-    }
-    co_return Error(ErrorCode::Timeout);
-}
-
 int runClient(
     scion::daemon::GrpcDaemonClient& sciond,
     const scion::asio::UdpSocket::Endpoint& bind,
@@ -311,7 +270,7 @@ int runClient(
 
         if (args.stun) {
             boost::asio::ip::udp::endpoint server(nextHop.address(), 3478);
-            auto mapped = co_await getStunMapping(ioCtx.get_executor(), s, server, 100ms);
+            auto mapped = co_await getStunMapping(s, server, 100ms);
             if (mapped) {
                 std::cerr << "SNAT mapped address: " << mapped->localEp() << '\n';
             } else {

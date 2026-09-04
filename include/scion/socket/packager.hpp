@@ -46,12 +46,17 @@
 
 namespace scion {
 
+namespace concepts {
 template <typename F>
-concept ScmpCallback = std::invocable<F,
-    const ScIPAddress&,
-    const RawPath&,
-    const hdr::ScmpMessage&,
-    std::span<const std::byte>>;
+concept ScmpCallback = requires(F& f,
+    const ScIPAddress& from,
+    const RawPath& path,
+    const hdr::ScmpMessage& msg,
+    std::span<const std::byte> payload)
+{
+    { f(from, path, msg, payload) } -> std::same_as<void>;
+};
+} // namespace concepts
 
 struct DefaultScmpCallback
 {
@@ -342,7 +347,7 @@ public:
         typename L4,
         ext::extension_range HbHExt,
         ext::extension_range E2EExt,
-        ScmpCallback ScmpHandler = DefaultScmpCallback
+        concepts::ScmpCallback ScmpHandler = DefaultScmpCallback
     >
     Maybe<std::span<const std::byte>> unpack(
         std::span<const std::byte> buf,
@@ -472,7 +477,7 @@ private:
         return ErrorCode::Ok;
     }
 
-    template <typename L4, ScmpCallback ScmpHandler>
+    template <typename L4, concepts::ScmpCallback ScmpHandler>
     void invokeScmpHandler(ParsedPacket<L4> pkt, ScmpHandler handler)
     {
         RawPath rp(pkt.sci.src.isdAsn(), pkt.sci.dst.isdAsn(), pkt.sci.ptype, pkt.path);

@@ -241,6 +241,18 @@ public:
         return &(*byteIter);
     }
 
+    /// \brief Returns the space remaining in the buffer in bytes. Partially
+    /// read bytes do not count as remaining.
+    std::size_t remaining() const
+    {
+        auto rem = (std::size_t)(data.end() - byteIter);
+        if (bitPos != 0) {
+            assert(rem > 0);
+            return rem - 1;
+        }
+        return rem;
+    }
+
     bool seek(std::size_t byteOffset, std::size_t bitOffset)
     {
         if (byteOffset == npos) {
@@ -457,6 +469,18 @@ public:
     {
         assert(bitPos == 0);
         return &(*byteIter);
+    }
+
+    /// \brief Returns the space remaining in the buffer in bytes. Partially
+    /// written bytes do not count as remaining.
+    std::size_t remaining() const
+    {
+        auto rem = (std::size_t)(data.end() - byteIter);
+        if (bitPos != 0) {
+            assert(rem > 0);
+            return rem - 1;
+        }
+        return rem;
     }
 
     bool seek(std::size_t byteOffset, std::size_t bitOffset)

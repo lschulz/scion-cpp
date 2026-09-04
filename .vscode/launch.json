@@ -122,14 +122,10 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/examples/Debug/echo-udp",
-            "args": ["--sciond", "127.0.0.27:30255", "--local", "127.0.0.1:32000"],
+            "args": ["-d", "[fd00:f00d:cafe::7f00:2c]:30255", "-l", "[fd00:f00d:cafe::7f00:2b]:32001"],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
             "environment": [
-                {
-                    "name": "SCION_DAEMON_ADDRESS",
-                    "value": "127.0.0.27:30255"
-                }
             ],
             "externalConsole": false,
             "MIMode": "gdb",
@@ -319,6 +315,73 @@
                     "value": "127.0.0.19:30255"
                 }
             ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "ID-INT Trace Server",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/examples/Debug/idint-traceroute",
+            "args": [
+                "server",
+                "-d", "[fd00:f00d:cafe::7f00:54]:30255",
+                "-l", "[fd00:f00d:cafe::7f00:53]:32001"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "ID-INT Trace Client",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/examples/Debug/idint-traceroute",
+            "args": [
+                "client", "[2-ff00:0:222,fd00:f00d:cafe::7f00:53]:32001",
+                "-d", "127.0.0.60:30255",
+                "-l", "127.0.0.1:32000",
+                "--nid", "--igr", "--egr",
+                "-1", "ISD",
+                "-2", "ASN",
+                "-3", "HOST_CPU_NOW",
+                "-4", "EGRESS_LINK_TX",
+                "-a", "off",
+                "--limit", "750",
+                // "--no-verify",
+                "--encrypt",
+                "--interactive",
+                "--loop",
+            ],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
             "setupCommands": [

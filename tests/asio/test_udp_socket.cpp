@@ -26,6 +26,8 @@
 #include "gmock/gmock.h"
 #include "utilities.hpp"
 
+#include <boost/asio/experimental/awaitable_operators.hpp>
+
 #include <array>
 #include <chrono>
 #include <vector>
@@ -63,42 +65,33 @@ protected:
     }
 
     template <typename Alloc>
-    static void initIdIntExt(scion::ext::IdInt<Alloc>& idint)
+    static std::error_code initIdIntExt(scion::idint::IdInt<Alloc>& idint)
     {
-        using namespace scion::hdr;
+        using namespace scion::idint;
+        using scion::drkey::Key;
 
-        idint.main.dataLen = 22;
-        idint.main.flags = IdIntOpt::Flags::Discard;
-        idint.main.agrMode = IdIntOpt::AgrMode::AS;
-        idint.main.vtype = IdIntOpt::Verifier::Destination;
-        idint.main.stackLen = 16;
-        idint.main.tos = 0;
-        idint.main.delayHops = 0;
-        idint.main.bitmap = IdIntInstFlags::NodeID;
-        idint.main.agrFunc[0] = IdIntOpt::AgrFunction::Last;
-        idint.main.agrFunc[1] = IdIntOpt::AgrFunction::Last;
-        idint.main.agrFunc[2] = IdIntOpt::AgrFunction::First;
-        idint.main.agrFunc[3] = IdIntOpt::AgrFunction::First;
-        idint.main.instr[0] = IdIntInstruction::IngressTstamp;
-        idint.main.instr[1] = IdIntInstruction::DeviceTypeRole;
-        idint.main.instr[2] = IdIntInstruction::Nop;
-        idint.main.instr[3] = IdIntInstruction::Nop;
-        idint.main.sourceTS = 1000;
-        idint.main.sourcePort = 10;
-        idint.entries.emplace_back();
-
-        auto& source = idint.entries.back();
-        static const std::array<std::byte, 10> entry1 = {
-            0x00_b, 0x00_b, 0x00_b, 0x02_b,
-            0x00_b, 0x00_b, 0x00_b, 0x03_b,
-            0x00_b, 0x04_b,
+        IntRequest req;
+        req.flags.discard = 1;
+        req.agrMode = AM::AS;
+        req.vtype = Verifier::Destination;
+        req.bitmap = InstrFlag::NodeID;
+        req.stackBytes = 64;
+        req.agrFuncs = {AF::Last, AF::Last, AF::First, AF::First};
+        req.instructions = {
+            Instr::IngressTstamp,
+            Instr::DeviceTypeRole,
+            Instr::Nop,
+            Instr::Nop,
         };
-        source.dataLen = 20;
-        source.flags = IdIntEntry::Flags::Source;
-        source.mask = IdIntInstFlags::NodeID;
-        source.ml = {2, 1, 0, 0};
-        std::copy(entry1.begin(), entry1.end(), source.metadata.begin());
-        source.mac = {0xff_b, 0xff_b, 0xff_b, 0xff_b};
+        req.identifier.timestamp = 1000;
+        req.identifier.port = 10;
+        req.srcData.setNodeId(2);
+        req.srcData.setMetadata(0, Instr::IngressTstamp, 3u);
+        req.srcData.setMetadata(1, Instr::DeviceTypeRole, 4u);
+
+        Key k;
+        k.key = {};
+        return idint.encodeIntRequest(req, k, nullptr);
     }
 
     inline static Socket::Endpoint ep1, ep2;
@@ -115,7 +108,7 @@ TEST_F(AsioUdpSocketFixture, Measure)
 TEST_F(AsioUdpSocketFixture, MeasureExt)
 {
     using namespace scion;
-    ext::IdInt idint;
+    idint::IdInt idint;
     std::array<ext::Extension*, 1> hbhExt = {&idint};
     ASSERT_EQ(unwrap(sock1->measureExt(RawPath(), hbhExt)), 92);
 }
@@ -129,7 +122,7 @@ TEST_F(AsioUdpSocketFixture, MeasureTo)
 TEST_F(AsioUdpSocketFixture, MeasureToExt)
 {
     using namespace scion;
-    ext::IdInt idint;
+    idint::IdInt idint;
     std::array<ext::Extension*, 1> hbhExt = {&idint};
     ASSERT_EQ(unwrap(sock1->measureToExt(ep2, RawPath(), hbhExt)), 92);
 }
@@ -195,8 +188,8 @@ TEST_F(AsioUdpSocketFixture, SendRecvExt)
     static const std::array<std::byte, 8> payload = {
         1_b, 2_b, 3_b, 4_b, 5_b, 6_b, 7_b, 8_b
     };
-    ext::IdInt idint;
-    initIdIntExt(idint);
+    idint::IdInt idint;
+    ASSERT_FALSE(initIdIntExt(idint));
     std::array<ext::Extension*, 1> hbhExt = {&idint};
     auto& e2eExt = ext::NoExtensions;
 
@@ -221,8 +214,8 @@ TEST_F(AsioUdpSocketFixture, SendRecvExtAsync)
     static const std::array<std::byte, 8> payload = {
         1_b, 2_b, 3_b, 4_b, 5_b, 6_b, 7_b, 8_b
     };
-    ext::IdInt idint;
-    initIdIntExt(idint);
+    idint::IdInt idint;
+    ASSERT_FALSE(initIdIntExt(idint));
     std::array<ext::Extension*, 1> hbhExt = {&idint};
     auto& e2eExt = ext::NoExtensions;
 
@@ -308,8 +301,8 @@ TEST_F(AsioUdpSocketFixture, SendToRecvExtFrom)
     static const std::array<std::byte, 8> payload = {
         1_b, 2_b, 3_b, 4_b, 5_b, 6_b, 7_b, 8_b
     };
-    ext::IdInt idint;
-    initIdIntExt(idint);
+    idint::IdInt idint;
+    ASSERT_FALSE(initIdIntExt(idint));
     std::array<ext::Extension*, 1> hbhExt = {&idint};
     auto& e2eExt = ext::NoExtensions;
 
@@ -336,8 +329,8 @@ TEST_F(AsioUdpSocketFixture, SendToRecvFromExtAsync)
     static const std::array<std::byte, 8> payload = {
         1_b, 2_b, 3_b, 4_b, 5_b, 6_b, 7_b, 8_b
     };
-    ext::IdInt idint;
-    initIdIntExt(idint);
+    idint::IdInt idint;
+    ASSERT_FALSE(initIdIntExt(idint));
     std::array<ext::Extension*, 1> hbhExt = {&idint};
     auto& e2eExt = ext::NoExtensions;
 
@@ -432,8 +425,8 @@ TEST_F(AsioUdpSocketFixture, SendToRecvFromViaExt)
     static const std::array<std::byte, 8> payload = {
         1_b, 2_b, 3_b, 4_b, 5_b, 6_b, 7_b, 8_b
     };
-    ext::IdInt idint;
-    initIdIntExt(idint);
+    idint::IdInt idint;
+    ASSERT_FALSE(initIdIntExt(idint));
     std::array<ext::Extension*, 1> hbhExt = {&idint};
     auto& e2eExt = ext::NoExtensions;
 
@@ -464,8 +457,8 @@ TEST_F(AsioUdpSocketFixture, SendToRecvFromViaExtAsync)
     static const std::array<std::byte, 8> payload = {
         1_b, 2_b, 3_b, 4_b, 5_b, 6_b, 7_b, 8_b
     };
-    ext::IdInt idint;
-    initIdIntExt(idint);
+    idint::IdInt idint;
+    ASSERT_FALSE(initIdIntExt(idint));
     std::array<ext::Extension*, 1> hbhExt = {&idint};
     auto& e2eExt = ext::NoExtensions;
 
@@ -591,6 +584,74 @@ TEST_F(AsioUdpSocketFixture, SendCachedAsync)
         EXPECT_FALSE(isError(recvd)) << getError(recvd);
         if (isError(sent)) co_return;
         EXPECT_THAT(get(recvd), testing::ElementsAreArray(payload2));
+    };
+
+    ioCtx.restart();
+    co_spawn(ioCtx, test(), detached);
+    ioCtx.run();
+}
+
+// Test cancelling a receive operation with a timer.
+TEST_F(AsioUdpSocketFixture, RecvCancellation)
+{
+    using namespace scion;
+    using namespace boost::asio;
+    using namespace boost::asio::experimental::awaitable_operators;
+    using namespace std::chrono_literals;
+
+    std::vector<std::byte> buffer(1024);
+    auto test = [&] () -> awaitable<void>
+    {
+        Socket::UnderlayEp ulSource;
+        steady_timer deadline(co_await this_coro::executor, 25ms);
+        auto result = co_await (
+            deadline.async_wait(use_awaitable)
+            || sock2->recvAsync(buffer, ulSource, use_awaitable));
+        EXPECT_EQ(result.index(), 0); // cancelled by timer
+    };
+
+    ioCtx.restart();
+    co_spawn(ioCtx, test(), detached);
+    ioCtx.run();
+}
+
+// Test cancelling a receive operation that is constantly retrying.
+TEST_F(AsioUdpSocketFixture, RecvCancellationWhileLooping)
+{
+    using namespace scion;
+    using namespace boost::asio;
+    using namespace boost::asio::experimental::awaitable_operators;
+    using namespace std::chrono_literals;
+
+    std::vector<std::byte> buffer(1024);
+    auto test = [&] () -> awaitable<void>
+    {
+        auto ex = co_await this_coro::executor;
+
+        // Send invalid packets to SCION socket, so it keeps retrying the
+        // receive operation.
+        static const std::array<std::byte, 4> notScion = {0_b, 0_b, 0_b, 0_b};
+        auto ul = unwrap(toUnderlay<Socket::UnderlayEp>(ep2.localEp()));
+        ip::udp::socket noise(ex, ip::udp::endpoint(ul));
+        steady_timer noiseTick(ex);
+        co_spawn(ex, [&]() -> awaitable<void> {
+
+            while (true) {
+                boost::system::error_code ec;
+                noise.send_to(boost::asio::buffer(notScion), ul, 0, ec);
+                noiseTick.expires_after(1ms);
+                co_await noiseTick.async_wait(redirect_error(use_awaitable, ec));
+                if (ec) co_return;
+            }
+        }, detached);
+
+        Socket::UnderlayEp ulSource;
+        steady_timer deadline(ex, 25ms);
+        auto result = co_await (
+            deadline.async_wait(use_awaitable)
+            || sock2->recvAsync(buffer, ulSource, use_awaitable));
+        EXPECT_EQ(result.index(), 0); // cancelled by timer
+        noiseTick.cancel();
     };
 
     ioCtx.restart();

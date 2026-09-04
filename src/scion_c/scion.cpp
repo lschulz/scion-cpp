@@ -215,7 +215,7 @@ const char* scion_error_string(scion_error err)
         case SCION_NO_METADATA:
             return "no metadata available";
         case SCION_LOGIC_ERROR:
-            return "expected precondition failed";
+            return "internal error";
         case SCION_NOT_IMPLEMENTED:
             return "not implemented";
         case SCION_INVALID_ARGUMENT:

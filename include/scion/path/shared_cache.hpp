@@ -157,9 +157,10 @@ public:
         return inner.nextScmpHandler();
     }
 
-    void setNextScmpHandler(ScmpHandler* handler) override
+    ScmpHandler* setNextScmpHandler(ScmpHandler* handler) override
     {
         inner.setNextScmpHandler(handler);
+        return handler;
     }
 
 private:

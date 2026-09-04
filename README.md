@@ -70,6 +70,9 @@ man pages:
 - [examples/pmtu](examples/pmtu/main.cpp): Path MTU discovery with SCMP.
 - [examples/resolver](examples/resolver/main.cpp): Name resolution using SCION hosts files and DNS.
 - [examples/traceroute](examples/traceroute/main.cpp): A simple implementation of SCION traceroute.
+- [examples/idint-traceroute](examples/idint-traceroute/): An applications that collects path
+  information with in-band telemetry. Illustrates sending and receiving packets with the ID-INT
+  extension.
 
 ### Installation ###
 
@@ -204,7 +207,7 @@ interposer.
 The install location is determined by `CMAKE_INSTALL_PREFIX` set during the cmake configuration
 step.
 ```bash
-cmake -G 'Ninja Multi-Config' -B build -DCMAKE_INSTALL_PREFIX=example
+cmake -G 'Ninja Multi-Config' -B build -DCMAKE_INSTALL_PREFIX=$PWD/install
 ```
 
 ### Build Debian Packages with CPack ###
@@ -264,6 +267,8 @@ make test-data
 ### Integration Tests ###
 
 The integration tests require a copy of the [SCION source code](https://github.com/scionproto/scion).
+Some tests rely on experimental support for ID-INT, which is available from the `idint2026` branch
+of [this fork](https://github.com/lschulz/scion).
 Additionally, the command line tools `ip`, `ping`, `ss`, `nc`, `iperf3`, and `mptcpize` must be
 available, which can be installed with apt on Ubuntu (24.04).
 ```bash

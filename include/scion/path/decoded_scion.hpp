@@ -25,6 +25,7 @@
 #include "scion/path/digest.hpp"
 
 #include <array>
+#include <cstdint>
 #include <ostream>
 #include <ranges>
 #include <system_error>

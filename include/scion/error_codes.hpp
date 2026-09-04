@@ -41,7 +41,7 @@ enum class ErrorCode : int
     StunReceived,  ///< received a STUN packet
 
     // errors
-    LogicError = 128, ///< expected precondition failed
+    LogicError = 128, ///< internal error
     NotImplemented,   ///< not implemented (yet)
     InvalidArgument,  ///< invalid argument
     SyntaxError,      ///< input contains syntax error(s)
@@ -53,6 +53,9 @@ enum class ErrorCode : int
     NameNotFound,     ///< name was not found
     RemoteError,      ///< remote machine returned an error
     FileNotFound,     ///< file not found
+    Expired,          ///< data is expired
+    NoKey,            ///< no valid key for cryptographic operation
+    InvalidMAC,       ///< MAC validation failed
 
     // packet validation errors
     InvalidPacket = 256, ///< received an invalid packet
@@ -76,7 +79,7 @@ enum class ErrorCondition : int
     ScmpReceived,     ///< received an SCMP packet
     StunReceived,     ///< received a STUN packet
     AltSuccess = 127, ///< no error or alternate success
-    LogicError = 128, ///< expected precondition failed
+    LogicError = 128, ///< internal error
     NotImplemented,   ///< not implemented (yet)
     InvalidArgument,  ///< invalid argument
     SyntaxError,      ///< input contains syntax error(s)
@@ -88,6 +91,9 @@ enum class ErrorCondition : int
     NameNotFound,     ///< name was not found
     RemoteError,      ///< remote machine returned an error
     FileNotFound,     ///< file not found
+    Expired,          ///< data is expired
+    NoKey,            ///< no valid key for cryptographic operation
+    InvalidMAC,       ///< MAC validation failed
     InvalidPacket = 256, ///< received an invalid packet
     ChecksumError,       ///< packet checksum incorrect
     DstAddrMismatch,     ///< packet rejected because of unexpected destination address

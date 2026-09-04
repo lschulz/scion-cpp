@@ -37,6 +37,9 @@ enum class Category
     EndToEnd,
 };
 
+/// \brief Abstract base class for SCION extensions. Extensions correspond to
+/// one or more hop-by-hop or end-to-end TLV options. Individual options headers
+/// are implemented by hdr::SciOpt and classes derived from it.
 class Extension
 {
 public:
@@ -60,7 +63,7 @@ public:
     virtual Category category() const = 0;
 
     /// \brief Get the option type of this extension. If the extension uses
-    /// multiple options the type of the first option.
+    /// multiple options, returns the type of the first option.
     virtual hdr::OptType type() const = 0;
 
     /// \brief Returns the extension size on the wire in bytes.
@@ -86,16 +89,23 @@ protected:
     static bool insertPadding(std::size_t n, Stream& stream, Error& err)
     {
         static_assert(Stream::IsWriting);
-        if (n == 0) return true;
         hdr::SciOpt padding;
-        if (n == 1) {
-            padding.type = hdr::OptType::Pad1;
-            padding.dataLen = 1;
-        } else {
-            padding.type = hdr::OptType::PadN;
-            padding.dataLen = (std::uint8_t)(n - 2);
+        for (std::size_t i = 0; i < n;) {
+            auto remaining = n - i;
+            if (remaining == 1) {
+                padding.type = hdr::OptType::Pad1;
+                padding.dataLen = 1;
+                if (!padding.serialize(stream, err)) return err.propagate();
+                i += 1;
+            } else {
+                auto m = std::min<std::size_t>(remaining-2, 255);
+                padding.type = hdr::OptType::PadN;
+                padding.dataLen = (std::uint8_t)m;
+                if (!padding.serialize(stream, err)) return err.propagate();
+                i += m + 2;
+            }
         }
-        return padding.serialize(stream, err);
+        return true;
     }
 
 private:

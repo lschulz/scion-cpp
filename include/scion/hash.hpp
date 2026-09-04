@@ -25,8 +25,9 @@
 
 namespace scion {
 namespace details {
-// Override the random seed. Must be called before any other function from this
-// file is called. Setting seed to -1 causes a random seed to be chosen.
+/// \brief Override the random seed. Must be called before any other function
+/// from this file is called. Setting seed to -1 causes a random seed to be
+/// chosen.
 void setRandomSeed32(std::uint32_t seed);
 }
 

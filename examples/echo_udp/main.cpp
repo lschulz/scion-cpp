@@ -20,6 +20,7 @@
 
 #include "console.hpp"
 #include "format.hpp"
+#include "path_prompt.hpp"
 
 #include <CLI/CLI.hpp>
 #include <scion/scion.hpp>

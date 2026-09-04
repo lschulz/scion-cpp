@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.28)
 
+configure_file("include/version.cpp.in" "version.cpp")
+
 # ============
 # Dependencies
 # ============
@@ -47,7 +49,6 @@ target_link_libraries(echo-udp-async PRIVATE scion-cpp CLI11::CLI11)
 
 SET(SRC_TRACEROUTE
     "traceroute/main.cpp"
-    "include/format.cpp"
 )
 add_executable(traceroute ${SRC_TRACEROUTE})
 target_include_directories(traceroute PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -59,7 +60,6 @@ target_link_libraries(traceroute PRIVATE scion-cpp CLI11::CLI11)
 
 SET(SRC_PMTU
     "pmtu/main.cpp"
-    "include/format.cpp"
 )
 add_executable(pmtu ${SRC_PMTU})
 target_include_directories(pmtu PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -75,6 +75,19 @@ SET(SRC_RESOLVER
 add_executable(resolver ${SRC_RESOLVER})
 target_include_directories(resolver PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(resolver PRIVATE scion-cpp CLI11::CLI11)
+
+# ================
+# idint-traceroute
+# ================
+
+set(SRC_IDINT_TRACEROUTE
+    "idint-traceroute/main.cpp"
+    "idint-traceroute/tables.cpp"
+    "${CMAKE_CURRENT_BINARY_DIR}/version.cpp"
+)
+add_executable(idint-traceroute ${SRC_IDINT_TRACEROUTE})
+target_include_directories(idint-traceroute PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(idint-traceroute PRIVATE scion-cpp CLI11::CLI11)
 
 # ==========
 # C examples

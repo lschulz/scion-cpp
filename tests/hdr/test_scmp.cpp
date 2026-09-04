@@ -509,7 +509,7 @@ TEST_F(ScmpFixture, PrintDstUnreach)
         "###[ SCMP ]###\n"
         " chksum = 0\n"
         "###[ SCMP Destination Unreachable ]###\n"
-        " code = 1\n";
+        " code = 1 (communication administratively prohibited)\n";
 
     std::string str;
     str.reserve(std::strlen(expected));
@@ -550,7 +550,7 @@ TEST_F(ScmpFixture, PrintParamProblem)
         "###[ SCMP ]###\n"
         " chksum = 0\n"
         "###[ SCMP Parameter Problem ]###\n"
-        " code    = 20\n"
+        " code    = 20 (unknown path type)\n"
         " pointer = 8\n";
 
     std::string str;

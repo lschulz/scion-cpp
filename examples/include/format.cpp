@@ -21,22 +21,6 @@
 #include "format.hpp"
 
 
-std::size_t promptForPath(const std::vector<scion::PathPtr>& paths)
-{
-    while (true) {
-        for (auto&& [i, path] : std::views::enumerate(paths)) {
-            std::cout << '[' << std::setw(2) << i << "] " << *path << '\n';
-        }
-        std::cout << "Choose path: ";
-        std::size_t selection = 0;
-        std::cin >> selection;
-        if (selection < paths.size())
-            return selection;
-        else
-            std::cout << "Invalid selection\n";
-    }
-}
-
 std::ostream& printEscapedString(std::ostream& stream, std::span<const std::byte> buffer)
 {
     auto flags = stream.flags(std::ios::hex);

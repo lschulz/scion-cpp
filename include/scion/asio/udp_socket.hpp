@@ -32,7 +32,7 @@ namespace asio {
 class UdpSocket : public ScmpSocket
 {
 protected:
-    ScmpHandler* scmpHandler;
+    ScmpHandler* scmpHandler = nullptr;
 
 public:
     template <typename Executor>
@@ -40,8 +40,13 @@ public:
         : ScmpSocket(ex)
     {}
 
-    void setNextScmpHandler(ScmpHandler* handler) { scmpHandler = handler; }
     ScmpHandler* nextScmpHandler() const { return scmpHandler; }
+
+    ScmpHandler* setNextScmpHandler(ScmpHandler* handler)
+    {
+        scmpHandler = handler;
+        return handler;
+    }
 
     /// \name Header Size Measurement
     ///@{
@@ -605,6 +610,13 @@ private:
                     return boost::asio::get_associated_allocator(
                         handler_, std::allocator<void>{});
                 }
+
+                using cancellation_slot_type = boost::asio::associated_cancellation_slot_t<
+                    typename std::decay<decltype(completionHandler)>::type>;
+                cancellation_slot_type get_cancellation_slot() const noexcept
+                {
+                    return boost::asio::get_associated_cancellation_slot(handler_);
+                }
             };
 
             auto ec = packager.pack(headers, to, path, extensions, hdr::UDP{}, payload);
@@ -693,6 +705,13 @@ private:
                     return boost::asio::get_associated_allocator(
                         handler_, std::allocator<void>{});
                 }
+
+                using cancellation_slot_type = boost::asio::associated_cancellation_slot_t<
+                    typename std::decay<decltype(completionHandler)>::type>;
+                cancellation_slot_type get_cancellation_slot() const noexcept
+                {
+                    return boost::asio::get_associated_cancellation_slot(handler_);
+                }
             };
 
             hdr::UDP udp;
@@ -769,6 +788,7 @@ private:
                 E2EExt& e2eExt_;
                 MsgFlags flags_;
                 ScmpHandler* scmpHandler_;
+                boost::asio::cancellation_state cancelState_;
                 boost::asio::executor_work_guard<UnderlaySocket::executor_type> ioWork_;
                 typename std::decay<decltype(completionHandler)>::type handler_;
 
@@ -798,7 +818,7 @@ private:
                                 handler_(propagateError(payload));
                                 return;
                             }
-                        } else if (getError(payload) == ErrorCode::ScmpReceived) {
+                        } else if (getError(payload) == ErrorCode::StunReceived) {
                             if (flags_ & SMSG_RECV_STUN) {
                                 ioWork_.reset();
                                 handler_(propagateError(payload));
@@ -809,6 +829,13 @@ private:
                                 "Received invalid packet from {}: {}\n",
                                 ulSource_, fmtError(getError(payload))
                             )));
+                        }
+                        if (cancelState_.cancelled() != boost::asio::cancellation_type::none) {
+                            // composed operation cancelled, don't try again
+                            ioWork_.reset();
+                            handler_(Error(boost::system::error_code(
+                                boost::asio::error::operation_aborted)));
+                            return;
                         }
                         socket_.async_receive_from(
                             boost::asio::buffer(buf_), ulSource_, std::move(*this));
@@ -840,11 +867,24 @@ private:
                     return boost::asio::get_associated_allocator(
                         handler_, std::allocator<void>{});
                 }
+
+                using cancellation_slot_type = boost::asio::cancellation_slot;
+                cancellation_slot_type get_cancellation_slot() const noexcept
+                {
+                    return cancelState_.slot();
+                }
             };
+
+            // Attach a child cancellation state to the caller's slot that
+            // latches cancellation signals that arrive between receive operations.
+            boost::asio::cancellation_state cancelState(
+                boost::asio::get_associated_cancellation_slot(completionHandler),
+                boost::asio::enable_total_cancellation());
 
             socket.async_receive_from(boost::asio::buffer(buf), ulSource,
                 intermediate_completion_handler{
                     socket, packager, buf, from, path, ulSource, hbhExt, e2eExt, flags, scmpHandler,
+                    cancelState,
                     boost::asio::make_work_guard(socket.get_executor()),
                     std::forward<decltype(completionHandler)>(completionHandler)
                 }

@@ -22,6 +22,9 @@
 #include "utilities.hpp"
 
 
+#include "scion/crypto/aes.hpp"
+
+
 int main(int argc, char* argv[])
 {
     testing::InitGoogleTest(&argc, argv);

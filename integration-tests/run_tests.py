@@ -1,5 +1,5 @@
 #!/bin/env python
-# Copyright (c) 2024-2025 Lars-Christian Schulz
+# Copyright (c) 2024-2026 Lars-Christian Schulz
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -28,10 +28,13 @@ from pathlib import Path
 from examples import test_suite as examples_test_suite
 from examples.c_interface import test_suite as c_examples_test_suite
 from interposer import test_suite as interposer_test_suite
+from idint import test_suite as idint_test_suite
 
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(description="Runs all integration tests")
+    parser = argparse.ArgumentParser(description="Runs integration tests")
+    parser.add_argument("topology", choices=["tiny4", "default"],
+        help="Which SCION topology and test suite to run.")
     parser.add_argument("-s", "--scion", type=Path, default=Path.home() / "scionproto-scion",
         help="Absolute path to local copy of scionproto/scion from which to run the test topology")
     parser.add_argument("-b", "--build", type=Path, default="build",
@@ -44,21 +47,26 @@ def parse_arguments():
 def setUpModule(args):
     """
     Starts a local SCION topology from a user provided copy of the
-    scionproto/scion repository. All tests use the tiny4 topology.
+    scionproto/scion repository.
     """
     if args.use_existing:
         return
     print("Starting local topology")
+    extra_args = []
+    if args.topology == "default":
+        extra_args.extend(["--features", "experimental_idint"])
     subprocess.run([
         args.scion / "scion.sh",
-        "topology", "-c", "topology/tiny4.topo"
+        "topology", "-c", f"topology/{args.topology}.topo",
+        *extra_args
     ], cwd=args.scion, check=True)
     subprocess.run([
         args.scion / "scion.sh",
         "run",
     ], cwd=args.scion, check=True)
-    print("Wait for beacons")
-    time.sleep(5)
+    wait_time = 5 if args.topology == "tiny4" else 60
+    print(f"Wait for beacons ({wait_time} s)")
+    time.sleep(wait_time)
 
 
 def tearDownModule(args):
@@ -74,11 +82,19 @@ def tearDownModule(args):
     ], cwd=args.scion, check=True)
 
 
-def suite(build_dir):
+# Tests that run on tiny4
+def suite_tiny4(build_dir):
     suite = unittest.TestSuite()
     suite.addTest(examples_test_suite(build_dir))
     suite.addTest(c_examples_test_suite(build_dir))
     suite.addTest(interposer_test_suite(build_dir))
+    return suite
+
+
+# Tests that run on default
+def suite_default(build_dir):
+    suite = unittest.TestSuite()
+    suite.addTest(idint_test_suite(build_dir))
     return suite
 
 
@@ -94,7 +110,11 @@ if __name__ == "__main__":
     runner = unittest.TextTestRunner()
     setUpModule(args)
     try:
-        ret = not runner.run(suite(args.build)).wasSuccessful()
+        if args.topology == "tiny4":
+            suite = suite_tiny4(args.build)
+        elif args.topology == "default":
+            suite = suite_default(args.build)
+        ret = not runner.run(suite).wasSuccessful()
     finally:
         tearDownModule(args)
     exit(ret)
