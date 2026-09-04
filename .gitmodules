@@ -16,3 +16,6 @@
 [submodule "deps/botan"]
 	path = deps/botan
 	url = https://github.com/randombit/botan.git
+[submodule "deps/CLI11"]
+	path = deps/CLI11
+	url = https://github.com/CLIUtils/CLI11.git
