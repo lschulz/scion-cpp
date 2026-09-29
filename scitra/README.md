@@ -139,7 +139,7 @@ global routing prefix as defined in [[RFC 4291]], and a subnet ID.
     <tr align="center"><td colspan=7>128-bit IPv6 address</td></tr>
     <tr align="center"><td>8 bit</td><td>12 bit</td><td>1 bit</td><td>19 bit</td><td>24 - m bit</td><td>m bit</td><td>64 bit</td></tr>
     <tr align="center"><td colspan=5>global routing prefix</td><td>subnet ID</td><td>interface ID</td></tr>
-    <tr align="center"><td>0xfc</td><td>ISD</td><td>1</td><td>ASN</td><td>local prefix</td><td>subnet ID</td><td>interface ID</td></tr>
+    <tr align="center"><td>0xfc</td><td>ISD</td><td>0</td><td>ASN</td><td>local prefix</td><td>subnet ID</td><td>interface ID</td></tr>
   </table>
   <figcaption>Table 4: SCION-mapped IPv6 Address Format A with IP6 host addressing</figcaption>
 </figure>
@@ -149,7 +149,7 @@ global routing prefix as defined in [[RFC 4291]], and a subnet ID.
     <tr align="center"><td colspan=8>128-bit IPv6 address</td></tr>
     <tr align="center"><td>8 bit</td><td>12 bit</td><td>1 bit</td><td>19 bit</td><td>24 - m bit</td><td>m bit</td><td>32 bit</td><td>32 bit</td></tr>
     <tr align="center"><td colspan=5>global routing prefix</td><td>subnet ID</td><td colspan=2>interface ID</td></tr>
-    <tr align="center"><td>0xfc</td><td>ISD</td><td>1</td><td>ASN</td><td>0</td><td>0</td><td>0xFFFF</td><td>IPv4 address</td></tr>
+    <tr align="center"><td>0xfc</td><td>ISD</td><td>0</td><td>ASN</td><td>0</td><td>0</td><td>0xFFFF</td><td>IPv4 address</td></tr>
   </table>
   <figcaption>Table 5: SCION-mapped IPv6 Address Format A with IP4 host addressing</figcaption>
 </figure>
