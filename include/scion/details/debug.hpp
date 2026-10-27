@@ -21,8 +21,8 @@
 #pragma once
 
 #ifdef NDEBUG
-#ifndef SCION_NO_DEBUG_PRINT
-#define SCION_NO_DEBUG_PRINT 1
+#ifndef SCION_NO_DEBUG
+#define SCION_NO_DEBUG 1
 #endif
 #endif
 
