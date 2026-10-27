@@ -36,6 +36,7 @@ Verdict translateIcmpToScmp(PacketBuffer& pkt)
             pkt.icmp.code, // ICMP and SCMP codes match
         };
         pkt.l4Valid = PacketBuffer::L4Type::SCMP;
+        pkt.removePayload(); // don't leak translated packet to SCION
         return Verdict::Pass;
 
     case ICMPv6::Type::PacketTooBig:
@@ -47,6 +48,7 @@ Verdict translateIcmpToScmp(PacketBuffer& pkt)
             (std::uint16_t)(pkt.icmp.param2 - underlaySize)
         };
         pkt.l4Valid = PacketBuffer::L4Type::SCMP;
+        pkt.removePayload(); // don't leak translated packet to SCION
         return Verdict::Pass;
     }
 
