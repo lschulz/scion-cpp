@@ -92,7 +92,7 @@ public:
     auto segment(std::size_t seg) const
     {
         return std::ranges::subrange(
-            hfs.begin() + meta.segmentBegin(seg), hfs.end() + meta.segmentBegin(seg + 1));
+            hfs.begin() + meta.segmentBegin(seg), hfs.begin() + meta.segmentBegin(seg + 1));
     }
 
     /// \brief Iterate over hops as pairs of ingress and egress interface
