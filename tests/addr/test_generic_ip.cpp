@@ -1,4 +1,4 @@
-// Copyright (c) 2024-2025 Lars-Christian Schulz
+// Copyright (c) 2024-2026 Lars-Christian Schulz
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -28,6 +28,8 @@
 #include <algorithm>
 #include <array>
 #include <format>
+
+using namespace std::literals;
 
 
 TEST(GenericIP, IPv4)
@@ -111,7 +113,6 @@ TEST(GenericIP, IPv4in6)
 
 TEST(GenericIP, ZoneIdentifier)
 {
-    using namespace std::literals;
     using namespace scion::generic;
 
     auto a = IPAddress::MakeIPv6(0, 0, "eth0");
@@ -223,11 +224,24 @@ TEST(GenericIP, Parse)
         IPAddress::MakeIPv6(0xfd00'0000'0000'1111ul, 0x0000'0000'0000'fffful));
     EXPECT_EQ(unwrap(IPAddress::Parse("::ffff")),
         IPAddress::MakeIPv6(0x0ul, 0xfffful));
+    EXPECT_EQ(unwrap(IPAddress::Parse("::ffff:ffff")),
+        IPAddress::MakeIPv6(0x0ul, 0xffff'fffful));
     EXPECT_EQ(unwrap(IPAddress::Parse("ffff::")),
         IPAddress::MakeIPv6(0xffff'0000'0000'0000ul, 0x0ul));
+    EXPECT_EQ(unwrap(IPAddress::Parse("ffff:ffff::")),
+        IPAddress::MakeIPv6(0xffff'ffff'0000'0000ul, 0x0ul));
     EXPECT_EQ(unwrap(IPAddress::Parse("::")),
         IPAddress::MakeIPv6(0x0ul, 0x0ul));
-    // EXPECT_TRUE(hasFailed(IPAddress::Parse(":0:0:0:0:0:0:0")));
+    EXPECT_EQ(unwrap(IPAddress::Parse("::0:0:0:0:0:0:0")),
+        IPAddress::MakeIPv6(0x0ul, 0x0ul));
+    EXPECT_EQ(unwrap(IPAddress::Parse("0:0:0:0:0:0:0::")),
+        IPAddress::MakeIPv6(0x0ul, 0x0ul));
+    EXPECT_TRUE(hasFailed(IPAddress::Parse("::0::0")));
+    EXPECT_TRUE(hasFailed(IPAddress::Parse("0::0::")));
+    EXPECT_TRUE(hasFailed(IPAddress::Parse(":0:0:0:0:0:0:0")));
+    EXPECT_TRUE(hasFailed(IPAddress::Parse(":0:0:0:0:0:0:0:0")));
+    EXPECT_TRUE(hasFailed(IPAddress::Parse("0:0:0:0:0:0:0:")));
+    EXPECT_TRUE(hasFailed(IPAddress::Parse("0:0:0:0:0:0:0:0:")));
     EXPECT_TRUE(hasFailed(IPAddress::Parse("::ffff::")));
     EXPECT_TRUE(hasFailed(IPAddress::Parse("fd00::1111::ffff")));
     EXPECT_TRUE(hasFailed(IPAddress::Parse("fd00:0::1111:2222:3333:4444:5555:ffff")));

@@ -185,28 +185,33 @@ Maybe<IPAddress> IPAddress::Parse(std::string_view text, bool noZone) noexcept
         text = text.substr(0, zoneSep);
     }
 
+    // Allow "::x" and "x::", but not ":x" or "x:"
+    if (text.front() == ':') {
+        if (text.starts_with("::")) text.remove_prefix(1);
+        else return Error(ErrorCode::SyntaxError);
+    } else if (text.back() == ':') {
+        if (text.ends_with("::")) text.remove_suffix(1);
+        else return Error(ErrorCode::SyntaxError);
+    }
+
     int i = 0;
     int collapsedGroup = -1;
     auto finder = boost::algorithm::first_finder(":");
     boost::algorithm::split_iterator<std::string_view::iterator> end;
-    for (auto group = boost::algorithm::make_split_iterator(text, finder); group != end; ++group, ++i)
+    for (auto group = boost::algorithm::make_split_iterator(text, finder); group != end; ++group)
     {
         if (i > 7) // too many groups
             return Error(ErrorCode::SyntaxError);
 
         if (group->size() == 0) {
             if (collapsedGroup >= 0) {
-                if (collapsedGroup == 0 && (i == 1 || i == 2)) {
-                    // allow "::x" and "::"
-                } else if (collapsedGroup == 1 && i == 2) {
-                    // allow "x::"
-                } else {
+                if (i != (collapsedGroup + 1)) {
                     // more than one collapsed group
                     return Error(ErrorCode::SyntaxError);
                 }
             }
             collapsedGroup = i;
-            addr[i] = 0;
+            addr[i++] = 0;
             continue;
         }
 
@@ -239,7 +244,7 @@ Maybe<IPAddress> IPAddress::Parse(std::string_view text, bool noZone) noexcept
         else if (res.ec == std::errc::invalid_argument || res.ec == std::errc::result_out_of_range)
             return Error(ErrorCode::SyntaxError);
 
-        addr[i] = details::byteswapBE(field);
+        addr[i++] = details::byteswapBE(field);
     }
     if (i < 8) {
         if (collapsedGroup >= 0) {
