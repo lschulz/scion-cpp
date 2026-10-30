@@ -30,6 +30,11 @@ static bool ENABLE_STUN = false;
 static std::uint16_t STUN_PORT = 3478;
 static auto NAT_TIMEOUT = std::chrono::seconds(30);
 
+namespace sockopt {
+using transparent4 = boost::asio::detail::socket_option::boolean<IPPROTO_IP, IP_TRANSPARENT>;
+using transparent6 = boost::asio::detail::socket_option::boolean<IPPROTO_IPV6, IPV6_TRANSPARENT>;
+};
+
 void Socket::configureStun(bool enable, std::uint16_t port, std::uint32_t timeoutSec)
 {
     ENABLE_STUN = enable;
@@ -37,20 +42,27 @@ void Socket::configureStun(bool enable, std::uint16_t port, std::uint32_t timeou
     NAT_TIMEOUT = std::chrono::seconds(timeoutSec);
 }
 
-std::error_code Socket::open(const asio::ip::address& bindAddress)
+std::error_code Socket::open(bool transparent)
 {
     boost::system::error_code ec;
     int res = 0;
 
-    auto proto = bindAddress.is_v6() ? asio::ip::udp::v6() : asio::ip::udp::v4();
+    auto proto = m_localEp.host().is6() ? asio::ip::udp::v6() : asio::ip::udp::v4();
     m_underlay.open(proto, ec);
     if (ec) return ec;
 
+    if (transparent) {
+        if (proto.family() == AF_INET)
+            m_underlay.set_option(sockopt::transparent4(true), ec);
+        else
+            m_underlay.set_option(sockopt::transparent6(true), ec);
+        if (ec) return ec;
+    }
+
     const auto sockfd = m_underlay.native_handle();
 
-    m_underlay.bind(asio::ip::udp::endpoint(bindAddress, m_localPort), ec);
+    m_underlay.bind(generic::toUnderlay<asio::ip::udp::endpoint>(m_localEp), ec);
     if (ec) return ec;
-    m_localAddress = generic::toGenericAddr(bindAddress);
 
     // Disable automatic fragmentation of large UDP packets.
     int mtuDisc = IP_PMTUDISC_DO;
@@ -95,10 +107,10 @@ Socket::recvPacket(PacketBuffer& pkt, asio::ip::udp::endpoint& from)
                 // Persistent sockets answer STUN binding request
                 if (!m_persistent) co_return ScitraError::InvalidPacket;
                 spdlog::debug("Socket {}: Responding to STUN binding request from {}",
-                    m_localPort, from);
+                    m_localEp, from);
                 if (ec = respondToBindingReq(pkt, from); ec) {
                     spdlog::debug("Socket {}: Error sending STUN response to {}: {}",
-                        m_localPort, from, fmtError(ec));
+                        m_localEp, from, fmtError(ec));
                 }
                 co_return ScitraError::StunReceived;
             } else if (pkt.stun.type == hdr::StunMsgType::BindingResponse) {
@@ -112,14 +124,12 @@ Socket::recvPacket(PacketBuffer& pkt, asio::ip::udp::endpoint& from)
                 m_stun.expectStunResponse = 0;
                 if (pkt.stun.mapped) {
                     spdlog::debug("Socket {}: STUN binding response from {}: {} -> {}",
-                        m_localPort, from,
-                        generic::IPEndpoint(m_localAddress, m_localPort),
-                        pkt.stun.mapped->address);
+                        m_localEp, from, m_localEp, pkt.stun.mapped->address);
                     m_mapped.store(std::make_shared<generic::IPEndpoint>(pkt.stun.mapped->address));
                     if (m_stun.heldPacket) {
                         if (auto ec = sendHeldPacket(); ec) {
                             spdlog::debug("Socket {}: Error sending held packet to {}: {}",
-                                m_localPort, m_stun.heldPacket->second, fmtError(ec));
+                                m_localEp, m_stun.heldPacket->second, fmtError(ec));
                         }
                         m_stun.heldPacket = nullptr;
                         m_lastUsed.store(std::chrono::steady_clock::now());
@@ -154,7 +164,7 @@ std::error_code Socket::sendPacket(PacketBuffer& pkt, const asio::ip::udp::endpo
     if (ec) {
         if (ec == std::errc::message_size) {
             spdlog::warn("Socket {}: Message size error sending to {} ({} bytes)",
-                m_localPort, nextHop, buffer->size());
+                m_localEp, nextHop, buffer->size());
         }
         return ec;
     }
@@ -215,9 +225,9 @@ std::error_code Socket::requestStunMapping(const PacketBuffer& pkt, asio::ip::ud
     std::lock_guard stunLock(m_stun.mutex);
     if (m_stun.expectStunResponse >= 3) {
         // Give up on STUN and try direct connection
-        spdlog::debug("Socket {}: STUN timeout", m_localPort);
+        spdlog::debug("Socket {}: STUN timeout", m_localEp);
         m_stun.expectStunResponse = 0;
-        m_mapped.store(std::make_shared<generic::IPEndpoint>(m_localAddress, m_localPort));
+        m_mapped.store(std::make_shared<generic::IPEndpoint>(m_localEp));
         return ScitraError::StunReceived;
     }
 
@@ -227,7 +237,7 @@ std::error_code Socket::requestStunMapping(const PacketBuffer& pkt, asio::ip::ud
     auto n = m_underlay.send_to(asio::buffer(buffer), server, 0, ec);
     if (ec) return ec;
     if (n < buffer.size()) return ScitraError::PartialWrite;
-    spdlog::debug("Socket {}: Sent STUN binding request to {}", m_localPort, server);
+    spdlog::debug("Socket {}: Sent STUN binding request to {}", m_localEp, server);
 
     // Record information about expected response
     m_stun.expectStunResponse++;
@@ -259,22 +269,22 @@ void Socket::ingressNat(PacketBuffer& pkt, const asio::ip::udp::endpoint& from)
         std::uint32_t add = 0, sub = 0;
         if (pkt.scionValid) {
             sub += pkt.sci.dst.checksum();
-            pkt.sci.dst = ScIPAddress(pkt.sci.dst.isdAsn(), m_localAddress);
+            pkt.sci.dst = ScIPAddress(pkt.sci.dst.isdAsn(), m_localEp.host());
             add += pkt.sci.dst.checksum();
         }
         if (pkt.l4Valid == PacketBuffer::L4Type::TCP) {
             sub += pkt.tcp.dport;
-            pkt.tcp.dport = m_localPort;
+            pkt.tcp.dport = m_localEp.port();
             add += pkt.tcp.dport;
         } else if (pkt.l4Valid == PacketBuffer::L4Type::UDP) {
             sub += pkt.udp.dport;
-            pkt.udp.dport = m_localPort;
+            pkt.udp.dport = m_localEp.port();
             add += pkt.udp.dport;
         } else if (pkt.l4Valid == PacketBuffer::L4Type::SCMP) {
             if (pkt.scmp.getType() == hdr::ScmpType::EchoReply) {
                 auto& echoReply = std::get<hdr::ScmpEchoReply>(pkt.scmp.msg);
                 sub += echoReply.id;
-                echoReply.id = m_localPort;
+                echoReply.id = m_localEp.port();
                 add += echoReply.id;
             }
         }

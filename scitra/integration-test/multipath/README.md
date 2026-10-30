@@ -1,5 +1,5 @@
-Scitra-TUN Multipath Test Setup
-===============================
+Scitra-TUN Multipath Test Harness
+=================================
 
 Network namespaces and veths are set up by the `setup.sh` script as follows:
 ```
@@ -18,6 +18,8 @@ Network namespaces and veths are set up by the `setup.sh` script as follows:
 * The default tc settings on the inter-AS links and vethA:B are 10 Mbit/s bandwidth
   (limited by the sender) with 10 ms delay (20 ms end-to-end, because SCION paths pass two links)
 
+### Test Procedure ###
+
 #### Step 1: Set up the network ####
 ```bash
 sudo ./setup.sh
@@ -34,14 +36,14 @@ sudo ip netns exec host1 ip mptcp limits set add_addr_accepted 4 subflows 6
 Host 0:
 ```bash
 sudo ip netns exec host0 sudo -u $USER bash
-build/scitra/Debug/scitra-tun-d veth0 10.128.0.2 --extra fd00::1 fd00::2 \
+build/scitra/Debug/scitra-tun-d -a 10.128.0.2 -e fd00::1,fd00::2 \
   -d 10.128.0.1:30255 --scmp --tui -l debug --log-file log0.txt
 ```
 
 Host 1:
 ```bash
 sudo ip netns exec host1 sudo -u $USER bash
-build/scitra/Debug/scitra-tun-d veth8 10.128.4.2 --extra fd00::1 fd00::2 \
+build/scitra/Debug/scitra-tun-d -a 10.128.4.2 -e fd00::1,fd00::2 \
   -d 10.128.4.1:30255 --ports=32000 --scmp --tui -l debug --log-file log1.txt
 ```
 
@@ -92,7 +94,7 @@ Host 1: Server
 mptcpize run iperf3 -s -p 32000
 ```
 
-#### Step 7: Teardown ####
+#### Step 7: Cleanup ####
 ```bash
 ./stop_scion.sh
 sudo ./teardown.sh

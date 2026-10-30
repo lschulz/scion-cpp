@@ -26,10 +26,13 @@
 
 #include <spdlog/spdlog.h>
 
+#include <charconv>
 #include <ranges>
 #include <signal.h>
 
 using namespace std::chrono_literals;
+using scion::generic::IPAddress;
+using scion::generic::IPEndpoint;
 
 
 // Maximum packet size including headers and headroom.
@@ -80,12 +83,13 @@ ScitraTun::ScitraTun(const Arguments& args)
     , grpcIoCtx()
     , grpcWorkGuard(grpcIoCtx.get_executor())
     , daemon(grpcIoCtx, args.sciond)
+    , mode(args.mode)
+    , xlatUnderlay(args.xlatUnderlay)
     , enableScmpDispatch(args.enableScmpDispatch)
-    , staticPorts(args.ports)
-    , configQueues(args.queues)
-    , configThreads(args.threads)
     , netDevice(args.publicInterface)
     , tunDevice(args.tunDevice)
+    , configQueues(args.queues)
+    , configThreads(args.threads)
     , policyFile(args.policy)
     , pathCache(std::make_unique<SharedPathCache>(PATH_CACHE_OPTS))
 {
@@ -106,25 +110,62 @@ ScitraTun::ScitraTun(const Arguments& args)
     }
 
     // Parse public interface address
-    if (auto maybe = generic::IPAddress::Parse(args.publicAddress); maybe.has_value()) {
-        publicIP = std::move(*maybe);
-    } else {
-        throw std::runtime_error("Public IP address is invalid");
-    }
-    if (!publicIP.is4() && !publicIP.isScion()) {
+    auto ec = parseInterface(args.publicAddress, publicIP, scionPrefixLen);
+    if (ec) throw std::runtime_error("Public IP address is invalid");
+    if (xlatUnderlay) {
+        if (!publicIP.is6()) {
+            throw std::runtime_error("Underlay prefix translation requires an IPv6 underlay");
+        } else if (publicIP.isScion()) {
+            throw std::runtime_error(std::format(
+                "The public IP address {} is already SCION-mapped, underlay translation is not"
+                " necessary.", publicIP));
+        } else if (scionPrefixLen == 128) {
+            throw std::runtime_error("Underlay prefix translation requires a prefix length < 128.");
+        }
+    } else if (!publicIP.is4() && !publicIP.isScion()) {
         throw std::runtime_error(
-            "Public IP address must either be an IPv4 or SCION-mapped IPv6 address");
+            " The public IP address must either be an IPv4 or SCION-mapped IPv6 address.");
     }
-    if (auto maybe = mapToIPv6(ScIPAddress(localAS.isdAsn, publicIP)); maybe.has_value()) {
-        mappedIP = std::move(*maybe);
+
+    // Generate SCION-mapped IPv6
+    if (xlatUnderlay) {
+        auto scionPrefix = mapIsdAsn(localAS.isdAsn);
+        if (isError(scionPrefix)) throw std::runtime_error(std::format(
+            "Local AS {} cannot be mapped to IPv6", localAS.isdAsn));
+        mappedIP = translatePrefix(publicIP, *scionPrefix, scionPrefixLen);
     } else {
-        throw std::runtime_error(std::format("Can't encode {} as IPv6",
-            ScIPAddress(localAS.isdAsn, publicIP)));
+        if (auto maybe = mapToIPv6(ScIPAddress(localAS.isdAsn, publicIP)); maybe.has_value()) {
+            mappedIP = std::move(*maybe);
+        } else {
+            throw std::runtime_error(std::format("Local SCION address {} cannot be mapped to IPv6",
+                ScIPAddress(localAS.isdAsn, publicIP)));
+        }
     }
+
+    // Validate prefix length
+    if ((publicIP.is6() && scionPrefixLen < 128) || (publicIP.is4() && scionPrefixLen < 32)) {
+        if (mode != Mode::Gateway && !xlatUnderlay) throw std::runtime_error(
+            "Prefix length in public IP is only valid in gateway mode or if underlay translation"
+            " is active. Either specify the address without a prefix length or select a valid"
+            " mode.");
+    }
+    if (publicIP.is6() && scionPrefixLen < 128) {
+        const auto minPrefixLen = scionMappedPrefixLen(classifyScionMappedIP(mappedIP));
+        if (scionPrefixLen < minPrefixLen) {
+            throw std::runtime_error(std::format("Invalid prefix length in {}/{}, must be >= {}",
+                publicIP, scionPrefixLen, minPrefixLen));
+        }
+    }
+
+    // Set SCION source host address for outgoing SCION packets.
+    // If underlay prefix translation is active, public IP is not understood as
+    // a valid SCION-mapped destination in remote ASes, so mapped IP must be
+    // used directly.
+    scionSrcIP = xlatUnderlay ? mappedIP : publicIP;
 
     // Determine TUN address
     if (!args.tunAddress.empty()) {
-        if (auto maybe = generic::IPAddress::Parse(args.tunAddress); maybe.has_value()) {
+        if (auto maybe = IPAddress::Parse(args.tunAddress); maybe && maybe->is6()) {
             tunIP = std::move(*maybe);
         } else {
             throw std::runtime_error("Tunnel IP address is invalid");
@@ -134,12 +175,39 @@ ScitraTun::ScitraTun(const Arguments& args)
     }
 
     // Parse extra addresses
+    if (mode != Mode::Normal && !args.extraAddresses.empty()) {
+        throw std::runtime_error("MPTCP extra IPs are not compatible with gateway or NAT mode");
+    }
     extraIPs.reserve(args.extraAddresses.size());
     for (auto& raw : args.extraAddresses) {
-        if (auto maybe = generic::IPAddress::Parse(raw); maybe.has_value()) {
+        if (auto maybe = IPAddress::Parse(raw); maybe.has_value()) {
             extraIPs.push_back(std::move(*maybe));
         } else {
             throw std::runtime_error(std::format("Address {} is invalid", raw));
+        }
+    }
+
+    // Parse forwarded ports
+    for (auto& fwd : args.ports) {
+        std::uint16_t port;
+        const auto end = fwd.data() + fwd.size();
+        auto res = std::from_chars(fwd.data(), end, port);
+        if (res.ec == std::errc() && res.ptr == end) {
+            forwardedPorts.push_back(generic::IPEndpoint(publicIP, port));
+        } else if (auto maybe = IPEndpoint::Parse(fwd); maybe.has_value()) {
+            if (mode != Mode::Gateway && maybe->host() != publicIP) {
+                throw std::runtime_error(
+                    "Forwarding a nonlocal endpoint is only possible in gateway mode");
+            }
+            if (!sameNetwork(maybe->host(), publicIP, scionPrefixLen)) {
+                throw std::runtime_error(std::format(
+                    "Endpoint {} requested for forwarding in not part of the translated network",
+                    *maybe));
+            }
+            forwardedPorts.push_back(*maybe);
+        } else {
+            throw std::runtime_error(std::format(
+                "{} is not a valid target for port forwarding", fwd));
         }
     }
 
@@ -173,6 +241,15 @@ ScitraTun::ScitraTun(const Arguments& args)
     if (auto ec = netlink.open(); ec) {
         throw std::runtime_error(
             std::format("Can't open netlink socket: {}", ec.message()));
+    }
+
+    // Find public interface device name
+    if (netDevice.empty()) {
+        if (auto maybe = netlink.findInterfaceByAddr(publicIP); maybe.has_value()) {
+            netDevice = std::move(*maybe);
+        } else {
+            throw std::runtime_error(std::format("No interface with IP {} found", publicIP));
+        }
     }
 
     // Configure TUN interface MTU
@@ -262,18 +339,19 @@ void ScitraTun::run()
 
     // Open dispatcher socket and start a corresponding coroutine
     if (enableScmpDispatch) {
-        if (auto res = openSocket(scion::scitra::DISPATCHER_PORT, true); scion::isError(res)) {
+        generic::IPEndpoint local(publicIP, scion::scitra::DISPATCHER_PORT);
+        if (auto res = openSocket(local, true); scion::isError(res)) {
             throw std::runtime_error(std::format("Error opening socket at port {}: {}\n",
                 scion::scitra::DISPATCHER_PORT, scion::fmtError(res.error())));
         }
     }
 
     // Open persistent sockets and start corresponding coroutines
-    for (std::uint16_t port : staticPorts) {
-        if (port != scion::scitra::DISPATCHER_PORT) {
-            if (auto res = openSocket(port, true); scion::isError(res)) {
-                throw std::runtime_error(std::format("Error opening socket at port {}: {}\n",
-                    port, scion::fmtError(res.error())));
+    for (auto& fwd : forwardedPorts) {
+        if (fwd.port() != scion::scitra::DISPATCHER_PORT) {
+            if (auto res = openSocket(fwd, true); scion::isError(res)) {
+                throw std::runtime_error(std::format("Error opening socket at {}: {}\n",
+                    fwd, scion::fmtError(res.error())));
             }
         }
     }
@@ -390,7 +468,9 @@ std::vector<FlowInfo> ScitraTun::exportFlows(bool resetCounters) const
             fl.getTrafficClass(tc).getMptcpToken(token).getLastUpdate(lastUsed)
                 .getCounters(counters).getPath(path);
             if (resetCounters) fl.resetCounters();
-            out.emplace_back(id, flags, flow->getType(), state, tc, flow->getLocalEp(), token,
+            out.emplace_back(id, flags, flow->getType(), state, tc,
+                flow->getTunAddr(), flow->getPublicAddr(publicIP, scionPrefixLen),
+                flow->getLocalPort(), token,
                 counters, lastUsed, path, path ? pmtu->getMtu(id.dst.host(), *path) : 0);
         }
 
@@ -400,7 +480,9 @@ std::vector<FlowInfo> ScitraTun::exportFlows(bool resetCounters) const
                 sfl.getState(state).getTrafficClass(tc).getMptcpToken(token).getLastUpdate(lastUsed)
                    .getCounters(counters).getPath(path);
                 if (resetCounters) sfl.resetCounters();
-                out.emplace_back(id, flags, flow->getType(), state, tc, sf.getLocalEp(), token,
+                out.emplace_back(id, flags, flow->getType(), state, tc,
+                sf.getTunAddr(), sf.getPublicAddr(publicIP, scionPrefixLen),
+                sf.getLocalPort(), token,
                 counters, lastUsed, path, path ? pmtu->getMtu(id.dst.host(), *path) : 0);
             });
         }
@@ -429,19 +511,19 @@ std::error_code ScitraTun::reloadPathPolicy()
     return ec;
 }
 
-Maybe<std::shared_ptr<Socket>> ScitraTun::openSocket(std::uint16_t port, bool persistent)
+Maybe<std::shared_ptr<Socket>> ScitraTun::openSocket(const IPEndpoint& localEp, bool persistent)
 {
     std::unique_lock lock(socketMutex);
-    spdlog::debug("Open socket {} (persistent: {})", port, persistent);
+    spdlog::debug("Open socket {} (persistent: {})", localEp, persistent);
     if (shouldExit) return Error(ScitraError::Exiting);
-    if (auto i = sockets.find(port); i != sockets.end()) {
+    if (auto i = sockets.find(localEp); i != sockets.end()) {
         return i->second;
     }
-    auto socket = std::make_shared<Socket>(ioCtx, port, persistent);
-    if (auto ec = socket->open(generic::toUnderlay<asio::ip::address>(publicIP)); ec) {
+    auto socket = std::make_shared<Socket>(ioCtx, localEp, persistent);
+    if (auto ec = socket->open(mode == Mode::Gateway); ec) {
         return Error(ec);
     }
-    auto [_, ok] = sockets.insert(std::make_pair(port, socket));
+    auto [_, ok] = sockets.insert(std::make_pair(localEp, socket));
     if (!ok) return Error(ScitraError::LogicError);
     asio::co_spawn(ioCtx, translateScionToIP(socket), asio::detached);
     return socket;
@@ -463,7 +545,7 @@ std::shared_ptr<Flow> ScitraTun::getFlowEgress(
             receiverToken = std::get<0>(pkt.tcp.options.mpJoin.content).receiverToken;
             if (auto i = mpTokenMap.find(receiverToken); i != mpTokenMap.end()) {
                 flow = i->second;
-                auto sport = flow->getLocalEp().port(); // remap port to existing flow
+                auto sport = flow->getLocalPort(); // remap port to existing flow
                 mpPortRemap[localEp] = sport;
                 id.src = ScIPEndpoint(id.src.address(), sport);
             }
@@ -527,32 +609,32 @@ std::shared_ptr<Flow> ScitraTun::findFlow(const FlowID& id)
     return flow->second;
 }
 
-std::shared_ptr<Socket> ScitraTun::getSocket(std::uint16_t port)
+std::shared_ptr<Socket> ScitraTun::getSocket(const IPEndpoint& localEp)
 {
     std::shared_lock lock(socketMutex);
-    if (port == DISPATCHER_PORT && !enableScmpDispatch) {
+    if (localEp.port() == DISPATCHER_PORT && !enableScmpDispatch) {
         return nullptr;
     }
-    if (auto i = sockets.find(port); i != sockets.end()) {
+    if (auto i = sockets.find(localEp); i != sockets.end()) {
         return i->second;
     } else {
         // Attempt to open a temporary socket
         lock.unlock();
-        if (auto s = openSocket(port, false); s.has_value()) {
+        if (auto s = openSocket(localEp, false); s.has_value()) {
             return *s;
         } else {
-            spdlog::error("Can't open socket at port {}: {}", port, fmtError(s.error()));
+            spdlog::error("Can't open socket at {}: {}", localEp, fmtError(s.error()));
             return nullptr;
         }
     }
     return nullptr;
 }
 
-void ScitraTun::closeSocket(std::uint16_t port)
+void ScitraTun::closeSocket(const IPEndpoint& localEp)
 {
     std::unique_lock lock(socketMutex);
-    spdlog::debug("Close socket {}", port);
-    if (auto i = sockets.find(port); i != sockets.end()) {
+    spdlog::debug("Close socket {}", localEp);
+    if (auto i = sockets.find(localEp); i != sockets.end()) {
         i->second->close();
         i = sockets.erase(i);
     }
@@ -583,8 +665,8 @@ void ScitraTun::maintainFlowsAndSockets()
             i->second->lock().removeSubflows([&] (Flow& sf) {
                 sf.lock().getState(state).tick(now);
                 if (state == FlowState::CLOSED) {
-                    spdlog::debug("Remove subflowflow {} (bound to {})", i->first, sf.getLocalEp());
-                    mpPortRemap.erase(sf.getLocalEp());
+                    spdlog::debug("Remove subflowflow {} (bound to {})", i->first, sf.getTunEp());
+                    mpPortRemap.erase(sf.getTunEp());
                     return true;
                 }
                 return false;
@@ -614,51 +696,72 @@ void ScitraTun::maintainFlowsAndSockets()
     // Close all sockets that aren't used anymore.
     for (auto i = sockets.begin(); i != sockets.end();) {
         auto& socket = i->second;
-        auto localPort = socket->port();
         if (socket->persistent()) {
             ++i;
             continue;
         }
-        // Keep socket if there is a TCP socket using the same port.
-        // Ignores listening TCP sockets as server should use persistent
-        // port forwarding.
-        auto tcp = std::ranges::find_if(tcpSockets, [&] (const SocketInfo& s) {
-            if (std::ranges::binary_search(mySockets, s.inode))
+        // Closing underlay sockets based on local sockets only makes sense for
+        // local endpoints. If gateway modes is active, there may be additional
+        // flows from other hosts in the local AS.
+        if (socket->local().host() == publicIP) {
+            // Local endpoints: Sync with sockets on this machine
+            auto localPort = socket->local().port();
+            // Keep socket if there is a TCP socket using the same port.
+            // Ignores listening TCP sockets as server should use persistent
+            // port forwarding.
+            auto tcp = std::ranges::find_if(tcpSockets, [&] (const SocketInfo& s) {
+                if (std::ranges::binary_search(mySockets, s.inode))
+                    return false;
+                if (s.localPort == localPort && s.state != TCP_LISTEN)
+                    return s.localAddr.isUnspecified() || s.localAddr == tunIP
+                        || std::ranges::find(extraIPs, s.localAddr) != extraIPs.end();
                 return false;
-            if (s.localPort == localPort && s.state != TCP_LISTEN)
-                return s.localAddr.isUnspecified() || s.localAddr == tunIP
-                    || std::ranges::find(extraIPs, s.localAddr) != extraIPs.end();
-            return false;
-        });
-        if (tcp != tcpSockets.end()) {
-            ++i;
-            continue;
-        }
-        // Keep socket if there is a corresponding UDP socket that is connected
-        // to a SCION-mapped IP address or an unconnected socket that recently
-        // had outgoing traffic.
-        auto udp = std::ranges::find_if(udpSockets, [&] (const SocketInfo& s) {
-            if (std::ranges::binary_search(mySockets, s.inode))
-                return false;
-            if (s.localPort != localPort)
-                return false;
-            if (s.remoteAddr.isScion()) {
-                return s.localAddr.isUnspecified() || s.localAddr == tunIP
-                    || std::ranges::find(extraIPs, s.localAddr) != extraIPs.end();
-            } else if (s.remoteAddr.isUnspecified()) {
-                return now - socket->lastUsed() < SOCKET_TIMEOUT;
+            });
+            if (tcp != tcpSockets.end()) {
+                ++i;
+                continue;
             }
-            return false;
-        });
-        if (udp != udpSockets.end()) {
-            ++i;
-            continue;
+            // Keep socket if there is a corresponding UDP socket that is connected
+            // to a SCION-mapped IP address or an unconnected socket that recently
+            // had outgoing traffic.
+            auto udp = std::ranges::find_if(udpSockets, [&] (const SocketInfo& s) {
+                if (std::ranges::binary_search(mySockets, s.inode))
+                    return false;
+                if (s.localPort != localPort)
+                    return false;
+                if (s.remoteAddr.isScion()) {
+                    return s.localAddr.isUnspecified() || s.localAddr == tunIP
+                        || std::ranges::find(extraIPs, s.localAddr) != extraIPs.end();
+                } else if (s.remoteAddr.isUnspecified()) {
+                    return now - socket->lastUsed() < SOCKET_TIMEOUT;
+                }
+                return false;
+            });
+            if (udp != udpSockets.end()) {
+                ++i;
+                continue;
+            }
+        } else {
+            // Proxy sockets: Keep socket if there is a flow that uses it
+            auto& proxyEp = socket->local();
+            auto j = std::ranges::find_if(flows, [&](const auto& fl) {
+                // Special case for SCMP: Underlay socket uses DISPATCHER_PORT
+                if (fl.first.proto == hdr::ScionProto::SCMP && proxyEp.port() == DISPATCHER_PORT)
+                    return fl.second->getPublicAddr(publicIP, scionPrefixLen) == proxyEp.host();
+                return fl.second->getPublicEp(publicIP, scionPrefixLen) == proxyEp;
+            });
+            if (j != flows.end()) {
+                ++i;
+                continue;
+            }
         }
         // Remove socket and all flows connected to it
+        spdlog::debug("Close socket {}", socket->local());
         socket->close();
         i = sockets.erase(i);
+        auto& socketLocalEp = socket->local();
         for (auto j = flows.begin(); j != flows.end(); ++j) {
-            if (j->first.src.port() == localPort) {
+            if (j->second->getPublicEp(publicIP, scionPrefixLen) == socketLocalEp) {
                 if (j->second->isMultipath()) {
                     j->second->lock().applyToSubflows([] (Flow& sf) {
                         sf.lock().close();
@@ -733,11 +836,21 @@ std::error_code ScitraTun::translateIPtoScion(TunQueue& tun)
 
         const auto recvd = std::chrono::steady_clock::now();
 
-        generic::IPEndpoint localEp(pkt.ipv6.src, pkt.l4SPort());
+        // Drop packets with unexpected source IP
+        assert(pkt.ipValid == PacketBuffer::IPValidity::IPv6);
+        if (!sameNetwork(pkt.ipv6.src, tunIP, scionPrefixLen)
+            && std::ranges::find(extraIPs, pkt.ipv6.src) == extraIPs.end()) {
+            spdlog::debug("IP->SCION Packet dropped (source address {} not in {}/{})",
+                pkt.ipv6.src, tunIP, scionPrefixLen);
+            continue;
+        }
+
+        // Pre-translation source on the TUN network side
+        generic::IPEndpoint tunSrc(pkt.ipv6.src, pkt.l4SPort());
         std::uint16_t remappedSPort = 0;
         bool mpOutOfPaths = false;
         std::shared_ptr<Flow> flow;
-        auto [verdict, port, nextHop] = translateEgress(pkt, publicIP, REPLACE_ADDRESS,
+        auto [verdict, port, nextHop] = translateEgress(pkt, scionSrcIP, scionPrefixLen,
             [&] (const ScIPAddress& src, const ScIPAddress& dst,
                 uint16_t sport, uint16_t dport, hdr::ScionProto proto, uint8_t tc) {
             PathPtr path;
@@ -745,10 +858,10 @@ std::error_code ScitraTun::translateIPtoScion(TunQueue& tun)
             ScIPAddress localAddr(localAS.isdAsn, src.host());
             FlowID flowid(localAddr, dst, sport, dport, proto);
 
-            flow = getFlowEgress(pkt, flowid, localEp);
+            flow = getFlowEgress(pkt, flowid, tunSrc);
             remappedSPort = flowid.src.port();
             if (flow->isMultipath()) {
-                flow = flow->getSubflowByAddr(localEp);
+                flow = flow->getSubflowByAddr(tunSrc);
             }
             flow->lock().getPath(path);
 
@@ -768,7 +881,7 @@ std::error_code ScitraTun::translateIPtoScion(TunQueue& tun)
                     if (!path) {
                         // Ensure that MPTCP subflows have unique paths.
                         // Looking for the lead flow here is the inverse operation to
-                        // flow = flow->getSubflowByAddr(localEp). We could keep a pointer to the
+                        // flow = flow->getSubflowByAddr(tunSrc). We could keep a pointer to the
                         // lead flow from earlier, but this code path is invoked only once per
                         // subflow so probably not worth it.
                         if (auto leadFlow = findFlow(flowid); leadFlow) {
@@ -798,7 +911,7 @@ std::error_code ScitraTun::translateIPtoScion(TunQueue& tun)
                         }
                     }
                     spdlog::debug("Selected path for {} (subflow bound to {}): {}",
-                        flowid, localEp, *path, mtu);
+                        flowid, tunSrc, *path, mtu);
                 } else {
                     path = selectPath(flowid, tc);
                     if (!path) return std::make_pair(
@@ -822,7 +935,12 @@ std::error_code ScitraTun::translateIPtoScion(TunQueue& tun)
                 pkt.tcp.sport = remappedSPort;
                 port = remappedSPort;
             }
-            if (auto socket = getSocket(port); socket) {
+            if (xlatUnderlay) {
+                // Rewrite underlay IP prefix from mappedIP to to publicIP
+                // (underlay translation implies that we have an IPv6 header)
+                pkt.ipv6.src = translatePrefix(tunSrc.host(), publicIP, scionPrefixLen);
+            }
+            if (auto socket = getSocket(IPEndpoint(pkt.ipSrcAddress(), port)); socket) {
                 assert(flow);
                 flow->lock()
                     .updateStateEgress(pkt, recvd)
@@ -895,6 +1013,8 @@ std::error_code ScitraTun::resetMptcpSubflow(
 
 asio::awaitable<std::error_code> ScitraTun::translateScionToIP(std::shared_ptr<Socket> socket)
 {
+    using L4Type = PacketBuffer::L4Type;
+
     PacketBuffer pkt{std::pmr::vector<std::byte>(PACKET_BUFFER_SIZE)};
     asio::ip::udp::endpoint from;
 
@@ -914,11 +1034,11 @@ asio::awaitable<std::error_code> ScitraTun::translateScionToIP(std::shared_ptr<S
         // Packet Validation: Local socket port must match inner L4 header
         // destination port. If the inner L4 header does not contain a port, the
         // packet must have been received at the dispatcher port.
-        if (pkt.l4DPort(DISPATCHER_PORT) != socket->port()) {
+        if (pkt.l4DPort(DISPATCHER_PORT) != socket->local().port()) {
             spdlog::debug("SCION->IP Destination port validation failed");
             continue;
         }
-        if (socket->port() == DISPATCHER_PORT && pkt.l4Valid != PacketBuffer::L4Type::SCMP) {
+        if (socket->local().port() == DISPATCHER_PORT && pkt.l4Valid != L4Type::SCMP) {
             spdlog::debug("SCION->IP Non-SCMP packet at dispatcher port");
             continue;
         }
@@ -938,7 +1058,7 @@ asio::awaitable<std::error_code> ScitraTun::translateScionToIP(std::shared_ptr<S
         }
 
         // Handle SCMP
-        if (pkt.l4Valid == PacketBuffer::L4Type::SCMP) {
+        if (pkt.l4Valid == L4Type::SCMP) {
             pathCache->handleScmp(pkt.sci.src, pkt.path, pkt.scmp.msg, pkt.payload());
         }
 
@@ -946,9 +1066,10 @@ asio::awaitable<std::error_code> ScitraTun::translateScionToIP(std::shared_ptr<S
         // find the local IP (assigned to the TUN interface) that is used
         // to identify the subflow in MPTCP.
         bool pathReversed = false;
+        unsigned int prefixLen = scionPrefixLen;
         std::shared_ptr<Flow> flow;
         FlowID flowid(Igr, pkt);
-        generic::IPEndpoint localEp(tunIP, pkt.l4DPort());
+        generic::IPEndpoint tunEp(tunIP, pkt.l4DPort());
         if (!extraIPs.empty()) {
             if (flow = findFlow(FlowID(Igr, pkt)); flow) {
                 if (flow->isMultipath()) {
@@ -961,7 +1082,7 @@ asio::awaitable<std::error_code> ScitraTun::translateScionToIP(std::shared_ptr<S
                     if (!sf) {
                         spdlog::debug("SCION->IP Can't accept subflow,"
                             " because we don't have enough addresses");
-                        if (pkt.l4Valid == PacketBuffer::L4Type::TCP) {
+                        if (pkt.l4Valid == L4Type::TCP) {
                             if (pkt.tcp.flags[hdr::TCP::Flags::SYN]) {
                                 rejectMptcpSubflow(flow, pkt, from, recvd);
                             }
@@ -969,13 +1090,16 @@ asio::awaitable<std::error_code> ScitraTun::translateScionToIP(std::shared_ptr<S
                         continue;
                     }
                     flow = sf;
-                    localEp = flow->getLocalEp();
+                    tunEp = flow->getTunEp();
+                    // If this flow uses an "extra" IP, translation must
+                    // completely replace the original destination address.
+                    if (tunEp.host() != tunIP) prefixLen = REPLACE_ADDRESS;
                 }
             }
         }
 
         // Attempt translation
-        auto verdict = translateIngress(pkt, mappedIP, localEp.host(), 128,
+        auto verdict = translateIngress(pkt, mappedIP, tunEp.host(), prefixLen,
             [&] (const hdr::SCION& sci, RawPath& rp)
             {
                 if (!pathReversed) {
@@ -986,9 +1110,9 @@ asio::awaitable<std::error_code> ScitraTun::translateScionToIP(std::shared_ptr<S
             }
         );
         if (verdict == Verdict::Pass) {
-            if (!flow) flow = getFlowIngress(flowid, localEp);
+            if (!flow) flow = getFlowIngress(flowid, tunEp);
             // Learn the connection token for additional subflows
-            if (!extraIPs.empty() && pkt.l4Valid == PacketBuffer::L4Type::TCP) {
+            if (!extraIPs.empty() && pkt.l4Valid == L4Type::TCP) {
                 if (pkt.tcp.optMask.MpCapable) {
                     auto& cap = pkt.tcp.options.mpCap;
                     if (cap.fieldMask.receiverKey) {
@@ -1019,8 +1143,8 @@ asio::awaitable<std::error_code> ScitraTun::translateScionToIP(std::shared_ptr<S
                 }
             }
             // MPTCP: Remap destination port
-            if (pkt.l4Valid == PacketBuffer::L4Type::TCP && pkt.tcp.dport != localEp.port()) {
-                auto dport = localEp.port();
+            if (pkt.l4Valid == L4Type::TCP && pkt.tcp.dport != tunEp.port()) {
+                auto dport = tunEp.port();
                 pkt.l4UpdateChecksum(dport, pkt.tcp.dport);
                 pkt.tcp.dport = dport;
             }
@@ -1067,7 +1191,7 @@ std::error_code ScitraTun::rejectMptcpSubflow(
         pkt.sci.checksum(pkt.sci.plen, pkt.sci.nh) + pkt.tcp.checksum());
 
     fl.updateStateEgress(pkt, recvd);
-    if (auto socket = getSocket(pkt.tcp.sport); socket) {
+    if (auto socket = getSocket(generic::IPEndpoint(pkt.ipSrcAddress(), pkt.tcp.sport)); socket) {
         auto ec = socket->sendPacket(pkt, nh, recvd); // blocking
         if (ec) {
             spdlog::error("IP->SCION Error sending packet to next hop '{}': {}", nh, fmtError(ec));
@@ -1197,22 +1321,27 @@ void ScitraTun::printStatus()
         if (!flow.flags[FlowInfo::Flags::Multipath]) {
             auto proto = protoToString((int)flow.tuple.proto);
             std::cout << std::format(
-                "{} -> {} [{}] bound_to {} type {} state {} time {:%M:%S}",
+                "{} -> {} [{}] tun {} underlay {} port {} type {} state {} time {:%M:%S}",
                 flow.tuple.src,
                 flow.tuple.dst,
-                flow.boundTo,
                 proto,
+                flow.boundToTun,
+                flow.boundToPublic,
+                flow.boundToPort,
                 toString(flow.type),
                 toString(flow.state),
                 now - flow.lastUsed
             );
         } else if (flow.tuple.proto == scion::hdr::ScionProto::TCP) {
             std::cout << std::format(
-                "{} -> {} [{}] bound_to {} type {} state {} token {:08x} time {:%M:%S}",
+                "{} -> {} [{}] tun {} underlay {} port {} type {} state {} token {:08x}"
+                " time {:%M:%S}",
                 flow.tuple.src,
                 flow.tuple.dst,
-                flow.boundTo,
                 "MPTCP",
+                flow.boundToTun,
+                flow.boundToPublic,
+                flow.boundToPort,
                 toString(flow.type),
                 toString(flow.state),
                 flow.mptcpRemoteToken,

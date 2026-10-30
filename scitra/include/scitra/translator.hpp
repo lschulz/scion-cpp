@@ -94,50 +94,63 @@ void makeIcmpPacketTooBig(PacketBuffer& pkt, std::uint16_t mtu);
 
 } // namespace details
 
-/// \brief Constant that causes translateIPv6Prefix() to replace the entire
-/// address, even if the replacement address is IPv4.
+/// \brief Constant that causes translatePrefix() to replace the entire address.
 const unsigned REPLACE_ADDRESS = 128;
 
-/// \brief Replaces The first `prefixLen` bits of `addr` with the corresponding
-/// bits in `prefix`. `addr` and `prefix` must be IPv6 addresses except if
-/// `prefixLen` is REPLACE_ADDRESS.
-inline generic::IPAddress translateIPv6Prefix(
+/// \brief Form an IPv4 or IPv6 address from a prefix and an IPv6 address.
+/// If prefix is IPv4, addr is first truncated to the lowest 32 bits.
+/// \param addr An IPv6 address
+/// \param prefix New address prefix. The address family (v4/v6) of `prefix`
+/// determines the type of the result.
+/// \param Length of the prefix in bits. The constant REPLACE_ADDRESS is
+/// guaranteed to replace the entire addrress.
+inline generic::IPAddress translatePrefix(
     const generic::IPAddress& addr, const generic::IPAddress& prefix, unsigned prefixLen)
 {
-    if (prefixLen == REPLACE_ADDRESS) return prefix;
-    assert(addr.is6() && prefix.is6());
+    assert(addr.is6());
+    if (prefix.is6()) {
+        if (prefixLen >= 128) return prefix;
 
-    auto [addrHi, addrLo] = addr.getIPv6();
-    auto [prefixHi, prefixLo] = prefix.getIPv6();
+        auto [addrHi, addrLo] = addr.getIPv6();
+        auto [prefixHi, prefixLo] = prefix.getIPv6();
 
-    auto shift = 64 - std::min(prefixLen, 64u);
-    std::uint64_t maskHi = shift > 63 ? 0 : ~0ull << shift;
-    std::uint64_t maskLo = 0;
-    if (prefixLen > 64) {
-        shift = 64 - (prefixLen - 64);
-        maskLo = shift > 63 ? 0 : ~0ull << shift;
+        auto shift = 64 - std::min(prefixLen, 64u);
+        std::uint64_t maskHi = shift > 63 ? 0 : ~0ull << shift;
+        std::uint64_t maskLo = 0;
+        if (prefixLen > 64) {
+            shift = 64 - (prefixLen - 64);
+            maskLo = shift > 63 ? 0 : ~0ull << shift;
+        }
+        return generic::IPAddress::MakeIPv6(
+            (prefixHi & maskHi) | (addrHi & ~maskHi),
+            (prefixLo & maskLo) | (addrLo & ~maskLo)
+        );
+    } else {
+        if (prefixLen >= 32) return prefix;
+
+        auto [addrHi, addrLo] = addr.getIPv6();
+        auto prefixLo = prefix.getIPv4();
+
+        auto shift = 32 - std::min(prefixLen, 32u);
+        std::uint32_t mask = shift > 31 ? 0 : ~0u << shift;
+        return generic::IPAddress::MakeIPv4(
+            (prefixLo & mask) | (std::uint32_t)(addrLo & ~mask)
+        );
     }
-    return generic::IPAddress::MakeIPv6(
-        (addrHi & ~maskHi) | (prefixHi & maskHi),
-        (addrLo & ~maskLo) | (prefixLo & maskLo)
-    );
 }
 
 /// \brief Translate a packet leaving the local host or network from IPv6 to
 /// SCION.
 ///
-/// \param sourcePrefix Either an IPv4 address or an IPv6 address prefix. If an
-/// IPv4 address is passed, `prefixLen` must be set to REPLACE_ADDRESS. The IPv4
-/// address will be used as the source host address in the generated SCION
-/// header. If an IPv6 prefix is passed, it will be combined with the host part
-/// of the source address in the input IPv6 header to form the source address in
-/// the generated SCION header. The prefix length is determined by `prefixLen`.
-/// A prefix length of 0 is legal and causes the IPv6 source address to be
-/// copied to the SCION header verbatim. An IPv6 prefix can also be combined
-/// with REPLACE_ADDRESS to completely overwrite the source address.
+/// \param sourcePrefix An IPv4 or IPv6 address prefix. This prefix is combined
+/// with the underlay source address (which is always an IPv6 address) to form
+/// the source host address in the SCION header. If `prefixLen` is
+/// REPLACE_ADDRESS the prefix completely replaces the underlay source address.
+/// Otherwise, the first `prefixLen` bits of `sourcePrefix` become the prefix of
+/// the new source address.
 ///
 /// \param prefixLen Length of the address prefix in `translatedPrefix` or the
-/// special constant REPLACE_ADDRESS.
+/// constant REPLACE_ADDRESS.
 ///
 /// \param getPath A callable that produces a SCION path and the expected SCION
 /// MTU for that path. The callable's parameters are the 5-tuple of the
@@ -167,7 +180,7 @@ translateEgress(
     }
 
     // Translate source host address
-    auto srcHost = translateIPv6Prefix(pkt.ipv6.src, sourcePrefix, prefixLen);
+    auto srcHost = translatePrefix(pkt.ipv6.src, sourcePrefix, prefixLen);
 
     // Translate ICMP to SCMP
     ScionProto nextHeader;
@@ -307,7 +320,7 @@ translateEgress(
 /// destinaion address of the translated IPv6 packet. The prefix length is
 /// passed in `prefixLen`. If no prefix translation is desired, set to the same
 /// value as `acceptedPrefix`.
-/// \param prefixLen Prefix length of `publicIP` and `translatedPrefix`.
+/// \param prefixLen Prefix length of `acceptPrefix` and `dstPrefix`.
 /// \param getMTU A callable that should provide an MTU usable with the path in
 /// the packet buffer.
 ///
@@ -331,7 +344,7 @@ Verdict translateIngress(
         if (!samePrefix(acceptPrefix, *dst, prefixLen)) {
             return Verdict::Drop;
         }
-        pkt.ipv6.dst = translateIPv6Prefix(*dst, dstPrefix, prefixLen);
+        pkt.ipv6.dst = translatePrefix(*dst, dstPrefix, prefixLen);
     } else {
         return Verdict::Drop;
     }

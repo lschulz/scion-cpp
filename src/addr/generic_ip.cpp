@@ -353,6 +353,44 @@ std::format_context::iterator IPAddress::formatTo(
     return out;
 }
 
+std::error_code parseInterface(std::string_view text, IPAddress& addr, unsigned int& prefixLen)
+{
+    auto slash = text.find('/');
+    auto ip = IPAddress::Parse(text.substr(0, slash));
+    if (isError(ip)) return ip.error();
+    addr = *ip;
+    if (slash != std::string_view::npos) {
+        const auto end = text.data() + text.size();
+        auto res = std::from_chars(text.data() + slash + 1, end, prefixLen);
+        if (res.ec != std::errc()) return std::make_error_code(res.ec);
+        if (res.ptr != end) return ErrorCode::InvalidArgument;
+        if (addr.is4() && prefixLen > 32) return ErrorCode::InvalidArgument;
+        if (addr.is6() && prefixLen > 128) return ErrorCode::InvalidArgument;
+    } else {
+        prefixLen = addr.is4() ? 32 : 128;
+    }
+    return ErrorCode::Ok;
+}
+
+bool sameNetwork(const IPAddress& a, const IPAddress& b, unsigned int prefixLen)
+{
+    if (prefixLen >= 128) {
+        return a == b;
+    } else if (a.is4() && b.is4()) {
+        std::uint32_t mask = prefixLen < 32 ? ~(~0u >> prefixLen) : ~0u;
+        return (a.getIPv4() & mask) == (b.getIPv4() & mask);
+    } else if (a.is6() && b.is6()) {
+        auto [ah, al] = a.getIPv6();
+        auto [bh, bl] = b.getIPv6();
+        std::uint64_t mh = -1, ml = 0;
+        if (prefixLen < 64) mh = ~(mh >> prefixLen);
+        else if (prefixLen < 128) ml = ~(~0ull >> (prefixLen - 64));
+        return ((ah & mh) == (bh & mh)) & ((al & ml) == (bl & ml));
+    } else {
+        return false;
+    }
+}
+
 ////////////////
 // IPEndpoint //
 ////////////////

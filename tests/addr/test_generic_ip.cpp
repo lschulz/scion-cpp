@@ -270,6 +270,156 @@ TEST(GenericIP, Parse)
     EXPECT_TRUE(hasFailed(IPAddress::Parse("10.255.255.255%eth0")));
 }
 
+TEST(GenericIP, ParseInterfaceIPv4)
+{
+    using namespace scion::generic;
+
+    const auto ip4 = IPAddress::MakeIPv4(0x0a000001);
+
+    IPAddress ip;
+    unsigned int prefix = 0;
+
+    EXPECT_FALSE(parseInterface("10.0.0.1"sv, ip, prefix));
+    EXPECT_EQ(ip, ip4);
+    EXPECT_EQ(prefix, 32);
+
+    EXPECT_FALSE(parseInterface("10.0.0.1/0"sv, ip, prefix));
+    EXPECT_EQ(ip, ip4);
+    EXPECT_EQ(prefix, 0);
+
+    EXPECT_FALSE(parseInterface("10.0.0.1/24"sv, ip, prefix));
+    EXPECT_EQ(ip, ip4);
+    EXPECT_EQ(prefix, 24);
+
+    EXPECT_FALSE(parseInterface("10.0.0.1/32"sv, ip, prefix));
+    EXPECT_EQ(ip, ip4);
+    EXPECT_EQ(prefix, 32);
+
+    EXPECT_TRUE(parseInterface(""sv, ip, prefix));
+    EXPECT_TRUE(parseInterface("//"sv, ip, prefix));
+    EXPECT_TRUE(parseInterface("/10.0.0.1/24"sv, ip, prefix));
+    EXPECT_TRUE(parseInterface("10.0.0.1/"sv, ip, prefix));
+    EXPECT_TRUE(parseInterface("10.0.0.1/A"sv, ip, prefix));
+    EXPECT_TRUE(parseInterface("10.0.0.1//24"sv, ip, prefix));
+}
+
+TEST(GenericIP, ParseInterfaceIPv6)
+{
+    using namespace scion::generic;
+
+    const auto ip6 = unwrap(IPAddress::Parse("fd00::1"sv));
+
+    IPAddress ip;
+    unsigned int prefix = 0;
+
+    EXPECT_FALSE(parseInterface("fd00::1"sv, ip, prefix));
+    EXPECT_EQ(ip, ip);
+    EXPECT_EQ(prefix, 128);
+
+    EXPECT_FALSE(parseInterface("fd00::1/0"sv, ip, prefix));
+    EXPECT_EQ(ip, ip);
+    EXPECT_EQ(prefix, 0);
+
+    EXPECT_FALSE(parseInterface("fd00::1/56"sv, ip, prefix));
+    EXPECT_EQ(ip, ip);
+    EXPECT_EQ(prefix, 56);
+
+    EXPECT_FALSE(parseInterface("fd00::1/128"sv, ip, prefix));
+    EXPECT_EQ(ip, ip);
+    EXPECT_EQ(prefix, 128);
+
+    EXPECT_TRUE(parseInterface("/fd00::1/24"sv, ip, prefix));
+    EXPECT_TRUE(parseInterface("fd00::1/"sv, ip, prefix));
+    EXPECT_TRUE(parseInterface("fd00::1/A"sv, ip, prefix));
+    EXPECT_TRUE(parseInterface("fd00::1//24"sv, ip, prefix));
+}
+
+TEST(GenericIP, SameNetwork)
+{
+    using namespace scion::generic;
+
+    // Different family
+    EXPECT_FALSE(sameNetwork(
+        IPAddress::MakeIPv4(0x00000000),
+        unwrap(IPAddress::Parse("fd00::1"sv)),
+        1024
+    ));
+
+    // IPv4
+    EXPECT_TRUE(sameNetwork(
+        IPAddress::MakeIPv4(0x00000000),
+        IPAddress::MakeIPv4(0xffffffff),
+        0
+    ));
+    EXPECT_TRUE(sameNetwork(
+        IPAddress::MakeIPv4(0x0a000001),
+        IPAddress::MakeIPv4(0x0a000002),
+        24
+    ));
+    EXPECT_FALSE(sameNetwork(
+        IPAddress::MakeIPv4(0x0a000001),
+        IPAddress::MakeIPv4(0x0a000102),
+        24
+    ));
+    EXPECT_TRUE(sameNetwork(
+        IPAddress::MakeIPv4(0x0a000001),
+        IPAddress::MakeIPv4(0x0a000001),
+        32
+    ));
+    EXPECT_FALSE(sameNetwork(
+        IPAddress::MakeIPv4(0x0a000001),
+        IPAddress::MakeIPv4(0x0a000002),
+        32
+    ));
+
+    // IPv6
+    EXPECT_TRUE(sameNetwork(
+        IPAddress::MakeIPv6(0, 0),
+        IPAddress::MakeIPv6(-1, -1),
+        0
+    ));
+    EXPECT_TRUE(sameNetwork(
+        unwrap(IPAddress::Parse("fd12:3456:789a:bcde::1"sv)),
+        unwrap(IPAddress::Parse("fd12:3456:789a:bcff::2"sv)),
+        56
+    ));
+    EXPECT_FALSE(sameNetwork(
+        unwrap(IPAddress::Parse("fd12:3456:789a:bcde::1"sv)),
+        unwrap(IPAddress::Parse("fd12:3456:789a:bdff::2"sv)),
+        56
+    ));
+    EXPECT_TRUE(sameNetwork(
+        unwrap(IPAddress::Parse("fd12:3456:789a:bcde::1"sv)),
+        unwrap(IPAddress::Parse("fd12:3456:789a:bcde::2"sv)),
+        64
+    ));
+    EXPECT_FALSE(sameNetwork(
+        unwrap(IPAddress::Parse("fd12:3456:789a:bcde::1"sv)),
+        unwrap(IPAddress::Parse("fd12:3456:789a:bcdf::2"sv)),
+        64
+    ));
+    EXPECT_TRUE(sameNetwork(
+        unwrap(IPAddress::Parse("fd00::0"sv)),
+        unwrap(IPAddress::Parse("fd00::1"sv)),
+        127
+    ));
+    EXPECT_FALSE(sameNetwork(
+        unwrap(IPAddress::Parse("fd00::0"sv)),
+        unwrap(IPAddress::Parse("fd00::2"sv)),
+        127
+    ));
+    EXPECT_TRUE(sameNetwork(
+        unwrap(IPAddress::Parse("fd00::1"sv)),
+        unwrap(IPAddress::Parse("fd00::1"sv)),
+        128
+    ));
+    EXPECT_FALSE(sameNetwork(
+        unwrap(IPAddress::Parse("fd00::1"sv)),
+        unwrap(IPAddress::Parse("fd00::2"sv)),
+        128
+    ));
+}
+
 TEST(GenericIP, ScionMappedIPv6)
 {
     using namespace scion::generic;
@@ -303,6 +453,9 @@ TEST(GenericIP, ClassifyScionMappedIPv6)
     using namespace scion;
     using namespace scion::generic;
 
+    EXPECT_EQ(
+        classifyScionMappedIP(IPAddress::MakeIPv4(0)),
+        ScionIPv6Class::INVALID);
     EXPECT_EQ(
         classifyScionMappedIP(IPAddress::MakeIPv6(0, 0)),
         ScionIPv6Class::INVALID);

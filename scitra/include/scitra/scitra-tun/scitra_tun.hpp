@@ -78,7 +78,9 @@ struct FlowInfo
     FlowType type;
     FlowState state;
     std::uint8_t tc;
-    scion::generic::IPEndpoint boundTo;
+    generic::IPAddress boundToTun;
+    generic::IPAddress boundToPublic;
+    std::uint16_t boundToPort;
     std::uint32_t mptcpRemoteToken;
     FlowCounters counters;
     std::chrono::steady_clock::time_point lastUsed;
@@ -118,28 +120,39 @@ private:
     scion::daemon::CoGrpcDaemonClient daemon;
     // Local AS information.
     scion::daemon::AsInfo localAS;
+
+    // Mode selector
+    const Mode mode;
+    // Allow IPv6 underlay addresses without a SCION-mapped prefix.
+    const bool xlatUnderlay;
     // Whether to accept SCMP packets at the dispatcher port.
     const bool enableScmpDispatch;
-    // Ports whose underlay sockets are always open.
-    const std::vector<std::uint16_t> staticPorts;
-    // Configured number of queues in the TUN interface.
-    const std::uint32_t configQueues;
-    // Configured number of socket worker threads.
-    const std::uint32_t configThreads;
 
     // Public underlay IP address used by SCION. Can be an IPv4 or IPv6 address.
-    scion::generic::IPAddress publicIP;
+    generic::IPAddress publicIP;
     // SCION-mapped publicIP.
-    scion::generic::IPAddress mappedIP;
+    generic::IPAddress mappedIP;
+    // Source host address in outgoing SCION packets. Equal to either publicIP
+    // or mappedIP.
+    generic::IPAddress scionSrcIP;
+    // Prefix length for publicIP and scionSrcIP.
+    unsigned scionPrefixLen = REPLACE_ADDRESS;
     // IPv6 address of the TUN interface. May be equal to mappedIP.
-    scion::generic::IPAddress tunIP;
+    generic::IPAddress tunIP;
     // Additional IPv6 addresses of the TUN interface that provide additional
     // endpoints to MPTCP.
-    std::vector<scion::generic::IPAddress> extraIPs;
+    std::vector<generic::IPAddress> extraIPs;
     // Name of the network interface used for SCION communication.
     std::string netDevice;
     // Name of the TUN interface.
     std::string tunDevice;
+    // Endpoints whose underlay sockets are always open.
+    std::vector<generic::IPEndpoint> forwardedPorts;
+
+    // Configured number of queues in the TUN interface.
+    const std::uint32_t configQueues;
+    // Configured number of socket worker threads.
+    const std::uint32_t configThreads;
 
     // Queues of the TUN interface
     std::vector<TunQueue> tunQueues;
@@ -147,8 +160,8 @@ private:
     // Mutex that must be held when accessing `sockets`
     mutable std::shared_mutex socketMutex;
     // UDP sockets for communication with border routers and other SCION hosts.
-    // Indexed by local port.
-    std::map<std::uint16_t, std::shared_ptr<Socket>> sockets;
+    // Indexed by local endpoint.
+    std::map<generic::IPEndpoint, std::shared_ptr<Socket>> sockets;
 
     // Mutex that must be held when accessing `flows`, `mpPortRemap`,
     // and `mpTokenMap`.
@@ -158,7 +171,7 @@ private:
     // Mapping of MPTCP remote connection token to lead flow.
     boost::container::flat_map<std::uint32_t, std::shared_ptr<Flow>> mpTokenMap;
     // MPTCP source port remapping table.
-    boost::container::flat_map<scion::generic::IPEndpoint, std::uint16_t> mpPortRemap;
+    boost::container::flat_map<generic::IPEndpoint, std::uint16_t> mpPortRemap;
 
     std::filesystem::path policyFile;
     std::atomic<std::shared_ptr<path_policy::PolicySet>> pathPolicy;
@@ -198,11 +211,13 @@ public:
         return ScIPAddress(localAS.isdAsn, publicIP);
     }
 
+    Mode getMode() const { return mode; }
     generic::IPAddress getMappedAddress() const { return mappedIP; }
+    unsigned int getMappedPrefixLength() const { return scionPrefixLen; }
     generic::IPAddress getTunAddress() const { return tunIP; }
     std::string_view getPublicIfaceName() const { return netDevice; }
     std::string_view getTunName() const { return tunDevice; }
-    std::span<const std::uint16_t> getStaticPorts() const { return staticPorts; }
+    std::span<const generic::IPEndpoint> getForwardedPorts() const { return forwardedPorts; }
 
     /// \brief Start refreshing paths to `dst` now. Returns immediately without
     /// blocking.
@@ -240,9 +255,9 @@ public:
     std::error_code reloadPathPolicy();
 
 private:
-    Maybe<std::shared_ptr<Socket>> openSocket(std::uint16_t port, bool persistent);
-    std::shared_ptr<Socket> getSocket(std::uint16_t port);
-    void closeSocket(std::uint16_t port);
+    Maybe<std::shared_ptr<Socket>> openSocket(const generic::IPEndpoint& localEp, bool persistent);
+    std::shared_ptr<Socket> getSocket(const generic::IPEndpoint& localEp);
+    void closeSocket(const generic::IPEndpoint& localEp);
     void maintainFlowsAndSockets();
 
     asio::awaitable<void> signalHandler();

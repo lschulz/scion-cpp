@@ -205,7 +205,7 @@ class FlowProxy;
 class Flow : public std::enable_shared_from_this<Flow>
 {
 private:
-    const scion::generic::IPEndpoint boundTo;
+    const scion::generic::IPEndpoint boundTun;
     const FlowType type;
     const std::uint32_t queue;
     std::atomic<bool> multipath = false;
@@ -227,12 +227,12 @@ public:
 
     Flow(const scion::generic::IPEndpoint& boundTo, FlowType type,
         std::uint32_t queue, bool multipath)
-        : boundTo(boundTo), type(type), queue(queue), multipath(multipath)
+        : boundTun(boundTo), type(type), queue(queue), multipath(multipath)
     {}
 
     /// \internal \brief Create a new flow or subflow.
-    /// \param boundTo Local IP endpoint fo the flow. Different subflows of
-    /// the same multipath flow must have different local IP endpoints.
+    /// \param boundTo Pre-translation IP endpoint fo the flow. Different local
+    /// subflows of the same multipath flow must have different IP endpoints.
     /// \param type Flow type. Active or Passive.
     /// \param multipath Initial state of the multipath flag.
     static std::shared_ptr<Flow> Create(
@@ -256,10 +256,46 @@ public:
         return queue % queues;
     }
 
-    /// \brief Returns the local IP address and port before translation.
-    const scion::generic::IPEndpoint& getLocalEp() const
+    /// \internal \brief Returns the flow's locally bound port.
+    std::uint16_t getLocalPort() const
     {
-        return boundTo;
+        return boundTun.port();
+    }
+
+    /// \internal \brief Returns the pre-translation IP address the flow is
+    /// bound to.
+    const scion::generic::IPAddress& getTunAddr() const
+    {
+        return boundTun.host();
+    }
+
+    /// \internal \brief Returns the pre-translation IP address and port the
+    /// flow is bound to.
+    const scion::generic::IPEndpoint& getTunEp() const
+    {
+        return boundTun;
+    }
+
+    /// \internal \brief Returns the underlay socket IP address the flow is
+    /// bound to, taking underlay prefix translation into account.
+    /// \param publicIP AS-internal underlay IP prefix.
+    /// \param prefixLen Length of the prefix in publicIP.
+    scion::generic::IPAddress getPublicAddr(
+        const scion::generic::IPAddress& publicIP,
+        unsigned int prefixLen) const
+    {
+        using namespace scion::scitra;
+        return translatePrefix(boundTun.host(), publicIP, prefixLen);
+    }
+
+    /// \internal \brief Same as getPublicAddr(), but also returns the port.
+    scion::generic::IPEndpoint getPublicEp(
+        const scion::generic::IPAddress& publicIP,
+        unsigned int prefixLen) const
+    {
+        using namespace scion::scitra;
+        return scion::generic::IPEndpoint(
+            translatePrefix(boundTun.host(), publicIP, prefixLen), boundTun.port());
     }
 
     bool isMultipath() const
@@ -304,10 +340,10 @@ public:
 
         for (auto& addr : addrPool) {
             auto i = std::ranges::find_if(subflows, [&] (const auto& sf) {
-                return sf->boundTo.host() == addr;
+                return sf->boundTun.host() == addr;
             });
             if (i == subflows.end()) {
-                scion::generic::IPEndpoint ep(addr, boundTo.port());
+                scion::generic::IPEndpoint ep(addr, boundTun.port());
                 spdlog::debug("New {} subflow locally bound to {}", toString(type), ep);
                 sf = CreateSubflow(ep, FlowType::Passive, mptcpToken);
                 subflows.push_back(sf);
@@ -317,7 +353,7 @@ public:
         return nullptr; // error: all addresses in use
     }
 
-    // Acquire a lock on the flow.
+    /// \internal \brief Acquire a lock on the flow.
     FlowProxy lock();
 
 private:
@@ -333,9 +369,9 @@ private:
         if (!multipath.load()) {
             return shared_from_this();
         } else {
-            if (boundTo == addr) return shared_from_this();
+            if (boundTun == addr) return shared_from_this();
             auto i = std::ranges::find_if(subflows, [&] (const auto& sf) {
-                return sf->boundTo == addr;
+                return sf->boundTun == addr;
             });
             if (i != subflows.end()) {
                 return *i;

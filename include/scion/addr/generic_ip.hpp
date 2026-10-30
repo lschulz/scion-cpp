@@ -388,6 +388,22 @@ private:
     boost::intrusive_ptr<const AddrInfo> m_addrInfo;
 };
 
+/// \brief Parses an IP address with optional prefix length separated by a
+/// slash. The host/interface part of the address does not necessarily need to
+/// be zero.
+/// \param text Input string of the format "<IP>/<prefix length>".
+/// \param[out] addr IP address (prefix and interface)
+/// \param[out] prefixLen Length of the prefix
+/// \returns ErrorCode::InvalidArgument or similar if parsing fails.
+std::error_code parseInterface(std::string_view text, IPAddress& addr, unsigned int& prefixLen);
+
+/// \brief Test if two IP addresses are from the same family and share the same
+/// prefix.
+/// \param prefixLen Number of prefix bits that are compared. Clamped to 32
+/// (IPv4) or 128 (IPv6).
+bool sameNetwork(const IPAddress& a, const IPAddress& b, unsigned int prefixLen);
+
+/// \brief IP address with port.
 class IPEndpoint
 {
 private:

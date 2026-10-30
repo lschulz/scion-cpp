@@ -44,17 +44,14 @@ using namespace scion::scitra;
 class Socket
 {
 private:
-    // The local TCP/UDP port number of the socket. Identifies the socket.
-    const std::uint16_t m_localPort;
+    // IP address and port the socket is bound to. Identifies the socket.
+    generic::IPEndpoint m_localEp;
 
     // Whether the socket is persistent or temporary.
     const bool m_persistent;
 
     // Underlay UDP socket for comunicating with SCION routers and hosts.
     asio::ip::udp::socket m_underlay;
-
-    // Local IP address the socket is bound to.
-    generic::IPAddress m_localAddress;
 
     // External IP address and port after NAT.
     std::atomic<std::shared_ptr<generic::IPEndpoint>> m_mapped;
@@ -79,8 +76,8 @@ private:
     } m_stun;
 
 public:
-    Socket(asio::io_context& ioCtx, std::uint16_t port, bool persistent)
-        : m_localPort(port)
+    Socket(asio::io_context& ioCtx, generic::IPEndpoint localEp, bool persistent)
+        : m_localEp(localEp)
         , m_persistent(persistent)
         , m_underlay(ioCtx)
     {}
@@ -89,7 +86,7 @@ public:
     // sockets are instantiated.
     static void configureStun(bool enable, std::uint16_t port, std::uint32_t timeoutSec);
 
-    std::uint16_t port() const { return m_localPort; }
+    const generic::IPEndpoint& local() const { return m_localEp; }
 
     bool persistent() const { return m_persistent; }
 
@@ -99,8 +96,11 @@ public:
     // Check if the underlay socket is open.
     bool isOpen() const { return m_underlay.is_open(); }
 
-    // Open the underlay socket and bind it to `bindAddress`.
-    std::error_code open(const asio::ip::address& bindAddress);
+    // Open the underlay socket and binds it to the socket's local endpoint.
+    // If transparent is set, the socket is created with the IP_TRANSPARENT
+    // socket option allowing it to bind to nonlocal IP addresses and to be used
+    // with the iptables TPROXY target.
+    std::error_code open(bool transparent);
 
     // Close the underlay socket and cancel all asynchronous operations on it.
     void close()

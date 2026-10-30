@@ -37,10 +37,16 @@
 #include <system_error>
 #include <vector>
 
-extern const char* VERSION_LINE;
+
+extern const char* VERSION;
 
 static std::unique_ptr<Arguments> parseCommandLine(int argc, char* argv[])
 {
+    static const std::array<std::pair<const char*, Mode>, 3> modeMap = {
+        std::make_pair("normal", Mode::Normal),
+        std::make_pair("gateway", Mode::Gateway)
+    };
+
     using LogLevel = std::pair<const char*, spdlog::level::level_enum>;
     static const std::array<LogLevel, 6> logLevelMap{
         LogLevel{"trace", spdlog::level::trace},
@@ -52,58 +58,79 @@ static std::unique_ptr<Arguments> parseCommandLine(int argc, char* argv[])
     };
 
     auto args = std::make_unique<Arguments>();
-    CLI::App app{"scitra-tun: SCION-IP Translator for Linux"};
-    app.add_option("public_interface,--interface", args->publicInterface,
-        "Main network interface through which other SCION hosts can be reached")
+    CLI::App app{"scitra-tun: Userspace SCION-IP Translator"};
+
+    app.add_option("-a,--address", args->publicAddress,
+        "Public IP address of Scitra in the SCION-AS-internal network."
+        " May include a prefix length in CIDR notation in gateway mode or if"
+        " underlay prefix translation is enabled (-x,--xlat-underlay).")
         ->required();
-    app.add_option("public_address,--address", args->publicAddress,
-        "IP address for SCION. Must either be an IPv4 or SCION-mapped IPv6 address.")
-        ->required();
-    app.add_option("-e,--extra", args->extraAddresses,
-        "Additional addresses assigned to the TUN interface for MPTCP connections.");
+    app.add_option("-i,--interface", args->publicInterface,
+        "Network interface through which other SCION hosts can be reached."
+        " This interface determines the default maximum MTU. If not given, the"
+        " interface is determined from the public IP address (-a,--address).");
+    app.add_option("-t,--tun-addr", args->tunAddress,
+        "Override the address assigned to the TUN device with another IPv6 address."
+        " By default, the TUN address is derived from the public IP address.");
+    app.add_option("-e,--tun-extra", args->extraAddresses,
+        "Additional addresses assigned to the TUN interface for MPTCP connections as"
+        " comma-separated list.")
+        ->delimiter(',')->allow_extra_args(false);
+    app.add_option("-n,--tun-name", args->tunDevice,
+        "Name of the TUN device created by scitra-tun (default \"scion\")");
     app.add_option("-d,--sciond", args->sciond,
         "SCION daemon address (default \"127.0.0.1:30255\")")
         ->envname("SCION_DAEMON_ADDRESS");
-    app.add_option("-n,--tun-name", args->tunDevice,
-        "Name of the TUN device created by scitra-tun (default \"scion\")");
-    app.add_option("-a,--tun-addr", args->tunAddress,
-        "Override the address assigned to the TUN device with another IPv6"
-        " address. By default, the TUN address is derived from the public"
-        " address.");
+
+    app.add_flag_function("--daemon", [](std::int64_t count) {
+        if (count > 0) service::setRunningAsService();
+    }, "Run as a systemd daemon.");
+    app.add_flag("--tui", args->tui, "Start with TUI");
+
+    app.add_option("-m,--mode", args->mode,
+        "Operating mode, either normal or gateway. Normal mode is the default.")
+        ->transform(CLI::CheckedTransformer(modeMap));
+    app.add_flag("-x,--xlat-underlay", args->xlatUnderlay,
+        "Enabled underlay prefix translation. Only possible with an IPv6 underlay.");
+    app.add_flag("-s,--scmp", args->enableScmpDispatch,
+        "Accept SCMP packets at the endhost/dispatcher port (30041/UDP)");
+    app.add_option("-p,--ports", args->ports,
+        "Statically forwarded TCP/UDP ports as comma-separated list."
+        " In gateway mode, this list may contain IP:Port pairs. If ports without an IP are given"
+        " in gateway mode, the port is forwarded from the public address (-a,--address).")
+        ->delimiter(',')->allow_extra_args(false);
+
+    app.add_option("-M,--mtu", args->tunMtu,
+        "Override the default MTU of the TUN interface.");
     app.add_option("-u,--underlay-mtu", args->underlayMtu,
         "The minimum link-layer underlay PMTU to any SCION router or host in the"
         " local AS. Setting this value causes Scitra-TUN to ignore the AS-internal"
         " MTU learned from the SCION daemon.");
-    app.add_option("-m,--mtu", args->tunMtu,
-        "Override the default MTU of the TUN interface.");
-    app.add_option("-p,--ports", args->ports,
-        "One ore mote statically forwarded TCP/UDP ports separated by whitespace.");
+
+    app.add_flag("-S,--stun", args->stun, "Attempt NAT traversal");
+    app.add_option("--stun-port", args->stunPort,
+        "Port at which STUN servers are expected. If set to zero uses the same port as for SCION"
+        " (default 3478)");
+    app.add_option("--stun-timeout", args->stunTimeout,
+        "Timeout for NAT bindings. That is, after how many seconds of inactivity a STUN request"
+        " must be repeated. (default 30)");
+
+    app.add_option("--policy", args->policy,
+        "Path to a JSON file containing path policies");
+
     app.add_option("-q,--queues", args->queues,
         "Number of TUN queues and threads (default 1)")
         ->check(CLI::Range(1, 64));
-    app.add_option("-t,--threads", args->threads,
+    app.add_option("-T,--threads", args->threads,
         "Number of socket worker threads (default 1)")
         ->check(CLI::Range(1, 64));
-    app.add_option("--policy", args->policy,
-        "Path to a JSON file containing path policies");
+
     app.add_option("-l,--log-level", args->logLevel,
         "Log level (default: warning)")->transform(CLI::CheckedTransformer(logLevelMap));
     app.add_option("--log-file", args->logFile,
         "Path to log file. Log is written to stderr if this option is not given.");
-    app.add_flag("--scmp", args->enableScmpDispatch,
-        "Accept SCMP packets at the endhost/dispatcher port (30041/UDP)");
-    app.add_flag("--stun", args->stun, "Attempt NAT traversal");
-    app.add_option("--stun-port", args->stunPort,
-        "Port at which STUN servers are expected. If set to zero uses the same port as for SCION"
-        " (default 3478)");
-    app.add_option("--nat-timeout", args->stunTimeout,
-        "Timeout for NAT bindings. That is, after how many seconds of inactivity a STUN request"
-        " must be repeated. (default 30)");
-    app.add_flag("--tui", args->tui, "Start with TUI");
-    app.add_flag_function("--daemon", [](std::int64_t count) {
-        if (count > 0) service::setRunningAsService();
-    }, "Run as a systemd daemon.");
-    app.set_version_flag("-v,--version", VERSION_LINE);
+
+    app.set_version_flag("-v,--version", std::format("Scitra-TUN {}", VERSION));
     app.set_config("--config", "",
         "Configuration file containing command line options in ini or TOML syntax.");
     try {
@@ -126,29 +153,55 @@ static void blockSignals()
 }
 
 // Drop all effective, permitted and inheritable capabilites except for
-// CAP_NET_BIND_SERVICE. CAP_NET_BIND_SERVICE is needed to bind SCION sockets
-// to privileged ports < 1024.
-static int dropCapabilities() noexcept
+// - CAP_NET_BIND_SERVICE
+// - CAP_NET_RAW if keepNetRaw is true
+// - CAP_NET_ADMIN if keepNetRaw is true and CAP_NET_RAW is not available
+//
+// CAP_NET_BIND_SERVICE allows binding SCION sockets to privileged ports < 1024.
+// CAP_NET_RAW or CAP_NET_ADMIN allow binding sockets to nonlocal addresses in
+// gateway mode.
+static int dropCapabilities(bool keepNetRaw) noexcept
 {
     auto caps = cap_get_proc();
     if (caps == NULL) return -1;
 
-    cap_flag_value_t netBindCap;
-    if (cap_get_flag(caps, CAP_NET_BIND_SERVICE, CAP_PERMITTED, &netBindCap) == -1) {
+    int nCaps = 0;
+    cap_value_t setCaps[3] = {};
+
+    cap_flag_value_t cap = CAP_CLEAR;
+    if (cap_get_flag(caps, CAP_NET_BIND_SERVICE, CAP_PERMITTED, &cap) == -1) {
         cap_free(caps);
         return -1;
     }
+    if (cap == CAP_SET) setCaps[nCaps++] = CAP_NET_BIND_SERVICE;
+    if (keepNetRaw) {
+        if (cap_get_flag(caps, CAP_NET_RAW, CAP_PERMITTED, &cap) == -1) {
+            cap_free(caps);
+            return -1;
+        }
+        if (cap == CAP_SET) {
+            setCaps[nCaps++] = CAP_NET_RAW;
+        } else {
+            // If we don't have CAP_NET_RAW, try keeping CAP_NET_ADMIN
+            // which also allows transparent proxying.
+            if (cap_get_flag(caps, CAP_NET_ADMIN, CAP_PERMITTED, &cap) == -1) {
+                cap_free(caps);
+                return -1;
+            }
+            if (cap == CAP_SET) setCaps[nCaps++] = CAP_NET_ADMIN;
+        }
+    }
+
     if (cap_clear(caps) == -1) {
         cap_free(caps);
         return -1;
     }
-    if (netBindCap == CAP_SET) {
-        const cap_value_t setCaps[] = {CAP_NET_BIND_SERVICE};
-        if (cap_set_flag(caps, CAP_PERMITTED, 1, setCaps, CAP_SET) == -1) {
+    if (nCaps > 0) {
+        if (cap_set_flag(caps, CAP_PERMITTED, nCaps, setCaps, CAP_SET) == -1) {
             cap_free(caps);
             return -1;
         }
-        if (cap_set_flag(caps, CAP_EFFECTIVE, 1, setCaps, CAP_SET) == -1) {
+        if (cap_set_flag(caps, CAP_EFFECTIVE, nCaps, setCaps, CAP_SET) == -1) {
             cap_free(caps);
             return -1;
         }
@@ -187,9 +240,10 @@ int main(int argc, char* argv[])
 
         ScitraTun app(*args);
         bool tui = args->tui;
+        if (dropCapabilities(args->mode == Mode::Gateway))
+            spdlog::error("dropping capabilities failed");
         args.reset();
 
-        if (dropCapabilities()) spdlog::error("dropping capabilities failed");
         app.run();
         service::setServiceStatus(service::Status::Running);
         if (tui) uiLoop(app);

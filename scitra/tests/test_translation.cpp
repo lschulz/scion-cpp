@@ -81,24 +81,43 @@ public:
     }
 } isScion;
 
-TEST(Translation, TranslatePrefix)
+TEST(Translation, TranslatePrefixIPv6)
 {
     using namespace scion::generic;
     using namespace scion::scitra;
 
-    auto addr = IPAddress::MakeIPv6(0xfd01'0203'0405'0607u, 0x0809'0a0b'cb0d'0e0fu);
+    auto addr = IPAddress::MakeIPv6(0xfd01'0203'0405'0607u, 0x0809'0a0b'0c0d'0e0fu);
     auto prefix = IPAddress::MakeIPv6(0xfcff'ffff'ffff'ffffu, 0xffff'ffff'ffff'ffffu);
-    auto ipv4 = IPAddress::MakeIPv4(0x7f000001u);
 
-    EXPECT_EQ(translateIPv6Prefix(addr, prefix, 0), addr);
-    EXPECT_EQ(translateIPv6Prefix(addr, prefix, 8),
-        IPAddress::MakeIPv6(0xfc01'0203'0405'0607u, 0x0809'0a0b'cb0d'0e0fu));
-    EXPECT_EQ(translateIPv6Prefix(addr, prefix, 64),
-        IPAddress::MakeIPv6(0xfcff'ffff'ffff'ffffu, 0x0809'0a0b'cb0d'0e0fu));
-    EXPECT_EQ(translateIPv6Prefix(addr, prefix, 72),
-        IPAddress::MakeIPv6(0xfcff'ffff'ffff'ffffu, 0xff09'0a0b'cb0d'0e0fu));
-    EXPECT_EQ(translateIPv6Prefix(addr, prefix, REPLACE_ADDRESS), prefix);
-    EXPECT_EQ(translateIPv6Prefix(addr, ipv4, REPLACE_ADDRESS), ipv4);
+    EXPECT_EQ(translatePrefix(addr, prefix, 0), addr);
+    EXPECT_EQ(translatePrefix(addr, prefix, 8),
+        IPAddress::MakeIPv6(0xfc01'0203'0405'0607u, 0x0809'0a0b'0c0d'0e0fu));
+    EXPECT_EQ(translatePrefix(addr, prefix, 64),
+        IPAddress::MakeIPv6(0xfcff'ffff'ffff'ffffu, 0x0809'0a0b'0c0d'0e0fu));
+    EXPECT_EQ(translatePrefix(addr, prefix, 72),
+        IPAddress::MakeIPv6(0xfcff'ffff'ffff'ffffu, 0xff09'0a0b'0c0d'0e0fu));
+    EXPECT_EQ(translatePrefix(addr, prefix, REPLACE_ADDRESS), prefix);
+}
+
+TEST(Translation, TranslatePrefixIPv4)
+{
+    using namespace scion::generic;
+    using namespace scion::scitra;
+
+    auto addr = IPAddress::MakeIPv6(0xfd01'0203'0405'0607u, 0x0000'ffff'7f0d'0e0fu);
+    auto prefix = IPAddress::MakeIPv4(0x0a030201u);
+
+    EXPECT_EQ(translatePrefix(addr, prefix, 0),
+        IPAddress::MakeIPv4(0x7f0d'0e0fu));
+    EXPECT_EQ(translatePrefix(addr, prefix, 8),
+        IPAddress::MakeIPv4(0x0a0d'0e0fu));
+    EXPECT_EQ(translatePrefix(addr, prefix, 16),
+        IPAddress::MakeIPv4(0x0a03'0e0fu));
+    EXPECT_EQ(translatePrefix(addr, prefix, 24),
+        IPAddress::MakeIPv4(0x0a03'020fu));
+
+    EXPECT_EQ(translatePrefix(addr, prefix, REPLACE_ADDRESS), prefix);
+    EXPECT_EQ(translatePrefix(addr, prefix, 32), prefix);
 }
 
 // Translate UDP/IPv6 to UDP/SCION with a UDP/IPv4 underlay.

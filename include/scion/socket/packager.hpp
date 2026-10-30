@@ -383,7 +383,7 @@ public:
             }
         }
         if (!e2eExt.empty()) {
-            ReadStream rs(pkt.hbhOpts);
+            ReadStream rs(pkt.e2eOpts);
             if (!ext::parseExtensions(rs, std::forward<E2EExt>(e2eExt), err)) {
                 SCION_DEBUG_PRINT(err);
                 return Error(ErrorCode::InvalidPacket);

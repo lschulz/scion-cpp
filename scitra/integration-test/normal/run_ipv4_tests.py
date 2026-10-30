@@ -30,7 +30,7 @@ from subprocess import DEVNULL, PIPE, STDOUT
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        description="Runs Scitra-TUN integration tests with an IPv6 underlay")
+        description="Runs Scitra-TUN integration tests with an IPv4 underlay")
     parser.add_argument("-s", "--scion", type=Path, default=Path.home() / "scionproto-scion",
         help="Absolute path to local copy of scionproto/scion from which to run the test network")
     parser.add_argument("-b", "--build", type=Path, default="build",
@@ -49,7 +49,7 @@ def setUpNetwork(args):
     print("Set up network namespaces and links")
     subprocess.run(["sudo", str(Path(__file__).with_name("setup.sh"))], check=True)
     print("Starting local topology")
-    subprocess.run([str(Path(__file__).with_name("run_tiny6_bgp.sh"))],
+    subprocess.run([str(Path(__file__).with_name("run_tiny4_bgp.sh"))],
         env={"SCION_ROOT": args.scion, **os.environ}, check=True)
     print("Wait for beacons")
     time.sleep(5)
@@ -62,7 +62,7 @@ def tearDownNetwork(args):
     if args.use_existing:
         return
     print("Stopping local topology")
-    subprocess.run([str(Path(__file__).with_name("stop.sh"))],
+    subprocess.run([str(Path(__file__).with_name("stop_scion.sh"))],
         env={"SCION_ROOT": args.scion, **os.environ}, check=True)
     print("Remove links and namespaces")
     subprocess.run(["sudo", str(Path(__file__).with_name("teardown.sh"))], check=True)
@@ -77,19 +77,19 @@ class ScitraBase:
     def setUp(self):
         self.scitra_inst0 = subprocess.Popen([
             "sudo", "ip", "netns", "exec", "host0",
-            self.scitra_tun, "veth1", "fc00:10fc:100::2", "-a", "fd00::1",
-            "-d", "[fc00:10fc:100::1]:30255", "--scmp", "-l", "debug"
+            self.scitra_tun, "-a", "10.128.0.2", "-d", "10.128.0.1:30255", "--scmp",
+            "-l", "debug"
         ], stdout=PIPE, stderr=STDOUT)
         self.scitra_inst1 = subprocess.Popen([
             "sudo", "ip", "netns", "exec", "host1",
-            self.scitra_tun, "veth3", "fc00:10fc:200::2", "-a", "fd00::2",
-            "-d", "[fc00:10fc:200::1]:30255", "--scmp", "-p", "32000", "-l", "debug"
+            self.scitra_tun, "-a", "10.128.1.2", "-d", "10.128.1.1:30255", "--scmp",
+            "-p", "32000", "-l", "debug"
         ], stdout=PIPE, stderr=STDOUT)
         time.sleep(0.2)
         # Prime path cache
         subprocess.run([
             "sudo", "ip", "netns", "exec", "host0",
-            "ping", "fc00:10fc:200::2", "-W", "0.2", "-i", "0.1", "-c", "2"
+            "ping", "fc00:10fc:200::ffff:a80:102", "-W", "0.2", "-i", "0.1", "-c", "2"
         ], stdout=DEVNULL, stderr=DEVNULL)
 
     def tearDown(self):
@@ -109,7 +109,7 @@ class Netcat(ScitraBase, unittest.TestCase):
         super().setUp()
         self.server = subprocess.Popen([
             "sudo", "ip", "netns", "exec", "host1",
-            self.command, "-6", "-l", "fd00::2", "32000"
+            self.command, "-6", "-l", "fc00:10fc:200::ffff:a80:102", "32000"
         ], stdin=PIPE, stdout=PIPE, stderr=DEVNULL)
         os.set_blocking(self.server.stdout.fileno(), False)
         time.sleep(0.2)
@@ -124,7 +124,7 @@ class Netcat(ScitraBase, unittest.TestCase):
         self.assertIsNone(self.server.poll())
         client = subprocess.Popen([
             "sudo", "ip", "netns", "exec", "host0",
-            self.command, "fc00:10fc:200::2", "32000"
+            self.command, "fc00:10fc:200::ffff:a80:102", "32000"
         ], stdin=PIPE, stdout=PIPE, stderr=DEVNULL)
         os.set_blocking(client.stdout.fileno(), False)
         client.stdin.write("client->server\n".encode())
@@ -154,7 +154,6 @@ if __name__ == "__main__":
     if not args.build.exists():
         print("Build directory not found (override with --build)")
         exit(1)
-    global scion_dir
     runner = unittest.TextTestRunner()
     setUpNetwork(args)
     try:

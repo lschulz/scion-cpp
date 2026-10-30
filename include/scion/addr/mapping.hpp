@@ -60,6 +60,7 @@ enum class ScionIPv6Class
 /// if `ip` is not a SCION-mapped IPv6 address.
 inline ScionIPv6Class classifyScionMappedIP(const generic::IPAddress& ip)
 {
+    if (!ip.is6()) return ScionIPv6Class::INVALID;
     auto [prefix, iid] = ip.getIPv6();
     if ((prefix & (0xffull << 56)) != SCION_IP_PREFIX)
         return ScionIPv6Class::INVALID;
@@ -88,14 +89,52 @@ inline ScionIPv6Class classifyScionMappedIP(const generic::IPAddress& ip)
     }
 }
 
+/// \brief Returns the length of the SCION AS-ISD prefix for the given class of
+/// addresses.
+/// \returns Prefix length in bits. Returns 0 if `cl` is does not have an AS-ISD
+/// prefix.
+inline unsigned scionMappedPrefixLen(ScionIPv6Class cl)
+{
+    switch (cl) {
+    case ScionIPv6Class::BGP_IPV4:
+    case ScionIPv6Class::BGP_IPV6:
+    case ScionIPv6Class::BGP_WILDCARD:
+        return 40;
+    case ScionIPv6Class::PUBLIC_SCION_IPV4:
+    case ScionIPv6Class::PUBLIC_SCION_IPV6:
+    case ScionIPv6Class::PUBLIC_SCION_WILDCARD:
+        return 56;
+    default:
+        return 0;
+    }
+}
+
+/// \brief Encode an ISD-ASN as SCION-mapped IPv6 prefix.
+inline Maybe<generic::IPAddress> mapIsdAsn(IsdAsn isdAsn)
+{
+    std::uint64_t isd = isdAsn.isd();
+    if (!(isd < (1 << 12))) return Error(ErrorCode::InvalidArgument);
+
+    std::uint64_t asn = isdAsn.asn();
+    std::uint64_t prefix = 0;
+    if (asn < (1ull << 19)) {
+        prefix = SCION_IP_PREFIX | (isd << 44) | (asn << 24);
+    } else if (0x2'0000'0000ull <= asn && asn <= 0x2'ffff'ffffull) {
+        prefix = SCION_IP_PREFIX | (isd << 44) | (0xeull << 40) | ((asn & 0xffff'ffff) << 8);
+    } else {
+        return Error(ErrorCode::InvalidArgument);
+    }
+    return generic::IPAddress::MakeIPv6(prefix, 0);
+}
+
 /// \brief Extracts the ISD-ASN from a SCION-mapped IPv6 address.
 /// \param ip Input address.
 /// \param localPrefix If not NULL, localPrefix is set to the AS-local routing
 /// prefix extracted from the IPv6 address. The length of this prefix depends
 /// on the specific address.
-/// \return The extracted ISD-ASN or any empty optional, if the address format
-/// is of a reserved type.
-inline std::optional<IsdAsn> unmapIsdAsn(
+/// \return The extracted ISD-ASN or ErrorCode::NotImplemented if the address
+/// format is of a reserved type.
+inline Maybe<IsdAsn> unmapIsdAsn(
     const generic::IPAddress& ip, std::uint32_t* localPrefix = nullptr)
 {
     auto [hi, lo] = ip.getIPv6();
@@ -109,7 +148,7 @@ inline std::optional<IsdAsn> unmapIsdAsn(
         asn = (2ull << 32) | ((hi >> 8) & 0xffff'ffff);
         if (localPrefix) *localPrefix = hi & ~(~0 << 8);
     } else {
-        return std::nullopt; // reserved address
+        return Error(ErrorCode::NotImplemented);
     }
     return IsdAsn(Isd(isd), Asn(asn));
 }
@@ -170,7 +209,7 @@ inline Maybe<ScIPAddress> unmapFromIPv6(const generic::IPAddress& ip)
 
     std::uint32_t localPrefix = 0;
     auto isdAsn = unmapIsdAsn(ip, &localPrefix);
-    if (!isdAsn) return Error(ErrorCode::NotImplemented); // reserved address
+    if (!isdAsn) return propagateError(isdAsn); // reserved address
 
     if (localPrefix == 0 && iid != 0 && (iid >> 32) == 0xffff) { // IPv4 host
         return ScIPAddress(*isdAsn, IPAddress::MakeIPv4((std::uint32_t)iid));

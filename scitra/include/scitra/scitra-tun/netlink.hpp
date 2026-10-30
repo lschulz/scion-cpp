@@ -50,6 +50,9 @@ public:
     using IPAddress = scion::generic::IPAddress;
     using PrefixLen = unsigned char;
 
+    /// \brief Returns the first interface that has the address `addr`.
+    Maybe<std::string> findInterfaceByAddr(const IPAddress& addr);
+
     /// \brief Set a network interface administratively up or down. Equivalent
     /// to "ip link set dev <dev> up".
     std::error_code setInterfaceState(const std::string& dev, bool up);
@@ -97,7 +100,9 @@ public:
 private:
     std::error_code modAddress(
         const IPAddress& addr, PrefixLen prefixlen, const std::string& dev, bool del);
-    std::error_code execute(nlmsghdr* nlh, char* buf, size_t bufsize, unsigned int seq);
+    std::error_code executeOne(nlmsghdr* nlh, char* buf, size_t bufsize, unsigned int seq);
+    std::error_code executeAll(nlmsghdr* nlh, char* buf, size_t bufsize, unsigned int seq,
+        mnl_cb_t cb, void* data);
 
 private:
     mnl_socket* nl = nullptr;

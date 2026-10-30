@@ -51,16 +51,22 @@ test-interposer:
 test-integration:
 	$(PYTHON) integration-tests/run_tests.py tiny4 -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
 	$(PYTHON) integration-tests/run_tests.py default -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
-	$(PYTHON) scitra/integration-test/run_ipv4_tests.py -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
-	$(PYTHON) scitra/integration-test/run_ipv6_tests.py -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
+	$(PYTHON) scitra/integration-test/normal/run_ipv4_tests.py -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
+	$(PYTHON) scitra/integration-test/normal/run_ipv6_tests.py -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
 	$(PYTHON) scitra/integration-test/multipath/run_tests.py -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
+	$(PYTHON) scitra/integration-test/gateway/run_tests.py ipv4 -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
+	$(PYTHON) scitra/integration-test/gateway/run_tests.py ipv6 -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
+	$(PYTHON) scitra/integration-test/gateway/run_tests.py ipv6_prefix_xlat -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
 
 .PHONY: test-integration
 test-integration-ci:
 	$(PYTHON) integration-tests/run_tests.py tiny4 -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
 	$(PYTHON) integration-tests/run_tests.py default -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
-	$(PYTHON) scitra/integration-test/run_ipv4_tests.py -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
-	$(PYTHON) scitra/integration-test/run_ipv6_tests.py -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
+	$(PYTHON) scitra/integration-test/normal/run_ipv4_tests.py -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
+	$(PYTHON) scitra/integration-test/normal/run_ipv6_tests.py -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
+	$(PYTHON) scitra/integration-test/gateway/run_tests.py ipv4 -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
+	$(PYTHON) scitra/integration-test/gateway/run_tests.py ipv6 -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
+	$(PYTHON) scitra/integration-test/gateway/run_tests.py ipv6_prefix_xlat -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
 
 # Make test data
 

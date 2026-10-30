@@ -261,6 +261,20 @@ public:
         return ErrorCode::Ok;
     }
 
+    /// \brief Returns the source IP of the current network layer. If there is
+    /// no network layer, returns an unspecified (all zero) address.
+    generic::IPAddress ipSrcAddress() const
+    {
+        switch (ipValid) {
+        case IPValidity::IPv4:
+            return ipv4.src;
+        case IPValidity::IPv6:
+            return ipv6.src;
+        default:
+            return generic::IPAddress::UnspecifiedIPv6();
+        }
+    }
+
     /// \brief Returns the size of the current layer 4 protocol's headers.
     std::size_t l4Size() const
     {

@@ -31,6 +31,8 @@
 #include <span>
 
 
+extern const char* VERSION;
+
 namespace {
 
 static const char* HELP_TEXT =
@@ -87,10 +89,11 @@ static const char* HELP_TEXT =
     "Flow Properties\n"
     "Local Addr  : SCION address of the local endpoint.\n"
     "Remote Addr : SCION address of the remote endpoint.\n"
-    "Bound To    : Pre-translation IPv6 address of the local endpoint.\n"
-    "Bound Port  : Pre-translation port of the local endpoint.\n"
+    "Internal IP : Pre-translation source IP address of the flow.\n"
+    "Underlay IP : Local IP address the translator's underlay socket.\n"
+    "Bound Port  : Local port of the translator's underlay socket.\n"
     "MPTCP Token : Connection token of the remote host. Only shown for MPTCP\n"
-    "              connections\n."
+    "              connections.\n"
     "State       : Connection state as known to Scitra.\n"
     "Direction   : Whether the translator actively picks paths for the flow or\n"
     "              passively responds on the same path as used by the remote host.\n"
@@ -284,7 +287,9 @@ struct FlowListEntry
         , type(flow.type)
         , state(flow.state)
         , tc(flow.tc)
-        , boundTo(flow.boundTo)
+        , boundToTun(flow.boundToTun)
+        , boundToPublic(flow.boundToPublic)
+        , boundToPort(flow.boundToPort)
         , mptcpRemoteToken(flow.mptcpRemoteToken)
         , lastUsed(flow.lastUsed)
         , path(flow.path)
@@ -303,7 +308,9 @@ struct FlowListEntry
         flags = flow.flags,
         state = flow.state;
         tc = flow.tc;
-        boundTo = flow.boundTo;
+        boundToTun = flow.boundToTun;
+        boundToPublic = flow.boundToPublic;
+        boundToPort = flow.boundToPort;
         mptcpRemoteToken = flow.mptcpRemoteToken;
         lastUsed = flow.lastUsed;
         path = flow.path;
@@ -341,7 +348,9 @@ struct FlowListEntry
     FlowType type;
     FlowState state;
     std::uint8_t tc;
-    scion::generic::IPEndpoint boundTo;
+    scion::generic::IPAddress boundToTun;
+    scion::generic::IPAddress boundToPublic;
+    std::uint16_t boundToPort;
     std::uint32_t mptcpRemoteToken;
     std::chrono::steady_clock::time_point lastUsed;
     scion::PathPtr path;
@@ -486,10 +495,13 @@ public:
         auto& style = ImGui::GetStyle();
         style.Colors[ImGuiCol_Button] = ImVec4(0.25f, 0.25f, 0.25f, 1.0f);
 
+        static std::array<const char*, 3> mode = {"", " (Gateway)", " (NAT)"};
+        title = std::format("Scitra-TUN{} {}", mode.at((int)scitra.getMode()), VERSION);
+
         auto i = std::back_inserter(staticPorts);
         std::format_to(i, "Ports:");
-        for (auto port : scitra.getStaticPorts())
-            std::format_to(i, " {}", port);
+        for (auto fwd : scitra.getForwardedPorts())
+            std::format_to(i, " {}", fwd.port());
     }
 
     ScitraTui(const ScitraTui&) = delete;
@@ -554,6 +566,7 @@ private:
     Clock::time_point lastUpdate;
 
     // Static information
+    std::string title;
     std::string staticPorts;
 
     // Flows
@@ -680,9 +693,8 @@ void ScitraTui::drawFrame(const ImVec2& window)
     // Title
     auto drawList = ImGui::GetWindowDrawList();
     drawList->AddRectFilled(ImVec2(0, 0), ImVec2(window.x + 1, 0), IM_COL32(66, 150, 250, 79));
-    const char* title = "Scitra-TUN";
-    ImGui::SetCursorPosX(0.5f * (window.x - ImGui::CalcTextSize(title).x));
-    ImGui::TextColored(ImVec4(1.0f, 1.0f, 1.0f, 1.0f), "%s", title);
+    ImGui::SetCursorPosX(0.5f * (window.x - ImGui::CalcTextSize(title.c_str()).x));
+    ImGui::TextColored(ImVec4(1.0f, 1.0f, 1.0f, 1.0f), "%s", title.c_str());
     ImGui::SameLine();
     ImGui::SetCursorPosX(window.x - 10);
     ImGui::TextColored(ImVec4(1.0f, 1.0f, 1.0f, 1.0f), "%4.1f fps", ImGui::GetIO().Framerate);
@@ -693,7 +705,11 @@ void ScitraTui::drawFrame(const ImVec2& window)
     ImGuiText(addr);
     ImGui::SameLine();
     ImGui::SetCursorPosX((float)std::max<std::size_t>(addr.size() + 1, 45));
-    ImGuiText(std::format("Mapped : {}", scitra.getMappedAddress()));
+    if (auto prefixLen = scitra.getMappedPrefixLength(); prefixLen == 128) {
+        ImGuiText(std::format("Mapped : {}", scitra.getMappedAddress()));
+    } else {
+        ImGuiText(std::format("Mapped : {}/{}", scitra.getMappedAddress(), prefixLen));
+    }
 
     // Status line 2
     ImGui::Text("Flows: %3u UDP %3u TCP %3u other", udpFlows, tcpFlows, otherFlows);
@@ -1094,16 +1110,25 @@ void ScitraTui::propertyWindow(const ImVec2& tabSize)
                 {
                     ImGui::TableNextRow(ImGuiTableRowFlags_None, 1.0f);
                     ImGui::TableNextColumn();
-                    ImGui::Text("Bound To");
+                    ImGui::Text("Internal IP");
                     ImGui::TableNextColumn();
-                    auto str = std::format("{}", flow->boundTo.host());
+                    auto str = std::format("{}", flow->boundToTun);
                     if (str.size() > propertyWidth) str = wrapScAddress(str, propertyWidth);
                     ImGuiText(str);
+
+                    ImGui::TableNextRow(ImGuiTableRowFlags_None, 1.0f);
+                    ImGui::TableNextColumn();
+                    ImGui::Text("Underlay IP");
+                    ImGui::TableNextColumn();
+                    str = std::format("{}", flow->boundToPublic);
+                    if (str.size() > propertyWidth) str = wrapScAddress(str, propertyWidth);
+                    ImGuiText(str);
+
                     ImGui::TableNextRow(ImGuiTableRowFlags_None, 1.0f);
                     ImGui::TableNextColumn();
                     ImGui::Text("Bound Port");
                     ImGui::TableNextColumn();
-                    ImGui::Text("%u", (unsigned)flow->boundTo.port());
+                    ImGui::Text("%u", (unsigned)flow->boundToPort);
                 }
 
                 if (flow->flags[FlowInfo::Flags::Multipath]) {

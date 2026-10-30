@@ -81,7 +81,7 @@ public:
     {}
 
     IsdAsn isdAsn() const { return m_ia; }
-    LocalEp localEp() const { return m_ep; }
+    const LocalEp& localEp() const { return m_ep; }
     ScionAddr address() const { return ScionAddr(isdAsn(), host()); }
     HostAddr host() const { return EndpointTraits<LocalEp>::host(m_ep); }
     std::uint16_t port() const { return EndpointTraits<LocalEp>::port(m_ep); }

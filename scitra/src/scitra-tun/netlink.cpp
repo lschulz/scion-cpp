@@ -54,6 +54,76 @@ void NetlinkRoute::close()
     if (nl) mnl_socket_close(nl);
 }
 
+struct GetAddrData
+{
+    IPAddress addr;
+    unsigned int index = 0;
+};
+
+static int getAddrCb(const nlmsghdr* nlh, void* data) noexcept
+{
+    auto ctx = reinterpret_cast<GetAddrData*>(data);
+    auto ifa = (const ifaddrmsg*)mnl_nlmsg_get_payload(nlh);
+
+    // see mnl_attr_for_each
+    const nlattr* addr = nullptr;
+    auto attr = (const nlattr*)mnl_nlmsg_get_payload_offset(nlh, sizeof(ifaddrmsg));
+    while (mnl_attr_ok(attr, (int)((char*)mnl_nlmsg_get_payload_tail(nlh) - (char*)attr))) {
+        if (mnl_attr_get_type(attr) == IFA_ADDRESS) {
+            addr = attr;
+            break;
+        }
+        attr = mnl_attr_next(attr);
+    }
+    if (!addr) return MNL_CB_OK;
+
+    IPAddress ip;
+    const auto ptr = mnl_attr_get_payload(addr);
+    const auto len = mnl_attr_get_payload_len(addr);
+    if (ctx->addr.is4() && len == 4) {
+        ip = IPAddress::MakeIPv4(
+            std::span<const std::byte, 4>(static_cast<const std::byte*>(ptr), len));
+    } else if (len == 16) {
+        ip = IPAddress::MakeIPv6(
+            std::span<const std::byte, 16>(static_cast<const std::byte*>(ptr), len));
+    } else {
+        return MNL_CB_OK;
+    }
+
+    if (ctx->addr == ip) {
+        ctx->index = ifa->ifa_index;
+    }
+    return MNL_CB_OK;
+}
+
+Maybe<std::string> NetlinkRoute::findInterfaceByAddr(const IPAddress& addr)
+{
+    if (!nl) return Error(ScitraError::SocketClosed);
+    size_t bufsize = MNL_SOCKET_DUMP_SIZE;
+    auto buf = std::make_unique<char[]>(bufsize);
+
+    auto nlh = mnl_nlmsg_put_header(buf.get());
+    nlh->nlmsg_type = RTM_GETADDR;
+    nlh->nlmsg_flags = NLM_F_REQUEST | NLM_F_DUMP;
+    nlh->nlmsg_seq = seq++;
+
+    auto msg = (ifaddrmsg*)mnl_nlmsg_put_extra_header(nlh, sizeof(ifaddrmsg));
+    msg->ifa_family = addr.is4() ? AF_INET : AF_INET6;
+
+    GetAddrData ctx = {
+        .addr = addr,
+        .index = 0,
+    };
+    auto ec = executeAll(nlh, buf.get(), bufsize, nlh->nlmsg_seq, &getAddrCb, &ctx);
+    if (ec) return Error(ec);
+
+    char name[IF_NAMESIZE] = {};
+    // Could use RTM_GETLINK instead of if_indextoname
+    if (!ctx.index || !if_indextoname(ctx.index, name))
+        return Error(std::error_code(ESRCH, std::generic_category()));
+    return std::string(name);
+}
+
 std::error_code NetlinkRoute::setInterfaceState(const std::string& dev, bool up)
 {
     if (!nl) return ScitraError::SocketClosed;
@@ -71,7 +141,7 @@ std::error_code NetlinkRoute::setInterfaceState(const std::string& dev, bool up)
     if (!mnl_attr_put_strz_check(nlh, bufsize, IFLA_IFNAME, dev.c_str()))
         return ScitraError::LogicError;
 
-    return execute(nlh, buf.get(), bufsize, nlh->nlmsg_seq);
+    return executeOne(nlh, buf.get(), bufsize, nlh->nlmsg_seq);
 }
 
 Maybe<uint32_t> NetlinkRoute::getInterfaceMTU(const std::string& dev)
@@ -90,7 +160,7 @@ Maybe<uint32_t> NetlinkRoute::getInterfaceMTU(const std::string& dev)
     if (!mnl_attr_put_strz_check(nlh, bufsize, IFLA_IFNAME, dev.c_str()))
         return Error(ScitraError::LogicError);
 
-    if (auto ec = execute(nlh, buf.get(), bufsize, nlh->nlmsg_seq); ec) {
+    if (auto ec = executeOne(nlh, buf.get(), bufsize, nlh->nlmsg_seq); ec) {
         return Error(ec);
     }
 
@@ -98,7 +168,7 @@ Maybe<uint32_t> NetlinkRoute::getInterfaceMTU(const std::string& dev)
     if (mnl_nlmsg_ok(nlh, (int)bufsize) && nlh->nlmsg_type == RTM_NEWLINK) {
         if (mnl_nlmsg_get_payload_len(nlh) > sizeof(ifinfomsg)) {
             // see mnl_attr_for_each
-            auto attr = (nlattr*)mnl_nlmsg_get_payload_offset(nlh, sizeof(ifinfomsg));
+            auto attr = (const nlattr*)mnl_nlmsg_get_payload_offset(nlh, sizeof(ifinfomsg));
             while (mnl_attr_ok(attr, (int)((char*)mnl_nlmsg_get_payload_tail(nlh) - (char*)attr))) {
                 if (attr->nla_type == IFLA_MTU) {
                     return mnl_attr_get_u32(attr);
@@ -128,7 +198,7 @@ std::error_code NetlinkRoute::setInterfaceMTU(const std::string& dev, uint32_t m
     if (!mnl_attr_put_u32_check(nlh, bufsize, IFLA_MTU, mtu))
         return ScitraError::LogicError;
 
-    return execute(nlh, buf.get(), bufsize, nlh->nlmsg_seq);
+    return executeOne(nlh, buf.get(), bufsize, nlh->nlmsg_seq);
 }
 
 std::error_code NetlinkRoute::addRoute(
@@ -177,7 +247,7 @@ std::error_code NetlinkRoute::addRoute(
         }
     }
 
-    return execute(nlh, buf.get(), bufsize, nlh->nlmsg_seq);
+    return executeOne(nlh, buf.get(), bufsize, nlh->nlmsg_seq);
 }
 
 std::error_code NetlinkRoute::delRoute(
@@ -213,7 +283,7 @@ std::error_code NetlinkRoute::delRoute(
             return ScitraError::LogicError;
     }
 
-    return execute(nlh, buf.get(), bufsize, nlh->nlmsg_seq);
+    return executeOne(nlh, buf.get(), bufsize, nlh->nlmsg_seq);
 }
 
 std::error_code NetlinkRoute::addSourceRoutingRule(
@@ -246,7 +316,7 @@ std::error_code NetlinkRoute::addSourceRoutingRule(
             return ScitraError::LogicError;
     }
 
-    return execute(nlh, buf.get(), bufsize, nlh->nlmsg_seq);
+    return executeOne(nlh, buf.get(), bufsize, nlh->nlmsg_seq);
 }
 
 std::error_code NetlinkRoute::modAddress(
@@ -278,10 +348,10 @@ std::error_code NetlinkRoute::modAddress(
     }
     msg->ifa_index = iface;
 
-    return execute(nlh, buf.get(), bufsize, nlh->nlmsg_seq);
+    return executeOne(nlh, buf.get(), bufsize, nlh->nlmsg_seq);
 }
 
-std::error_code NetlinkRoute::execute(nlmsghdr* nlh, char* buf, size_t bufsize, unsigned int seq)
+std::error_code NetlinkRoute::executeOne(nlmsghdr* nlh, char* buf, size_t bufsize, unsigned int seq)
 {
     auto portid = mnl_socket_get_portid(nl);
     if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0) {
@@ -292,6 +362,26 @@ std::error_code NetlinkRoute::execute(nlmsghdr* nlh, char* buf, size_t bufsize, 
         return std::error_code(errno, std::generic_category());
     }
     if (mnl_cb_run(buf, numbytes, seq, portid, nullptr, nullptr) < 0) {
+        return std::error_code(errno, std::generic_category());
+    }
+    return ScitraError::Ok;
+}
+
+std::error_code NetlinkRoute::executeAll(
+    nlmsghdr* nlh, char* buf, size_t bufsize, unsigned int seq,
+    mnl_cb_t cb, void* data)
+{
+    auto portid = mnl_socket_get_portid(nl);
+    if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0) {
+        return std::error_code(errno, std::generic_category());
+    }
+    ssize_t numbytes = 0;
+    while ((numbytes = mnl_socket_recvfrom(nl, buf, bufsize)) > 0) {
+        auto ret = mnl_cb_run(buf, numbytes, seq, portid, cb, data);
+        if (ret == MNL_CB_STOP) break;
+        else if (ret < 0) return std::error_code(errno, std::generic_category());
+    }
+    if (numbytes < 0) {
         return std::error_code(errno, std::generic_category());
     }
     return ScitraError::Ok;

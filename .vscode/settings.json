@@ -158,6 +158,7 @@
         "drkey",
         "MPTCP",
         "mptcpd",
+        "netns",
         "pmtu",
         "recvmmsg",
         "sendmmsg",

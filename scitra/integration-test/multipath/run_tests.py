@@ -78,12 +78,12 @@ class ScitraMultipathBase:
     def setUp(self):
         self.scitra_inst0 = subprocess.Popen([
             "sudo", "ip", "netns", "exec", "host0",
-            self.scitra_tun, "veth0", "10.128.0.2", "--extra", "fd00::1", "fd00::2",
+            self.scitra_tun, "-a", "10.128.0.2", "-e", "fd00::1,fd00::2",
             "-d", "10.128.0.1:30255", "--scmp", "-l", "debug"
         ], stdout=PIPE, stderr=STDOUT)
         self.scitra_inst1 = subprocess.Popen([
             "sudo", "ip", "netns", "exec", "host1",
-            self.scitra_tun, "veth8", "10.128.4.2", "--extra", "fd00::1", "fd00::2",
+            self.scitra_tun, "-a", "10.128.4.2", "-e", "fd00::1,fd00::2",
             "-d", "10.128.4.1:30255", "--ports", "32000", "--scmp", "-l", "debug"
         ], stdout=PIPE, stderr=STDOUT)
         time.sleep(5)

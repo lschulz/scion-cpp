@@ -28,25 +28,39 @@
 #include <string>
 
 
+enum class Mode
+{
+    Normal,
+    Gateway,
+};
+
 struct Arguments
 {
-    std::string publicInterface;
+    Mode mode = Mode::Normal;
+    bool tui = false;
+    bool xlatUnderlay = false;
+
     std::string publicAddress;
+    std::string publicInterface;
+    std::string tunAddress;
+    std::string tunDevice = "scion";
     std::vector<std::string> extraAddresses;
     std::string sciond = "127.0.0.1:30255";
-    std::string tunDevice = "scion";
-    std::string tunAddress;
-    int underlayMtu = 0;
-    int tunMtu = 0;
-    std::vector<std::uint16_t> ports;
-    int queues = 1;
-    int threads = 1;
-    std::filesystem::path policy;
-    spdlog::level::level_enum logLevel = spdlog::level::warn;
-    std::filesystem::path logFile;
     bool enableScmpDispatch = false;
+    std::vector<std::string> ports;
+
+    int tunMtu = 0;
+    int underlayMtu = 0;
+
     bool stun = false;
     std::uint16_t stunPort = 3478;
     std::uint32_t stunTimeout = 30;
-    bool tui = false;
+
+    std::filesystem::path policy;
+
+    int queues = 1;
+    int threads = 1;
+
+    spdlog::level::level_enum logLevel = spdlog::level::warn;
+    std::filesystem::path logFile;
 };
