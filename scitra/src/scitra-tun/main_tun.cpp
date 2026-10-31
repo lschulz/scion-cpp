@@ -28,6 +28,7 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/sinks/stdout_sinks.h>
 
+#include <bsd/libutil.h>
 #include <sys/capability.h>
 
 #include <iostream>
@@ -85,6 +86,10 @@ static std::unique_ptr<Arguments> parseCommandLine(int argc, char* argv[])
     app.add_flag_function("--daemon", [](std::int64_t count) {
         if (count > 0) service::setRunningAsService();
     }, "Run as a systemd daemon.");
+    app.add_option("--pid", args->pidfile,
+        "File to which Scitra-TUN will write its PID. The file will be locked as long as"
+        " Scitra-TUN is running. Attempting to start a second instance of Scitra-TUN with"
+        " the same PID file will cause the second instance to exit immediately.");
     app.add_flag("--tui", args->tui, "Start with TUI");
 
     app.add_option("-m,--mode", args->mode,
@@ -142,6 +147,37 @@ static std::unique_ptr<Arguments> parseCommandLine(int argc, char* argv[])
         std::exit(app.exit(e));
     }
 }
+
+class PidFile
+{
+private:
+    struct PidFileDeleter {
+        void operator()(pidfh* pfh) const {
+            if (pfh) pidfile_remove(pfh);
+        }
+    };
+    std::unique_ptr<pidfh, PidFileDeleter> pfh;
+
+public:
+    PidFile() : pfh(nullptr, PidFileDeleter()) {}
+
+    PidFile(std::filesystem::path path)
+        : pfh(nullptr, PidFileDeleter())
+    {
+        pid_t other = 0;
+        pfh.reset(pidfile_open(path.c_str(), 0644, &other));
+        if (!pfh) {
+            if (errno == EEXIST) {
+                throw std::runtime_error(std::format(
+                    "already running with PID {}", other));
+            }
+            throw std::system_error(std::error_code(errno, std::system_category()));
+        }
+        if (pidfile_write(pfh.get())) {
+            throw std::system_error(std::error_code(errno, std::system_category()));
+        }
+    }
+};
 
 static void blockSignals()
 {
@@ -234,6 +270,17 @@ int main(int argc, char* argv[])
         std::cerr << "Log init failed: " << e.what() << std::endl;
     }
 
+    PidFile pid;
+    if (!args->pidfile.empty()) {
+        try {
+            pid = PidFile(args->pidfile);
+        }
+        catch (const std::exception& e) {
+            spdlog::critical(std::format("Error creating/opening PID file: {}", e.what()));
+            return EXIT_FAILURE;
+        }
+    }
+
     try {
         blockSignals();
         Socket::configureStun(args->stun, args->stunPort, args->stunTimeout);
@@ -241,7 +288,7 @@ int main(int argc, char* argv[])
         ScitraTun app(*args);
         bool tui = args->tui;
         if (dropCapabilities(args->mode == Mode::Gateway))
-            spdlog::error("dropping capabilities failed");
+            spdlog::error("Dropping capabilities failed");
         args.reset();
 
         app.run();
@@ -251,7 +298,7 @@ int main(int argc, char* argv[])
         service::setServiceStatus(service::Status::Stopped);
     }
     catch (const std::exception& e) {
-        spdlog::error(e.what());
+        spdlog::critical(e.what());
         std::cerr << e.what() << std::endl;
         return EXIT_FAILURE;
     }

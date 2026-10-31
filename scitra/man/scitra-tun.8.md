@@ -117,6 +117,11 @@ assign SCION-mapped IPv6 addresses to SCION hosts.
     initialization has been completed as required for services of type "notify".
     See systemd.service(5).
 
+`--pid` _file_ File to which Scitra-TUN will write its PID. The file will be locked as long as
+    Scitra-TUN is running. Attempting to start a second instance of Scitra-TUN with the same PID
+    file will cause the second instance to exit immediately. The recommended location of the PID
+    file is `/var/lib/scion/scitra-tun.pid`.
+
 `--tui` Start with text/terminal user interface. If the TUI is enabled, log output should be
     redirected to a file (see -l, --log-file).
 

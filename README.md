@@ -137,6 +137,7 @@ For scitra-tun (Linux only):
 - libmnl >= 1.0.5
 - libcap >= 3.1.3
 - libsystemd-dev >= 255.4
+- libbsd-dev >= 0.12.1
 - [ImTui](https://github.com/ggerganov/imtui) (included as submodule)
 - [spdlog](https://github.com/gabime/spdlog) (included as submodule)
 
@@ -158,6 +159,7 @@ sudo apt-get install \
   cmake \
   libboost-dev \
   libboost-json-dev \
+  libbsd-dev \
   libc-ares-dev \
   libcap-dev \
   libgrpc++-dev \

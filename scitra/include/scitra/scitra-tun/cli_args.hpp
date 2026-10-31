@@ -57,6 +57,7 @@ struct Arguments
     std::uint32_t stunTimeout = 30;
 
     std::filesystem::path policy;
+    std::filesystem::path pidfile;
 
     int queues = 1;
     int threads = 1;

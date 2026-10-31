@@ -9,6 +9,7 @@ find_package(PkgConfig)
 pkg_check_modules(libcap REQUIRED IMPORTED_TARGET libcap)
 pkg_check_modules(libpsx REQUIRED IMPORTED_TARGET libpsx)
 pkg_check_modules(libsystemd REQUIRED IMPORTED_TARGET libsystemd)
+pkg_check_modules(libbsd REQUIRED IMPORTED_TARGET libbsd)
 
 configure_file("src/scitra-tun/version.cpp.in" "version.cpp")
 
@@ -41,6 +42,7 @@ target_link_libraries(scitra-tun PRIVATE
     PkgConfig::libcap
     PkgConfig::libpsx
     PkgConfig::libsystemd
+    PkgConfig::libbsd
 )
 target_compile_definitions(scitra-tun PRIVATE
     SCION_NO_DEBUG=1
