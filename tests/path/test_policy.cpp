@@ -175,7 +175,7 @@ TEST(PathPolicy, PolicySet)
     std::vector<PathPtr> paths;
     for (auto&& buf : loadPackets("path/data/paths.bin")) {
         proto::daemon::v1::Path pb;
-        pb.ParseFromArray(buf.data(), (int)(buf.size()));
+        ASSERT_TRUE(pb.ParseFromArray(buf.data(), (int)(buf.size())));
         auto flags = daemon::PathReqFlags::AllMetadata;
         auto res = daemon::details::pathFromProtobuf(src, dst, pb, flags);
         ASSERT_TRUE(res.has_value()) << getError(res);
@@ -235,7 +235,7 @@ TEST(PathPolicy, EmptyPolicySet)
     std::vector<PathPtr> paths;
     for (auto&& buf : loadPackets("path/data/paths.bin")) {
         proto::daemon::v1::Path pb;
-        pb.ParseFromArray(buf.data(), (int)(buf.size()));
+        ASSERT_TRUE(pb.ParseFromArray(buf.data(), (int)(buf.size())));
         auto flags = daemon::PathReqFlags::AllMetadata;
         auto res = daemon::details::pathFromProtobuf(src, dst, pb, flags);
         ASSERT_TRUE(res.has_value()) << getError(res);

@@ -135,9 +135,9 @@ test .............. scion++ and scionc unit tests
 
 For scitra-tun (Linux only):
 - libmnl >= 1.0.5
-- libcap >= 3.1.3
-- libsystemd-dev >= 255.4
-- libbsd-dev >= 0.12.1
+- libcap >= 2.66
+- libsystemd >= 255.4
+- libbsd >= 0.12.1
 - [ImTui](https://github.com/ggerganov/imtui) (included as submodule)
 - [spdlog](https://github.com/gabime/spdlog) (included as submodule)
 
@@ -145,12 +145,16 @@ For interposer (Linux only):
 - [re2](https://github.com/google/re2)
 - [toml++](https://marzer.github.io/tomlplusplus/)
 
-Most dependencies can be built and installed with vcpkg:
+Most dependencies can be downloaded and built with vcpkg:
 ```bash
 vcpkg install
 ```
-In Linux, `libmnl`, `libcap`, and `libsystemd-dev` must be installed using the system's package
-manager.
+In Linux, `libmnl` and `libbsd` must be installed using the system's package manager.
+Additionally, vcpkg currently requires `autoconf`, `autoconf-archive`, `automake`, and `libtoolize`
+from the system package manager.
+```bash
+sudo apt-get install libmnl-dev libbsd-dev install autoconf autoconf-archive automake libtool
+```
 
 All required build tools and dependencies can also be installed with apt (Ubuntu 24.04).
 ```bash
@@ -191,12 +195,18 @@ cmake --build build --config Debug
 cmake --build build --config Release
 ```
 
-CMake preset for Windows:
+The repository provides CMake presets for compiling with vcpkg. Dependencies (except the
+system-level dependencies) are downloaded and built by vcpkg.
 ```bash
-cmake --preset=vcpkg-vs-18 # or vcpkg-vs-17 for Visual Studio 2022
+cmake --preset=<preset>
 cmake --build build --config Debug
 cmake --build build --config Release
 ```
+Available presets:
+- `vcpkg-linux-gcc` compile on Linux with GCC
+- `vcpkg-linux-clang` compile on Linux with Clang
+- `vcpkg-vs-17` for Visual Studio 17 2022
+- `vcpkg-vs-18` for Visual Studio 19 2026
 
 ### Installation ###
 ```bash

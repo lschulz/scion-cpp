@@ -49,6 +49,16 @@
       "platform": "!windows"
     },
     {
+      "name": "libcap",
+      "version>=": "2.69",
+      "platform": "linux"
+    },
+    {
+      "name": "libsystemd",
+      "version>=": "256.2",
+      "platform": "linux"
+    },
+    {
       "name": "vcpkg-cmake",
       "host": true
     },

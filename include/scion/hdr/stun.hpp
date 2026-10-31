@@ -223,8 +223,6 @@ public:
     std::optional<StunXorMappedAddress> mapped;
     std::optional<StunFingerprint> fingerprint;
 
-    bool operator==(const STUN&) const = default;
-
     std::size_t size() const
     {
         auto size = stunHeaderSize;

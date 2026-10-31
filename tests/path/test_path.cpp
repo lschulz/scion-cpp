@@ -40,7 +40,7 @@ TEST(Path, LoadProtobuf)
     PathPtr path;
     {
         auto buf = loadPackets("path/data/path_metadata_3hops.bin").at(0);
-        pb.ParseFromArray(buf.data(), (int)(buf.size()));
+        ASSERT_TRUE(pb.ParseFromArray(buf.data(), (int)(buf.size())));
         auto flags = daemon::PathReqFlags::AllMetadata;
         auto res = daemon::details::pathFromProtobuf(src, dst, pb, flags);
         ASSERT_TRUE(res.has_value()) << getError(res);
@@ -142,7 +142,7 @@ TEST(Path, LoadInvalidProtobuf)
 
     auto buf = loadPackets("path/data/path_metadata_invalid.bin").at(0);
     proto::daemon::v1::Path pb;
-    pb.ParseFromArray(buf.data(), (int)(buf.size()));
+    ASSERT_TRUE(pb.ParseFromArray(buf.data(), (int)(buf.size())));
     auto res = daemon::details::pathFromProtobuf(src, dst, pb, NoFlags);
     ASSERT_TRUE(isError(res));
     ASSERT_EQ(getError(res), ErrorCode::SyntaxError);
@@ -187,7 +187,7 @@ protected:
         src = IsdAsn(Isd(1), Asn(0xff00'0000'0111));
         dst = IsdAsn(Isd(2), Asn(0xff00'0000'0222));
         auto buf = loadPackets("path/data/path_metadata_3hops.bin").at(0);
-        pb.ParseFromArray(buf.data(), (int)(buf.size()));
+        ASSERT_TRUE(pb.ParseFromArray(buf.data(), (int)(buf.size())));
         auto flags = daemon::PathReqFlags::Interfaces;
         path = daemon::details::pathFromProtobuf(src, dst, pb, flags).value();
         path2 = daemon::details::pathFromProtobuf(src, dst, pb, NoFlags).value();

@@ -5,11 +5,10 @@ cmake_minimum_required(VERSION 3.28)
 # ============
 
 find_package(re2 CONFIG)
-
 if (re2_FOUND)
     set(RE2 re2::re2)
 else()
-    find_package(PkgConfig)
+    find_package(PkgConfig REQUIRED)
     pkg_check_modules(re2 REQUIRED IMPORTED_TARGET re2)
     set(RE2 PkgConfig::re2)
 endif()

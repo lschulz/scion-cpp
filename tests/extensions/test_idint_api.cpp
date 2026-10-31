@@ -163,7 +163,7 @@ TEST_F(IdIntApiFixture, EncodeRequest)
 
     std::vector<std::byte> buffer(512);
     WriteStream stream(buffer);
-    StreamError err;
+    SCION_STREAM_ERROR err;
     ASSERT_TRUE(extHdr.serialize(stream, err)) << err;
     ASSERT_TRUE(ext.write(stream, offset, err)) << err;
 
@@ -182,7 +182,7 @@ TEST_F(IdIntApiFixture, RecoverRequest)
     IdInt ext;
 
     ReadStream stream(rawRequest);
-    StreamError err;
+    SCION_STREAM_ERROR err;
     ASSERT_TRUE(extHdr.serialize(stream, err)) << err;
     ASSERT_TRUE(ext.parse(stream, err)) << err;
 
@@ -314,7 +314,7 @@ TEST_F(IdIntApiFixture, DecodeUnverified)
     IdInt ext;
 
     ReadStream stream(rawReports.at(0));
-    StreamError err;
+    SCION_STREAM_ERROR err;
     ASSERT_TRUE(extHdr.serialize(stream, err)) << err;
     ASSERT_TRUE(ext.parse(stream, err)) << err;
 
@@ -344,7 +344,7 @@ TEST_F(IdIntApiFixture, DecodeVerified)
     IdInt ext;
 
     ReadStream stream(rawReports.at(0));
-    StreamError err;
+    SCION_STREAM_ERROR err;
     ASSERT_TRUE(extHdr.serialize(stream, err)) << err;
     ASSERT_TRUE(ext.parse(stream, err)) << err;
 
@@ -422,7 +422,7 @@ TEST_F(IdIntApiFixture, DecodeEncrypted)
     IdInt ext;
 
     ReadStream stream(rawReports.at(1));
-    StreamError err;
+    SCION_STREAM_ERROR err;
     ASSERT_TRUE(extHdr.serialize(stream, err)) << err;
     ASSERT_TRUE(ext.parse(stream, err)) << err;
 

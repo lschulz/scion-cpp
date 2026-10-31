@@ -341,6 +341,7 @@ private:
                     "Error trying to respond to {}: {}\n", from, fmtError(ec));
             }
         }
+        co_return ErrorCode::Ok;
     };
 
     std::error_code respond(
@@ -787,7 +788,7 @@ private:
         if (fwd.stackFull) {
             out << "Response truncated due to stack limit\n";
         }
-        auto hopToASFwd = [&, this, hopToIf = idint::hopFieldToInterfaceIdx(decoded)
+        auto hopToASFwd = [&, hopToIf = idint::hopFieldToInterfaceIdx(decoded)
         ] (std::uint8_t hop) {
             if (auto i = hopToIf(hop); i < metaIf->data.size()) {
                 return metaIf->data[i].isdAsn;
@@ -800,7 +801,7 @@ private:
         if (fwd.stackFull) {
             out << "Response truncated due to stack limit\n";
         }
-        auto hopToASRev = [&, this, hopToIf = idint::hopFieldToInterfaceIdx(decoded, true)
+        auto hopToASRev = [&, hopToIf = idint::hopFieldToInterfaceIdx(decoded, true)
         ] (std::uint8_t hop) {
             const auto n = metaIf->data.size();
             if (auto i = hopToIf(hop); i < n) {

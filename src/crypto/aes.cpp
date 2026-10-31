@@ -124,7 +124,7 @@ std::error_code aesCtrModeAESNI(
     const __m128i inc = _mm_set_epi64x(1ll << 56, 0);
     alignas(16) uint8_t counter[16] = {};
     std::memcpy(counter, nonce.data(), nonce.size());
-    __m128i state1 = _mm_load_si128(reinterpret_cast<const __m128i_u*>(counter));
+    __m128i state1 = _mm_load_si128(reinterpret_cast<const __m128i*>(counter));
     __m128i state2 = _mm_add_epi32(state1, inc);
     __m128i state3 = _mm_add_epi32(state2, inc);
     __m128i state4 = _mm_add_epi32(state3, inc);

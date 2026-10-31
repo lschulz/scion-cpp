@@ -22,6 +22,7 @@
 
 #include "scion/path/cache.hpp"
 
+#include <mutex>
 #include <shared_mutex>
 
 

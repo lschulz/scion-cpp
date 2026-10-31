@@ -50,6 +50,12 @@ class NullStreamErrorT
 public:
     bool error(const char* msg) { return false; }
     bool propagate() { return false; }
+
+    friend std::ostream& operator<<(std::ostream& stream, const NullStreamErrorT& e)
+    {
+        stream << "stream error";
+        return stream;
+    }
 };
 
 extern NullStreamErrorT NullStreamError;
@@ -131,6 +137,20 @@ struct std::formatter<scion::StreamError::TraceEntry>
     {
         return std::format_to(ctx.out(), "{} ({}): {}",
             e.loc.file_name(), e.loc.line(), e.loc.function_name());
+    }
+};
+
+template <>
+struct std::formatter<scion::NullStreamErrorT>
+{
+    constexpr auto parse(auto& ctx)
+    {
+        return ctx.begin();
+    }
+
+    auto format(const scion::NullStreamErrorT& e, auto& ctx) const
+    {
+        return std::format_to(ctx.out(), "stream error");
     }
 };
 

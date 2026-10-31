@@ -180,7 +180,6 @@ public:
             return buffer.error();
         }
 
-        boost::system::error_code ec;
         auto n = ::write(*m_queue, buffer->data(), buffer->size());
         if (n < 0) return std::error_code(errno, std::system_category());
         if ((std::size_t)n < buffer->size()) return ScitraError::PartialWrite;

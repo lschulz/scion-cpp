@@ -20,15 +20,21 @@
             }
         },
         {
-            "name": "linux-gcc",
-            "displayName": "GCC 13.3.0 x86_64-linux-gnu",
-            "description": "Using compilers: C = /usr/bin/gcc, CXX = /usr/bin/g++",
+            "name": "vcpkg-linux-gcc",
             "generator": "Ninja Multi-Config",
             "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/${presetName}",
-                "CMAKE_C_COMPILER": "/usr/bin/gcc",
-                "CMAKE_CXX_COMPILER": "/usr/bin/g++"
+                "CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/linux-gcc.cmake"
+            }
+        },
+        {
+            "name": "vcpkg-linux-clang",
+            "generator": "Ninja Multi-Config",
+            "binaryDir": "${sourceDir}/build",
+            "cacheVariables": {
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/${presetName}",
+                "CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/linux-clang.cmake"
             }
         }
     ]

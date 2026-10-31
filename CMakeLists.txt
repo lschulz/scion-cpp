@@ -30,7 +30,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     add_compile_options(/W3 /wd4146)
     add_compile_options(/arch:AVX2)
 else()
-    add_compile_options(-Wall -Wextra -Wpedantic -Wconversion -Wno-unused-parameter)
+    add_compile_options(-Wall -Wextra -Wpedantic -Wno-unused-parameter)
     set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 if(MARCH)
     add_compile_options(-march=${MARCH})
@@ -77,48 +77,41 @@ find_package(Boost CONFIG REQUIRED COMPONENTS json)
 # Protobuf, gRPC
 # ==============
 
-find_package(protobuf CONFIG)
-
-# Assume protobuf has been found even if Protobuf_FOUND is false when building
-# on Windows. FindProtobuf.cmake sets Protobuf_FOUND to false even if protobuf
-# works.
-if(Protobuf_FOUND OR WIN32)
-
+find_package(Protobuf CONFIG)
+if(Protobuf_FOUND)
     set(GRPC_LIBS protobuf::libprotobuf)
 
 else()
-
-    find_package(PkgConfig)
+    find_package(PkgConfig REQUIRED)
     pkg_check_modules(protobuf REQUIRED IMPORTED_TARGET protobuf)
 
-    add_Executable(protobuf::protoc IMPORTED)
-    find_program(PROTOC_EXECUTABLE protoc)
-    set_target_properties(protobuf::protoc PROPERTIES
-        IMPORTED_LOCATION "${PROTOC_EXECUTABLE}")
+    if(NOT TARGET protobuf::protoc)
+        find_program(PROTOC_EXECUTABLE protoc REQUIRED)
+        add_executable(protobuf::protoc IMPORTED)
+        set_target_properties(protobuf::protoc PROPERTIES
+            IMPORTED_LOCATION "${PROTOC_EXECUTABLE}")
+    endif()
 
     set(GRPC_LIBS PkgConfig::protobuf)
-
 endif()
 
-find_package(grpc CONFIG)
-
+find_package(gRPC CONFIG)
 if(gRPC_FOUND)
-
     list(APPEND GRPC_LIBS gRPC::grpc gRPC::grpc++)
 
 else()
-
-    find_package(PkgConfig)
-    pkg_check_modules(grpc++ REQUIRED IMPORTED_TARGET grpc++)
+    find_package(PkgConfig REQUIRED)
     pkg_check_modules(grpc REQUIRED IMPORTED_TARGET grpc)
+    pkg_check_modules(grpc++ REQUIRED IMPORTED_TARGET grpc++)
 
-    add_executable(gRPC::grpc_cpp_plugin IMPORTED)
-    find_program(GRPC_CPP_PLUGIN_EXECUTABLE grpc_cpp_plugin)
-    set_target_properties(gRPC::grpc_cpp_plugin PROPERTIES
-        IMPORTED_LOCATION "${GRPC_CPP_PLUGIN_EXECUTABLE}")
+    if(NOT TARGET gRPC::grpc_cpp_plugin)
+        find_program(GRPC_CPP_PLUGIN_EXECUTABLE grpc_cpp_plugin REQUIRED)
+        add_executable(gRPC::grpc_cpp_plugin IMPORTED)
+        set_target_properties(gRPC::grpc_cpp_plugin PROPERTIES
+            IMPORTED_LOCATION "${GRPC_CPP_PLUGIN_EXECUTABLE}")
+    endif()
 
     list(APPEND GRPC_LIBS PkgConfig::grpc PkgConfig::grpc++)
-
 endif()
 
 # =========
@@ -155,8 +148,13 @@ target_compile_options(imtui-ncurses PRIVATE
 target_compile_options(imgui-for-imtui PRIVATE
     -Wno-unused-variable
     -Wno-deprecated-enum-enum-conversion
+    -Wno-nontrivial-memcall
     -Wno-conversion
 )
+# Silence warnings from included headers
+set_target_properties(imtui PROPERTIES SYSTEM ON)
+set_target_properties(imtui-ncurses PROPERTIES SYSTEM ON)
+set_target_properties(imgui-for-imtui PROPERTIES SYSTEM ON)
 endif(LINUX)
 
 # ======
@@ -288,6 +286,12 @@ asio_grpc_protobuf_generate(
     OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated/scion"
     PROTOS "${PROTO_SRC}"
 )
+
+# Silence warning from generated header files
+set_target_properties(scion-proto PROPERTIES SYSTEM ON)
+
+# Silence warnings from compiling generated source files
+target_compile_options(scion-proto PRIVATE -w)
 
 # ============
 # Main Library

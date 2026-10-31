@@ -564,7 +564,7 @@ protected:
         auto src = IsdAsn(Isd(1), Asn(0xff00'0000'0111));
         auto dst = IsdAsn(Isd(2), Asn(0xff00'0000'0222));
         auto buf = loadPackets("path/data/path_metadata_3hops.bin").at(0);
-        pb.ParseFromArray(buf.data(), (int)(buf.size()));
+        ASSERT_TRUE(pb.ParseFromArray(buf.data(), (int)(buf.size())));
         auto flags = daemon::PathReqFlags::Interfaces;
         ppath = daemon::details::pathFromProtobuf(src, dst, pb, flags).value();
         path = reinterpret_cast<scion_path*>(ppath.get());
