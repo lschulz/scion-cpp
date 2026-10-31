@@ -69,7 +69,11 @@ def tearDownNetwork(args):
     subprocess.run([str(base_path / "stop_scion.sh")],
         env={"SCION_ROOT": args.scion, **os.environ}, check=True)
     print("Remove links and namespaces")
-    subprocess.run(["sudo", str(base_path / "teardown.sh")], check=True)
+    res = subprocess.run(["sudo", str(base_path / "teardown.sh")], stdout=PIPE, stderr=STDOUT)
+    if res.returncode != 0:
+        print("Error during teardown")
+        print(res.stdout.decode(), end="")
+        print("End of error messages")
 
 
 class GatewayTestBase(unittest.TestCase):

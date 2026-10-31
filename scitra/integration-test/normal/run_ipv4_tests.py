@@ -65,8 +65,12 @@ def tearDownNetwork(args):
     subprocess.run([str(Path(__file__).with_name("stop_scion.sh"))],
         env={"SCION_ROOT": args.scion, **os.environ}, check=True)
     print("Remove links and namespaces")
-    subprocess.run(["sudo", str(Path(__file__).with_name("teardown.sh"))], check=True)
-
+    res = subprocess.run(["sudo", str(Path(__file__).with_name("teardown.sh"))],
+        stdout=PIPE, stderr=STDOUT)
+    if res.returncode != 0:
+        print("Error during teardown")
+        print(res.stdout.decode(), end="")
+        print("End of error messages")
 
 class ScitraBase:
     """Base for tests that require Scitra-TUN to be running"""
