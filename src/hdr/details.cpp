@@ -105,6 +105,31 @@ std::uint16_t onesComplementChecksumAVX(std::span<const std::byte> buffer, std::
 }
 #endif // __AVX2__
 
+static constexpr auto precomputeCrcTable()
+{
+    std::array<std::uint32_t, 256> table;
+    for (std::size_t n = 0; n < table.size(); ++n) {
+        auto c = (std::uint32_t)n;
+        for (int k = 0; k < 8; ++k) {
+            if (c & 1) c = 0xedb88320 ^ (c >> 1);
+            else c = c >> 1;
+        }
+        table[n] = c;
+    }
+    return table;
+}
+
+std::uint32_t CRC32(std::span<const std::byte> data)
+{
+    // Implementation taken from Section 8 of RFC 1952.
+    static constexpr std::array<std::uint32_t, 256> table = precomputeCrcTable();
+    std::uint32_t crc = 0xffffffff;
+    for (std::byte d : data) {
+        crc = table[(crc ^ (std::uint8_t)d) & 0xff] ^ (crc >> 8);
+    }
+    return crc ^ 0xffffffff;
+}
+
 } // namespace details
 } // namespace hdr
 } // namespace scion

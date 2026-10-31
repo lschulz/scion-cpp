@@ -1,10 +1,9 @@
-import struct
 from pathlib import Path
-from socket import AF_INET6
-from scapy.utils import inet_aton, inet_pton
-from scapy.contrib.stun import STUN, STUNGenericTlv, MAGIC_COOKIE
+from scapy.libs.crc import CRC_32
+from scapy.contrib.stun import STUN, STUNMappedAddress, STUNXorMappedAddress, STUNFingerprint
 from tests import write_packets
 
+FINGERPRINT_MAGIC = 0x5354554e
 
 request = STUN(
     stun_message_type = "Binding request",
@@ -12,47 +11,67 @@ request = STUN(
     attributes = []
 )
 
+request_fp = STUN(
+    stun_message_type = "Binding request",
+    transaction_id = 0x1234_5678_9abc_def0_ffff_0000,
+    attributes = [STUNFingerprint()]
+)
+request_fp.attributes[-1].crc_32 = CRC_32(bytes(request_fp)[:-8]) ^ FINGERPRINT_MAGIC
+
+request_wrong_fp = STUN(
+    stun_message_type = "Binding request",
+    transaction_id = 0x1234_5678_9abc_def0_ffff_0000,
+    attributes = [STUNFingerprint()]
+)
+
 response_ipv4 = STUN(
     stun_message_type = "Binding success response",
     transaction_id = 0x1234_5678_9abc_def0_ffff_0000,
     attributes = [
-        STUNGenericTlv(
-            type = 0x0001,
-            value = struct.pack("!xBHI", 1,
-                53794,
-                int.from_bytes(inet_aton("192.0.2.1"))
-            )
+        STUNMappedAddress(
+            port = 53794,
+            ip = "192.0.2.1"
         ),
-        STUNGenericTlv(
-            type = 0x0020,
-            value = struct.pack("!xBHI", 1,
-                53794 ^ (MAGIC_COOKIE >> 16),
-                int.from_bytes(inet_aton("192.0.2.1")) ^ MAGIC_COOKIE
-            )
+        STUNXorMappedAddress(
+            xport = 53794,
+            xip = "192.0.2.1"
         )
     ]
 )
+
+response_ipv4_fp = STUN(
+    stun_message_type = "Binding success response",
+    transaction_id = 0x1234_5678_9abc_def0_ffff_0000,
+    attributes = [
+        STUNMappedAddress(
+            port = 53794,
+            ip = "192.0.2.1"
+        ),
+        STUNXorMappedAddress(
+            xport = 53794,
+            xip = "192.0.2.1"
+        ),
+        STUNFingerprint()
+    ]
+)
+response_ipv4_fp.attributes[-1].crc_32 = CRC_32(bytes(response_ipv4_fp)[:-8]) ^ FINGERPRINT_MAGIC
 
 response_ipv6 = STUN(
     stun_message_type = "Binding success response",
     transaction_id = 0x1234_5678_9abc_def0_ffff_0000,
     attributes = [
-        STUNGenericTlv(
-            type = 0x0001,
-            value = struct.pack("!xBH16s", 2,
-                53794,
-                inet_pton(AF_INET6, "2001:db8::1")
-            )
+        STUNMappedAddress(
+            address_family = 2,
+            port = 53794,
+            ip = "2001:db8::1"
         ),
-        STUNGenericTlv(
-            type = 0x0020,
-            value = struct.pack("!xBH16s", 2,
-                53794 ^ (MAGIC_COOKIE >> 16),
-                (int.from_bytes(inet_pton(AF_INET6, "2001:db8::1"))
-                    ^ (MAGIC_COOKIE << 96 | 0x1234_5678_9abc_def0_ffff_0000)).to_bytes(16, 'big')
-            )
+        STUNXorMappedAddress(
+            address_family = 2,
+            xport = 53794,
+            xip = "2001:db8::1"
         )
     ]
 )
 
-write_packets([request, response_ipv4, response_ipv6], Path(__file__).with_suffix(".bin"))
+pkts = [request, request_fp, request_wrong_fp, response_ipv4, response_ipv4_fp, response_ipv6]
+write_packets(pkts, Path(__file__).with_suffix(".bin"))

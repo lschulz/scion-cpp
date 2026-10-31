@@ -252,9 +252,7 @@ int runClient(
     auto underlayDst = toUnderlay<Socket::UnderlayEp>(nextHop);
 
     if (args.stun) {
-        auto stunServer = toUnderlay<Socket::UnderlayEp>(
-            generic::IPEndpoint(nextHop.host(), 3478));
-        if (auto mapped = getStunMapping(s, stunServer, 100ms); mapped) {
+        if (auto mapped = getStunMapping(s, underlayDst, 100ms); mapped) {
             std::cerr << "SNAT mapped address: " << mapped->localEp() << '\n';
         } else {
             std::cerr << "Can't get SNAT address mapping: " << fmtError(mapped.error()) << '\n';

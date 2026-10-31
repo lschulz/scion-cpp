@@ -231,14 +231,7 @@ cleanup1:
 void get_stun_mapping(scion_socket* socket, const struct sockaddr* next_hop, socklen_t next_hop_len)
 {
     scion_error err;
-    struct sockaddr_storage stun_server;
-    memcpy(&stun_server, next_hop, next_hop_len);
-    if (stun_server.ss_family == AF_INET)
-        ((struct sockaddr_in*)&stun_server)->sin_port = htons(3478);
-    else if (stun_server.ss_family == AF_INET6)
-        ((struct sockaddr_in6*)&stun_server)->sin6_port = htons(3478);
-
-    err = scion_request_stun_mapping(socket, (struct sockaddr*)&stun_server, next_hop_len);
+    err = scion_request_stun_mapping(socket, (struct sockaddr*)next_hop, next_hop_len);
     if (err) {
         printf("Sending STUN request failed\n");
         return;

@@ -269,8 +269,7 @@ int runClient(
         auto nextHop = toUnderlay<Socket::UnderlayEp>(path->nextHop(remote->localEp()));
 
         if (args.stun) {
-            boost::asio::ip::udp::endpoint server(nextHop.address(), 3478);
-            auto mapped = co_await getStunMapping(s, server, 100ms);
+            auto mapped = co_await getStunMapping(s, nextHop, 100ms);
             if (mapped) {
                 std::cerr << "SNAT mapped address: " << mapped->localEp() << '\n';
             } else {

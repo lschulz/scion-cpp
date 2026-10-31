@@ -231,7 +231,7 @@ public:
     /// recv* methods to expect a STUN response.
     std::error_code requestStunMapping(const UnderlayEp& router)
     {
-        std::array<std::byte, 20> buffer;
+        std::array<std::byte, 28> buffer;
         std::span<std::byte> span(buffer.data(), buffer.size());
         auto server = generic::toGenericAddr(EndpointTraits<UnderlayEp>::host(router));
         auto ec = packager.createStunRequest(span, server);

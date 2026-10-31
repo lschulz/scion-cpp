@@ -234,7 +234,7 @@ public:
     /// recv* methods to expect a STUN response.
     std::error_code requestStunMapping(const UnderlayEp& router)
     {
-        std::array<std::byte, 20> buffer;
+        std::array<std::byte, 28> buffer;
         std::span<std::byte> span(buffer.data(), buffer.size());
         auto server = generic::toGenericAddr(EndpointTraits<UnderlayEp>::host(router));
         auto ec = packager.createStunRequest(span, server);
@@ -299,7 +299,7 @@ public:
             struct intermediate_completion_handler
             {
                 UnderlaySocket& socket_;
-                std::unique_ptr<std::array<std::byte, 20>> buf_;
+                std::unique_ptr<std::array<std::byte, 28>> buf_;
                 typename std::decay<decltype(completionHandler)>::type handler_;
 
                 void operator()(const boost::system::error_code& error, std::size_t sent)
@@ -337,9 +337,9 @@ public:
                 }
             };
 
-            auto buf = std::make_unique<std::array<std::byte, 20>>();
+            auto buf = std::make_unique<std::array<std::byte, 28>>();
             auto ec = packager.createStunRequest(
-                std::span<std::byte, 20>(buf->data(), buf->size()),
+                std::span<std::byte, 28>(buf->data(), buf->size()),
                 generic::toGenericAddr(EndpointTraits<UnderlayEp>::host(router)));
             if (ec) {
                 auto executor = boost::asio::get_associated_executor(

@@ -223,6 +223,7 @@ public:
     {
         hdr::STUN stun;
         stun.type = hdr::StunMsgType::BindingRequest;
+        stun.fingerprint = hdr::StunFingerprint(); // scionproto SCION expects a fingerprint
 
         // Pick a new random transaction ID
         std::random_device rd;

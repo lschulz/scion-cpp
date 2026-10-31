@@ -53,7 +53,7 @@ struct Arguments
     int underlayMtu = 0;
 
     bool stun = false;
-    std::uint16_t stunPort = 3478;
+    std::uint16_t stunPort = 0;
     std::uint32_t stunTimeout = 30;
 
     std::filesystem::path policy;

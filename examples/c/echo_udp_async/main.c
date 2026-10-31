@@ -363,18 +363,11 @@ void client_cleanup(struct Client* cl)
 
 void client_get_stun_mapping(scion_context* ctx, struct Client* cl)
 {
-    struct sockaddr_storage stun_server;
-    memcpy(&stun_server, &cl->next_hop, cl->next_hop_len);
-    if (stun_server.ss_family == AF_INET)
-        ((struct sockaddr_in*)&stun_server)->sin_port = htons(3478);
-    else if (stun_server.ss_family == AF_INET6)
-        ((struct sockaddr_in6*)&stun_server)->sin6_port = htons(3478);
-
     struct scion_async_send_handler handler = {
         &client_stun_sent, cl
     };
     scion_request_stun_mapping_async(cl->socket,
-        (struct sockaddr*)&stun_server, cl->next_hop_len, handler);
+        (struct sockaddr*)&cl->next_hop, cl->next_hop_len, handler);
     if (scion_run_for(ctx, 500) < 2) {
         // STUN timed out, cancel socket operations and run completion handlers
         scion_cancel(cl->socket);

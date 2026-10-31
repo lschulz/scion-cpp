@@ -40,11 +40,11 @@ a request to the border router to tell us what the source address of the request
 protocol used for discovering the address mapping is STUN.
 
 ### STUN ###
-The Session Traversal Utilities for NAT (STUN) are defined in [RFC 5389][1]. We're only using a
+The Session Traversal Utilities for NAT (STUN) are defined in [RFC 8489][1]. We're only using a
 small subset of the protocol, namely binding requests and responses that tell us what public IP
 address and port the border router is seeing.
 
-[1]: https://datatracker.ietf.org/doc/html/rfc5389
+[1]: https://datatracker.ietf.org/doc/html/rfc8489
 
 NAT Traversal in SCION-CPP
 --------------------------

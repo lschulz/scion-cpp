@@ -448,11 +448,12 @@ NAT
 ---
 
 If Scitra-TUN is deployed behind a NAT, the `--stun` flag should be set to enable discovery of the
-mapped external address. Using the STUN feature requires a STUN server running on all border routers
-in the local AS. The STUN port may be set using the `--stun-port` option. If STUN is multiplexed on
-the border router's internal interface, set `--stun-port 0`. The `--nat-timeout` option sets after
-how much time of inactivity a flow between Scitra-TUN and the border router may receive a new
-address mapping and therefore requires STUN address discovery to be repeated.
+mapped external address. By default Scitra-TUN expects SCION border routers to respond to STUN
+binding requests that are multiplexed on the same address and port as SCION traffic. If your routers
+do not support multiplexed STUN, an alternative fixed STUN port may be set using the `--stun-port`
+option. The `--nat-timeout` option sets after how much time of inactivity a flow between Scitra-TUN
+and the border router may receive a new address mapping and therefore requires STUN address
+discovery to be repeated.
 
 Multipath TCP
 -------------

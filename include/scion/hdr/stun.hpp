@@ -162,17 +162,66 @@ public:
     }
 };
 
-/// \brief Simplified STUN message (RFC 5389).
+/// \brief STUN FINGERPRINT attribute.
+class StunFingerprint
+{
+public:
+    static constexpr std::size_t minSize = 8;
+    static constexpr StunAttribType type = StunAttribType::Fingerprint;
+    static constexpr std::uint32_t magic = 0x5354554e;
+
+    /// \brief CRC32 fingerprint that has not been XOR'ed with 0x5354554e yet.
+    std::uint32_t crc32 = 0;
+
+    std::size_t size() const
+    {
+        return minSize;
+    }
+
+    template <typename Stream, typename Error>
+    bool serialize(Stream& stream, Error& err)
+    {
+        auto temp = (std::uint16_t)type;
+        if (!stream.serializeUint16(temp, err)) return err.propagate();
+        if constexpr (Stream::IsReading) {
+            if (temp != (std::uint16_t)type)
+                return err.error("incorrect attribute type");
+        }
+        std::uint16_t length = minSize - 4;
+        if (!stream.serializeUint16(length, err)) return err.propagate();
+        if constexpr (Stream::IsReading) {
+            if (length != minSize - 4)
+                return err.error("STUN Fingerprint attribute has invalid size");
+        }
+        crc32 ^= magic;
+        if (!stream.serializeUint32(crc32, err)) return err.propagate();
+        crc32 ^= magic;
+        return true;
+    }
+
+    auto print(auto out, int indent) const
+    {
+        using namespace details;
+        out = std::format_to(out, "###[ STUN FINGERPRINT ]###\n");
+        out = formatIndented(out, indent, "type   = {}\n", (std::uint16_t)type);
+        out = formatIndented(out, indent, "length = {}\n", size() - 4);
+        out = formatIndented(out, indent, "crc32  = 0x{:x}\n", crc32);
+        return out;
+    }
+};
+
+/// \brief Simplified STUN message (RFC 8489).
 class STUN
 {
 public:
     /// \brief Magic cookie in host byte order.
-    static constexpr std::uint32_t magicCookie = 0x2112a442u;
+    static constexpr std::uint32_t magicCookie = 0x2112a442;
     static constexpr std::size_t stunHeaderSize = 20;
 
     StunMsgType type = StunMsgType::BindingRequest;
     std::array<std::byte, 12> transaction;
     std::optional<StunXorMappedAddress> mapped;
+    std::optional<StunFingerprint> fingerprint;
 
     bool operator==(const STUN&) const = default;
 
@@ -180,12 +229,15 @@ public:
     {
         auto size = stunHeaderSize;
         if (mapped) size += mapped->size();
+        if (fingerprint) size += fingerprint->size();
         return size;
     }
 
     template <typename Stream, typename Error>
     bool serialize(Stream& stream, Error& err)
     {
+        if (stream.getPos().second != 0) return err.error("alignment error");
+        const auto stunBegin = stream.getPtr();
         auto temp = (std::uint16_t)type;
         if (!stream.serializeUint16(temp, err)) return err.propagate();
         type = (StunMsgType)temp;
@@ -203,9 +255,9 @@ public:
             std::span<const std::byte> attribs;
             if (!stream.lookahead(attribs, length, err)) return err.propagate();
             ReadStream rs(attribs);
-            if (!parseAttributes(rs, err)) return err.propagate();
+            if (!parseAttributes(rs, stunBegin, err)) return err.propagate();
         } else {
-            if (!emitAttributes(stream, err)) return err.propagate();
+            if (!emitAttributes(stream, stunBegin, err)) return err.propagate();
         }
         return true;
     }
@@ -221,24 +273,39 @@ public:
         if (mapped) {
             out = std::format_to(out, "xor mapped  = {}\n", mapped->address);
         }
+        if (fingerprint) {
+            out = std::format_to(out, "crc32       = 0x{:x}\n", fingerprint->crc32);
+        }
         return out;
     }
 
 private:
     template <typename ReadStream, typename Error>
-    bool parseAttributes(ReadStream& rs, Error& err)
+    bool parseAttributes(ReadStream& rs, const std::byte* stunBegin, Error& err)
     {
         StunAttribute attrib;
+        mapped.reset();
+        fingerprint.reset();
         while (rs) {
             std::uint16_t type = 0;
             std::span<const std::byte> ptr;
             if (!rs.lookahead(ptr, 2, err)) return err.propagate();
             std::memcpy(&type, ptr.data(), 2);
+            if (fingerprint) return err.error("STUN fingerprint attribute is not last");
             switch ((StunAttribType)scion::details::byteswapBE(type)) {
             case StunAttribType::XorMappedAddress:
                 mapped = StunXorMappedAddress();
                 if (!mapped->serialize(rs, transaction, err)) return err.propagate();
                 break;
+            case StunAttribType::Fingerprint:
+            {
+                std::span<const std::byte> view(stunBegin, rs.getPtr() - stunBegin);
+                auto crc32 = details::CRC32(view);
+                fingerprint = StunFingerprint();
+                if (!fingerprint->serialize(rs, err)) return err.propagate();
+                if (fingerprint->crc32 != crc32) return err.error("invalid fingerprint");
+                break;
+            }
             default:
                 if (!attrib.serialize(rs, err)) return err.propagate();
                 if ((int)attrib.type < 0x8000 && attrib.type > StunAttribType::XorMappedAddress) {
@@ -253,10 +320,15 @@ private:
     }
 
     template <typename WriteStream, typename Error>
-    bool emitAttributes(WriteStream& ws, Error& err)
+    bool emitAttributes(WriteStream& ws, const std::byte* stunBegin, Error& err)
     {
         if (mapped) {
             if (!mapped->serialize(ws, transaction, err)) return err.propagate();
+        }
+        if (fingerprint) {
+            std::span<const std::byte> view(stunBegin, ws.getPtr() - stunBegin);
+            fingerprint->crc32 = details::CRC32(view);
+            if (!fingerprint->serialize(ws, err)) return err.propagate();
         }
         return true;
     }

@@ -88,8 +88,8 @@ assign SCION-mapped IPv6 addresses to SCION hosts.
 
 `-S, --stun` Attempt NAT traversal.
 
-`--stun-port` _port_ Port at which STUN servers are expected. If set to zero uses the same port as
-    for SCION. Default: 3478
+`--stun-port` _port_ Port at which STUN servers are expected. If set to zero or not specified, STUN
+    is multiplexed on the same port as SCION.
 
 `--stun-timeout` _timeout_ Timeout for NAT bindings. That is, after how many seconds of inactivity a
     STUN request must be repeated. Default: 30 seconds
@@ -517,11 +517,12 @@ public network interface and Scitra-TUN.
 ## NAT TRAVERSAL ##
 
 If Scitra-TUN is deployed behind a NAT, the `--stun` flag should be set to enable discovery of the
-mapped external address. Using the STUN feature requires a STUN server running on all border routers
-in the local AS. The STUN port may be set using the `--stun-port` option. If STUN is multiplexed on
-the border router's internal interface, set `--stun-port 0`. The `--nat-timeout` option sets after
-how much time of inactivity a flow between Scitra-TUN and the border router may receive a new
-address mapping and therefore requires STUN address discovery to be repeated.
+mapped external address. By default Scitra-TUN expects SCION border routers to respond to STUN
+binding requests that are multiplexed on the same address and port as SCION traffic. If your routers
+do not support multiplexed STUN, an alternative fixed STUN port may be set using the `--stun-port`
+option. The `--nat-timeout` option sets after how much time of inactivity a flow between Scitra-TUN
+and the border router may receive a new address mapping and therefore requires STUN address
+discovery to be repeated.
 
 ## MULTIPATH TCP ##
 
@@ -564,4 +565,4 @@ Lars-Christian Schulz <lschulz@ovgu.de>
 
 ## SEE ALSO ##
 
-scion2ip(1), ip(8), scitra-policy.json(5), systemd.service(5)
+scion2ip(1), scitra-policy.json(5), systemd.service(5), ip(8), nft(8)

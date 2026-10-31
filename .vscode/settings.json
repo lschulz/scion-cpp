@@ -161,6 +161,7 @@
         "netns",
         "pmtu",
         "recvmmsg",
+        "scionproto",
         "sendmmsg",
         "subflow",
         "subflows",

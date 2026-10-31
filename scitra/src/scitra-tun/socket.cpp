@@ -27,7 +27,7 @@
 
 
 static bool ENABLE_STUN = false;
-static std::uint16_t STUN_PORT = 3478;
+static std::uint16_t STUN_PORT = 0;
 static auto NAT_TIMEOUT = std::chrono::seconds(30);
 
 namespace sockopt {
@@ -214,8 +214,11 @@ std::error_code Socket::requestStunMapping(const PacketBuffer& pkt, asio::ip::ud
     rand = dist(rd);
     std::memcpy(stun.transaction.data() + 8, &rand, 4);
 
+    // scionproto SCION expects a fingerprint in binding requests
+    stun.fingerprint = hdr::StunFingerprint();
+
     // Prepare STUN binding request
-    std::array<std::byte, 20> buffer;
+    std::array<std::byte, 28> buffer;
     WriteStream ws(std::span<std::byte>(buffer.data(), buffer.size()));
     if (!stun.serialize(ws, NullStreamError)) {
         return ScitraError::LogicError;

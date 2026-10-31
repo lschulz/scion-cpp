@@ -509,8 +509,7 @@ public:
 
         if (m_cfg.client.stun) {
             auto nextHop = path->nextHop(m_cfg.client.remote.localEp());
-            auto stunServer = toUnderlay<Socket::UnderlayEp>(
-                generic::IPEndpoint(nextHop.host(), 3478));
+            auto stunServer = toUnderlay<Socket::UnderlayEp>(nextHop);
             auto future = co_spawn(m_ioCtx,
                 getStunMapping(m_socket, stunServer, 100ms), use_future);
             m_ioCtx.run();
