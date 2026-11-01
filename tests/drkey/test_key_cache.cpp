@@ -32,8 +32,9 @@ TEST(DRKeyCache, ASHostKey)
     using namespace scion;
     using namespace scion::generic;
     using namespace scion::drkey;
+    using namespace std::chrono;
     using namespace std::chrono_literals;
-    using TimePoint = std::chrono::system_clock::time_point;
+    using time_point = system_clock::time_point;
 
     const IsdAsn dstAS(Isd(1), Asn(1));
     const ScIPAddress dstHost(dstAS, IPAddress::MakeIPv4(0x0a000001u));
@@ -41,7 +42,7 @@ TEST(DRKeyCache, ASHostKey)
     const IsdAsn src1(Isd(1), Asn(64512));
     const IsdAsn src2(Isd(1), Asn(64513));
 
-    const TimePoint now(67852596012585ns);
+    const time_point now{duration_cast<system_clock::duration>(67852596012585ns)};
     static std::byte key[16] = {};
 
     KeyCache cache(DRKeyProtocol::IDINT);
@@ -50,7 +51,7 @@ TEST(DRKeyCache, ASHostKey)
         IsdAsn srcIA,
         const ScIPAddress& dstHost,
         DRKeyProtocol proto,
-        TimePoint validAt) -> Maybe<drkey::Key>
+        time_point validAt) -> Maybe<drkey::Key>
     {
         return drkey::Key(key, validAt, validAt + 30min);
     };
@@ -62,7 +63,7 @@ TEST(DRKeyCache, ASHostKey)
     ASSERT_TRUE(k.has_value());
 
     testing::MockFunction<
-        Maybe<drkey::Key>(IsdAsn, const ScIPAddress&, DRKeyProtocol, TimePoint)> mock;
+        Maybe<drkey::Key>(IsdAsn, const ScIPAddress&, DRKeyProtocol, time_point)> mock;
     EXPECT_CALL(mock, Call(src1, dstHost, DRKeyProtocol::IDINT, now + 1h))
         .WillOnce(testing::Return(drkey::Key(key, now + 1h, now + 2h)));
     EXPECT_CALL(mock, Call(src1, dstHost, DRKeyProtocol::IDINT, now + 3h))
@@ -103,8 +104,9 @@ TEST(DRKeyCache, HostHostKey)
     using namespace scion;
     using namespace scion::generic;
     using namespace scion::drkey;
+    using namespace std::chrono;
     using namespace std::chrono_literals;
-    using TimePoint = std::chrono::system_clock::time_point;
+    using time_point = system_clock::time_point;
 
     const IsdAsn dstAS(Isd(1), Asn(1));
     const ScIPAddress dstHost(dstAS, IPAddress::MakeIPv4(0x0a000001u));
@@ -112,7 +114,7 @@ TEST(DRKeyCache, HostHostKey)
     const auto src1 = ScIPAddress(IsdAsn(Isd(1), Asn(64512)), IPAddress::MakeIPv4(0x0a000001u));
     const auto src2 = ScIPAddress(IsdAsn(Isd(1), Asn(64513)), IPAddress::MakeIPv4(0x0a000002u));
 
-    const TimePoint now(67852596012585ns);
+    const time_point now{duration_cast<system_clock::duration>(67852596012585ns)};
     static std::byte key[16] = {};
 
     KeyCache cache(DRKeyProtocol::IDINT);
@@ -121,7 +123,7 @@ TEST(DRKeyCache, HostHostKey)
         const ScIPAddress& srcHost,
         const ScIPAddress& dstHost,
         DRKeyProtocol proto,
-        TimePoint validAt) -> Maybe<drkey::Key>
+        time_point validAt) -> Maybe<drkey::Key>
     {
         return drkey::Key(key, validAt, validAt + 30min);
     };
@@ -133,7 +135,7 @@ TEST(DRKeyCache, HostHostKey)
     ASSERT_TRUE(k.has_value());
 
     testing::MockFunction<
-        Maybe<drkey::Key>(const ScIPAddress&, const ScIPAddress&, DRKeyProtocol, TimePoint)> mock;
+        Maybe<drkey::Key>(const ScIPAddress&, const ScIPAddress&, DRKeyProtocol, time_point)> mock;
     EXPECT_CALL(mock, Call(src1, dstHost, DRKeyProtocol::IDINT, now + 1h))
         .WillOnce(testing::Return(drkey::Key(key, now + 1h, now + 2h)));
     EXPECT_CALL(mock, Call(src1, dstHost, DRKeyProtocol::IDINT, now + 3h))

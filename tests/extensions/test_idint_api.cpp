@@ -337,8 +337,9 @@ TEST_F(IdIntApiFixture, DecodeVerified)
     using namespace scion;
     using namespace scion::hdr;
     using namespace scion::idint;
+    using namespace std::chrono;
     using namespace std::chrono_literals;
-    using time_point = std::chrono::system_clock::time_point;
+    using time_point = system_clock::time_point;
 
     hdr::HopByHopOpts extHdr;
     IdInt ext;
@@ -349,7 +350,7 @@ TEST_F(IdIntApiFixture, DecodeVerified)
     ASSERT_TRUE(ext.parse(stream, err)) << err;
 
     IntReport report;
-    std::chrono::system_clock::time_point now(67852596012585ns);
+    const time_point now{duration_cast<system_clock::duration>(67852596012585ns)};
     drkey::Key sourceKey;
     sourceKey.key = {
         0x51_b, 0xe4_b, 0x29_b, 0x9c_b, 0x13_b, 0x3d_b, 0x0e_b, 0x2f_b,
@@ -415,8 +416,9 @@ TEST_F(IdIntApiFixture, DecodeEncrypted)
     using namespace scion;
     using namespace scion::hdr;
     using namespace scion::idint;
+    using namespace std::chrono;
     using namespace std::chrono_literals;
-    using time_point = std::chrono::system_clock::time_point;
+    using time_point = system_clock::time_point;
 
     hdr::HopByHopOpts extHdr;
     IdInt ext;
@@ -427,7 +429,7 @@ TEST_F(IdIntApiFixture, DecodeEncrypted)
     ASSERT_TRUE(ext.parse(stream, err)) << err;
 
     IntReport report;
-    std::chrono::system_clock::time_point now(73299619925897ns);
+    const time_point now{duration_cast<system_clock::duration>(73299619925897ns)};
     drkey::Key sourceKey;
     sourceKey.key = {
         0x51_b, 0xe4_b, 0x29_b, 0x9c_b, 0x13_b, 0x3d_b, 0x0e_b, 0x2f_b,

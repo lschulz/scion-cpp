@@ -1,4 +1,4 @@
-// Copyright (c) 2024-2025 Lars-Christian Schulz
+// Copyright (c) 2024-2026 Lars-Christian Schulz
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -316,12 +316,17 @@ private:
     void updateNextRefresh(std::chrono::system_clock::time_point now, PathSet& set)
     {
         using namespace std::chrono;
-        auto nextExpiry = system_clock::time_point::max();
-        for (auto& path : set.paths) {
-            nextExpiry = std::min(path->expiry(), nextExpiry);
+
+        auto expiryRefresh = steady_clock::duration::max();
+        if (!set.paths.empty()) {
+            auto nextExpiry = system_clock::time_point::max();
+            for (auto& path : set.paths) {
+                nextExpiry = std::min(path->expiry(), nextExpiry);
+            }
+            expiryRefresh = duration_cast<steady_clock::duration>(
+                (nextExpiry - refreshAtRemaining) - now);
         }
-        auto expiryRefresh = std::max(
-            (nextExpiry - refreshAtRemaining) - now, steady_clock::duration(0));
+
         set.nextRefresh = steady_clock::now() + std::min(expiryRefresh, refreshInterval);
         set.refreshPending = false;
     }

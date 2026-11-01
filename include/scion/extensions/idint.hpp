@@ -64,8 +64,11 @@ MAC decryptAndMAC(hdr::IdIntEntry&, const hdr::IdIntOpt&, MAC&, const drkey::Key
 }
 
 // How much an ID-INT timestamp is allowed to be in the past for the data to
-// be considered valid. In nanoseconds.
+// be considered valid in nanoseconds.
 constexpr auto MAX_AGE = 60'000'000'000ull;
+
+// Tolerance for clock drift between ID-INT nodes in nanoseconds.
+constexpr auto CLOCK_TOLERANCE = 10'000'000'000ull;
 
 /// \brief Returns a random nonce from a cryptographically secure source.
 Nonce randomNonce();
@@ -628,13 +631,18 @@ public:
 
         // Get source timestamp accounting for the possibility of wraparound
         auto nanos = duration_cast<nanoseconds>(now.time_since_epoch()).count();
-        auto elapsed = (nanos & 0xffff'ffff'ffff) - main.sourceTS;
-        elapsed &= 0xffff'ffff'ffff;
-        if (elapsed > MAX_AGE) {
-            return VerificationStatus{ErrorCode::Expired, {}};
+        auto elapsed = (((std::uint64_t)nanos & 0xffff'ffff'ffffull) - main.sourceTS)
+            & 0xffff'ffff'ffffull;
+        if (elapsed > (MAX_AGE + CLOCK_TOLERANCE)) {
+            // account for source timestamp in the future due to clock drift
+            if (elapsed > (0xffff'ffff'ffffull - CLOCK_TOLERANCE)) {
+                elapsed = 0;
+            } else {
+                return VerificationStatus{ErrorCode::Expired, {}};
+            }
         }
-        nanos = nanos - elapsed;
-        auto sourceTime = system_clock::time_point(system_clock::duration(nanoseconds{nanos}));
+        auto sourceTime = system_clock::time_point{
+            duration_cast<system_clock::duration>(nanoseconds{nanos - elapsed})};
 
         // Verify metadata
         MAC macChain;
