@@ -11,6 +11,9 @@ mkdir /package
 cd /package && cpack -G DEB --config /build/CPackConfig.cmake
 
 # Copy results
-cat /package/*.sha256 > /out/checksums.sha256
-cp /package/*.deb /out
-chown ${HOST_UID} /out/*
+source /etc/os-release
+subdir="$ID$VERSION_ID"
+mkdir -p /out/$subdir
+cat /package/*.sha256 > "/out/$subdir/checksums.sha256"
+cp /package/*.deb "/out/$subdir"
+chown -R ${HOST_UID} "/out/$subdir"

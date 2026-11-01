@@ -74,33 +74,6 @@ man pages:
   information with in-band telemetry. Illustrates sending and receiving packets with the ID-INT
   extension.
 
-### Installation ###
-
-Precompiled binaries of the applications and development headers for SCION++ and SCIONC are
-available as deb packages for Ubuntu 24.04 in the releases section of this repository.
-
-The packages are also available alongside the [SCION release
-packages](https://github.com/scionproto/scion/releases) in an APT repository at
-https://lcschulz.de/scion/apt (amd64 architecture only). You may set up the
-repository in Ubuntu as follows.
-
-```bash
-sudo apt update
-sudo apt install ca-certificates curl
-sudo curl -fsSL https://lcschulz.de/scion/gpg/scion-lcschulz -o /usr/share/keyrings/scion-lcschulz.gpg
-sudo chmod a+r /usr/share/keyrings/scion-lcschulz.gpg
-sudo tee /etc/apt/sources.list.d/scion-lcschulz.list <<EOF
-deb [arch=amd64 signed-by=/usr/share/keyrings/scion-lcschulz.gpg] https://lcschulz.de/scion/apt noble main
-EOF
-sudo apt update
-```
-
-Then install the packages.
-
-```bash
-sudo apt install scion++-dev scionc-dev scion-interposer scitra-tun
-```
-
 Building
 --------
 
@@ -119,6 +92,11 @@ python ............ Python build and test helpers
 scitra ............ SCION-IP translator libraries, applications and documentation
 src ............... Source code of scion++ and scionc
 test .............. scion++ and scionc unit tests
+```
+
+Make sure to initialize the submodules in `deps/`.
+```bash
+git submodule update --init --recursive
 ```
 
 ### Dependencies ###
@@ -153,10 +131,13 @@ In Linux, `libmnl` and `libbsd` must be installed using the system's package man
 Additionally, vcpkg currently requires `autoconf`, `autoconf-archive`, `automake`, and `libtoolize`
 from the system package manager.
 ```bash
-sudo apt-get install libmnl-dev libbsd-dev install autoconf autoconf-archive automake libtool
+# Ubuntu
+sudo apt-get install libmnl-dev libbsd-dev autoconf autoconf-archive automake libtool
+# Fedora
+sudo dnf install libmnl-devel libbsd-devel autoconf autoconf-archive automake libtool
 ```
 
-All required build tools and dependencies can also be installed with apt (Ubuntu 24.04).
+In Ubuntu, all required build tools and dependencies can be installed with apt.
 ```bash
 sudo apt-get install \
   build-essential \
@@ -179,9 +160,29 @@ sudo apt-get install \
   protobuf-compiler-grpc
 ```
 
-Make sure to initialize the submodules in `deps/`.
+In Fedora, install the following packages.
 ```bash
-git submodule update --init --recursive
+sudo dnf install \
+  boost-devel \
+  c-ares-devel \
+  cmake \
+  g++ \
+  gcc \
+  grpc-cpp \
+  grpc-devel \
+  libbsd-devel \
+  libcap-devel \
+  libmnl-devel \
+  make \
+  ncurses-devel \
+  ninja-build \
+  pandoc-cli \
+  protobuf-compiler \
+  protobuf-devel \
+  re2-devel \
+  rpm-build \
+  systemd-devel \
+  tomlplusplus-devel
 ```
 
 ### Building with CMake ###
@@ -233,7 +234,7 @@ configuration files to /etc/scion ignoring `CMAKE_INSTALL_PREFIX`.
 Background: In order to install to /etc/scion an absolute path is given to `install()`, using
 a relative path or `CMAKE_INSTALL_SYSCONFDIR` results in a path prefixed with /usr. Using an
 absolute path is not a perfect solution however, since absolute paths only work for the
-deb packages not necessarily for other CPack generators or manual installation.
+deb packages and not necessarily for other CPack generators or manual installation.
 
 ```bash
 mkdir build

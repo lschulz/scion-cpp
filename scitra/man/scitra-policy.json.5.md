@@ -158,7 +158,7 @@ Tilmann Zäschke.
 
 ## AUTHOR ##
 
-Lars-Christian Schulz <lschulz@ovgu.de>
+Lars-Christian Schulz <lars@lcschulz.de>
 
 ## SEE ALSO ##
 

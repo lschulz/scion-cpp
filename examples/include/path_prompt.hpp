@@ -21,6 +21,7 @@
 #include <scion/path/path.hpp>
 
 #include <cstdint>
+#include <iomanip>
 #include <iostream>
 #include <ranges>
 #include <vector>

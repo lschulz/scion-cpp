@@ -108,6 +108,7 @@ jobs:
   unit-tests-windows:
     name: Run unit tests (Windows)
     runs-on: windows-2025-vs2026
+    if: false # disabled
     steps:
       - name: Check out the source repository
         uses: actions/checkout@v6

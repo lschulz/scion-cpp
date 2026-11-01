@@ -9,6 +9,7 @@ RUN apt-get update && apt-get -y upgrade && apt-get -y install \
     file \
     libboost-dev \
     libboost-json-dev \
+    libbsd-dev \
     libc-ares-dev \
     libcap-dev \
     libgrpc++-dev \

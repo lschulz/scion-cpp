@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include "format.hpp"
+#include <iomanip>
 
 
 std::ostream& printEscapedString(std::ostream& stream, std::span<const std::byte> buffer)

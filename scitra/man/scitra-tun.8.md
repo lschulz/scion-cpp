@@ -566,7 +566,7 @@ When Scitra-TUN receives `SIGHUP`, the path policies are reloaded from the the p
 
 ## AUTHOR ##
 
-Lars-Christian Schulz <lschulz@ovgu.de>
+Lars-Christian Schulz <lars@lcschulz.de>
 
 ## SEE ALSO ##
 

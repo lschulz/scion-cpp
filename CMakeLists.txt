@@ -24,7 +24,7 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+if(MSVC)
     # Disabled warnings:
     # C4146 - unary minus operator applied to unsigned type, result still unsigned
     add_compile_options(/W3 /wd4146)
@@ -32,16 +32,19 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 else()
     add_compile_options(-Wall -Wextra -Wpedantic -Wno-unused-parameter)
     set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-if(MARCH)
-    add_compile_options(-march=${MARCH})
-endif()
+    if(MARCH)
+        add_compile_options(-march=${MARCH})
+    endif()
 endif()
 
 if(WIN32)
-add_compile_definitions(
-    _WIN32_WINNT=0x0A00
-    NOMINMAX
-)
+    add_compile_definitions(
+        _WIN32_WINNT=0x0A00
+        NOMINMAX
+    )
+    set(BUILD_INTERPOSER OFF)
+else()
+    set(BUILD_INTERPOSER ON)
 endif()
 
 include(GNUInstallDirs)
@@ -77,13 +80,10 @@ find_package(Boost CONFIG REQUIRED COMPONENTS json)
 # Protobuf, gRPC
 # ==============
 
-find_package(Protobuf CONFIG)
-if(Protobuf_FOUND)
-    set(GRPC_LIBS protobuf::libprotobuf)
-
-else()
+find_package(Protobuf CONFIG QUIET)
+if(NOT Protobuf_FOUND)
     find_package(PkgConfig REQUIRED)
-    pkg_check_modules(protobuf REQUIRED IMPORTED_TARGET protobuf)
+    pkg_check_modules(protobuf_pkg REQUIRED IMPORTED_TARGET protobuf)
 
     if(NOT TARGET protobuf::protoc)
         find_program(PROTOC_EXECUTABLE protoc REQUIRED)
@@ -92,17 +92,23 @@ else()
             IMPORTED_LOCATION "${PROTOC_EXECUTABLE}")
     endif()
 
-    set(GRPC_LIBS PkgConfig::protobuf)
+    add_library(protobuf::libprotobuf ALIAS PkgConfig::protobuf_pkg)
 endif()
 
-find_package(gRPC CONFIG)
-if(gRPC_FOUND)
-    list(APPEND GRPC_LIBS gRPC::grpc gRPC::grpc++)
+if(BUILD_INTERPOSER)
+    find_package(re2 CONFIG QUIET)
+    if (NOT re2_FOUND)
+        find_package(PkgConfig REQUIRED)
+        pkg_check_modules(re2_pkg REQUIRED IMPORTED_TARGET re2)
+        add_library(re2::re2 ALIAS PkgConfig::re2_pkg)
+    endif()
+endif()
 
-else()
+find_package(gRPC CONFIG QUIET)
+if(NOT gRPC_FOUND)
     find_package(PkgConfig REQUIRED)
-    pkg_check_modules(grpc REQUIRED IMPORTED_TARGET grpc)
-    pkg_check_modules(grpc++ REQUIRED IMPORTED_TARGET grpc++)
+    pkg_check_modules(grpc_pkg REQUIRED IMPORTED_TARGET grpc)
+    pkg_check_modules(grpcpp_pkg REQUIRED IMPORTED_TARGET grpc++)
 
     if(NOT TARGET gRPC::grpc_cpp_plugin)
         find_program(GRPC_CPP_PLUGIN_EXECUTABLE grpc_cpp_plugin REQUIRED)
@@ -111,7 +117,8 @@ else()
             IMPORTED_LOCATION "${GRPC_CPP_PLUGIN_EXECUTABLE}")
     endif()
 
-    list(APPEND GRPC_LIBS PkgConfig::grpc PkgConfig::grpc++)
+    add_library(gRPC::grpc ALIAS PkgConfig::grpc_pkg)
+    add_library(gRPC::grpc++ ALIAS PkgConfig::grpcpp_pkg)
 endif()
 
 # =========
@@ -279,7 +286,8 @@ set(PROTO_SRC
 )
 
 add_library(scion-proto OBJECT ${PROTO_SRC})
-target_link_libraries(scion-proto PUBLIC ${GRPC_LIBS})
+target_link_libraries(scion-proto PUBLIC
+    protobuf::libprotobuf gRPC::grpc gRPC::grpc++)
 
 asio_grpc_protobuf_generate(
     GENERATE_GRPC
@@ -390,6 +398,14 @@ target_sources(scion-cpp
         "${CMAKE_CURRENT_BINARY_DIR}/generated/scion/proto/drkey/v1/drkey.grpc.pb.h"
         "${CMAKE_CURRENT_BINARY_DIR}/generated/scion/proto/drkey/v1/drkey.pb.h"
 )
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|x64|AMD64")
+    target_sources(scion-cpp PRIVATE "src/crypto/aes_avx2.cpp")
+    if (NOT MSVC)
+        set_source_files_properties("src/crypto/aes_avx2.cpp"
+            PROPERTIES COMPILE_OPTIONS "-maes;-mavx2")
+    endif()
+endif()
+
 target_link_libraries(scion-cpp PUBLIC
     Boost::headers
     Boost::json
@@ -402,6 +418,7 @@ target_link_libraries(scion-cpp PRIVATE
 target_include_directories(scion-cpp PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/deps/asio-grpc/src"
 )
+
 set_target_properties(scion-cpp PROPERTIES
     OUTPUT_NAME "scion++"
     DEBUG_POSTFIX "d"
@@ -523,14 +540,13 @@ target_include_directories(unit-tests
 
 gtest_discover_tests(unit-tests
     EXTRA_ARGS "${CMAKE_CURRENT_SOURCE_DIR}/tests"
-    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
 # ----------
 # Interposer
 # ----------
 
-if(NOT WIN32)
+if(BUILD_INTERPOSER)
 add_subdirectory(interposer)
 endif()
 
@@ -550,4 +566,13 @@ add_subdirectory(examples)
 # Packaging
 # =========
 
-include(cmake/packaging_deb.cmake)
+cmake_host_system_information(RESULT OS QUERY DISTRIB_INFO)
+
+# order is important
+include(cmake/packaging_deps.cmake)
+if(OS_ID_LIKE STREQUAL "debian")
+    include(cmake/packaging_deb.cmake)
+elseif(OS_ID STREQUAL "fedora")
+    include(cmake/packaging_rpm.cmake)
+endif()
+include(cmake/packaging.cmake)

@@ -1,18 +1,5 @@
 cmake_minimum_required(VERSION 3.28)
 
-# ============
-# Dependencies
-# ============
-
-find_package(re2 CONFIG)
-if (re2_FOUND)
-    set(RE2 re2::re2)
-else()
-    find_package(PkgConfig REQUIRED)
-    pkg_check_modules(re2 REQUIRED IMPORTED_TARGET re2)
-    set(RE2 PkgConfig::re2)
-endif()
-
 # ==========
 # Interposer
 # ==========
@@ -31,7 +18,7 @@ target_include_directories(interposer PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
 )
-target_link_libraries(interposer PRIVATE scion-cpp scion-c-static ${RE2})
+target_link_libraries(interposer PRIVATE scion-cpp scion-c-static re2::re2)
 target_compile_definitions(interposer PRIVATE
     "$<$<CONFIG:DEBUG>:LOG_CALLS=1>"
 )

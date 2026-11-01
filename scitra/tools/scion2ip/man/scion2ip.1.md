@@ -86,7 +86,7 @@ $ scion2ip fc00:1e00::1 -d
 
 ## AUTHOR ##
 
-Lars-Christian Schulz <lschulz@ovgu.de>
+Lars-Christian Schulz <lars@lcschulz.de>
 
 ## SEE ALSO ##
 

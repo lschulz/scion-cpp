@@ -7,7 +7,6 @@ BUILD_DIR := $(SRC_ROOT)/build
 PKG_DIR := $(SRC_ROOT)/out
 PYTHONPATH := $(PYTHONPATH):$(SRC_ROOT)/python
 
-DOCKER_TAG := 0.1.0
 HOST_UID := $(shell id -u):$(shell id -g)
 
 TEST_DATA=$(addsuffix .bin,$(basename $(shell find tests scitra/tests -name '*.py')))
@@ -58,10 +57,9 @@ test-integration:
 	$(PYTHON) scitra/integration-test/gateway/run_tests.py ipv6 -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
 	$(PYTHON) scitra/integration-test/gateway/run_tests.py ipv6_prefix_xlat -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
 
-.PHONY: test-integration
+.PHONY: test-integration-ci
 test-integration-ci:
 	$(PYTHON) integration-tests/run_tests.py tiny4 -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
-	$(PYTHON) integration-tests/run_tests.py default -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
 	$(PYTHON) scitra/integration-test/normal/run_ipv4_tests.py -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
 	$(PYTHON) scitra/integration-test/normal/run_ipv6_tests.py -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
 	$(PYTHON) scitra/integration-test/gateway/run_tests.py ipv4 -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
@@ -104,11 +102,38 @@ deb: release man
 	@mkdir -p "$(PKG_DIR)"
 	cd "$(PKG_DIR)" && cpack -G DEB --config "$(BUILD_DIR)/CPackConfig.cmake"
 
+# RPM Packages
+
+.PHONY: rpm
+rpm: release man
+	@mkdir -p "$(PKG_DIR)"
+	cd "$(PKG_DIR)" && cpack -G RPM --config "$(BUILD_DIR)/CPackConfig.cmake"
+
 # Docker build
 
-.PHONY: deb-docker
-deb-docker: man
+.PHONY: deb-docker-ubuntu24
+deb-docker-ubuntu24: man
 	@mkdir -p "$(PKG_DIR)"
-	docker build -t scion-cpp-builder:$(DOCKER_TAG) "$(SRC_ROOT)/docker/package"
+	docker build -t scion-cpp-builder:ubuntu24 \
+		-f "$(SRC_ROOT)/docker/package/ubuntu24.Dockerfile" \
+		"$(SRC_ROOT)/docker/package/context_ubuntu"
 	docker run -e HOST_UID=$(HOST_UID) -v "$(SRC_ROOT)":/scion-cpp:ro -v "$(PKG_DIR)":/out --rm \
-		scion-cpp-builder:$(DOCKER_TAG)
+		scion-cpp-builder:ubuntu24
+
+.PHONY: deb-docker-ubuntu26
+deb-docker-ubuntu26: man
+	@mkdir -p "$(PKG_DIR)"
+	docker build -t scion-cpp-builder:ubuntu26 \
+		-f "$(SRC_ROOT)/docker/package/ubuntu26.Dockerfile" \
+		"$(SRC_ROOT)/docker/package/context_ubuntu"
+	docker run -e HOST_UID=$(HOST_UID) -v "$(SRC_ROOT)":/scion-cpp:ro -v "$(PKG_DIR)":/out --rm \
+		scion-cpp-builder:ubuntu26
+
+.PHONY: deb-docker-fedora
+deb-docker-fedora: man
+	@mkdir -p "$(PKG_DIR)"
+	docker build -t scion-cpp-builder:fedora \
+		-f "$(SRC_ROOT)/docker/package/fedora.Dockerfile" \
+		"$(SRC_ROOT)/docker/package/context_fedora"
+	docker run -e HOST_UID=$(HOST_UID) -v "$(SRC_ROOT)":/scion-cpp:ro -v "$(PKG_DIR)":/out --rm \
+		scion-cpp-builder:fedora

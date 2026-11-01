@@ -33,6 +33,8 @@ using std::byte;
 using std::uint8_t;
 using std::size_t;
 
+#define TEST_AES_NI (__x86_64__ || _M_X64)
+
 
 namespace scion {
 namespace crypto {
@@ -46,6 +48,7 @@ void aesCbcMacTables(
     std::span<const std::byte> input,
     std::span<std::byte, 16> mac);
 
+#if TEST_AES_NI
 std::error_code aesCtrModeAESNI(
     std::span<const byte, 16> key,
     std::span<const byte, 12> nonce,
@@ -55,6 +58,7 @@ void aesCbcMacAESNI(
     std::span<const std::byte, 16> key,
     std::span<const std::byte> input,
     std::span<std::byte, 16> mac);
+#endif
 
 std::error_code aesCtrModeBotan(
     std::span<const byte, 16> key,
@@ -75,10 +79,12 @@ struct AesTables {
     static constexpr decltype(aesCbcMacTables)* aesCbcMac = &aesCbcMacTables;
 };
 
+#if TEST_AES_NI
 struct AesNI {
     static constexpr decltype(aesCtrModeAESNI)* aesCtrMode = &aesCtrModeAESNI;
     static constexpr decltype(aesCbcMacAESNI)* aesCbcMac = &aesCbcMacAESNI;
 };
+#endif
 
 struct AesBotan {
     static constexpr decltype(aesCtrModeBotan)* aesCtrMode = &aesCtrModeBotan;
@@ -89,7 +95,12 @@ template <typename T>
 class AesImplTest : public testing::Test
 {};
 
-using ImplTypes = testing::Types<AesTables, AesNI, AesBotan>;
+using ImplTypes = testing::Types<
+    AesTables,
+#if TEST_AES_NI
+    AesNI,
+#endif
+    AesBotan>;
 TYPED_TEST_SUITE(AesImplTest, ImplTypes);
 
 TYPED_TEST(AesImplTest, CbcMac)
@@ -176,14 +187,19 @@ TEST(Aes, CompareCBCMAC)
         data[i] = byte{(uint8_t)rng()};
     }
 
-    std::array<byte, 16> botan, tables, aesni;
+    std::array<byte, 16> botan, tables;
+#if TEST_AES_NI
+    std::array<byte, 16> aesni;
+#endif
     for (size_t size = 0; size <= data.size(); ++size) {
         auto input = std::span<byte>(data.begin(), size);
         aesCbcMacBotan(key, input, botan);
         aesCbcMacTables(key, input, tables);
-        aesCbcMacAESNI(key, input, aesni);
         ASSERT_TRUE(std::ranges::equal(botan, tables)) << printBufferDiff(botan, tables);
+    #if TEST_AES_NI
+        aesCbcMacAESNI(key, input, aesni);
         ASSERT_TRUE(std::ranges::equal(botan, aesni)) << printBufferDiff(botan, aesni);
+    #endif
     }
 }
 
@@ -207,20 +223,25 @@ TEST(Aes, CompareAESCTR)
         data[i] = byte{(uint8_t)rng()};
     }
 
-    std::array<byte, data.size()> botanIn, tablesIn, aesniIn;
+    std::array<byte, data.size()> botanIn, tablesIn;
+#if TEST_AES_NI
+    std::array<byte, data.size()> aesniIn;
+#endif
     for (size_t size = 0; size <= data.size(); ++size) {
         std::copy_n(data.begin(), size, botanIn.begin());
         std::copy_n(data.begin(), size, tablesIn.begin());
-        std::copy_n(data.begin(), size, aesniIn.begin());
-
         auto botan = std::span<byte>(botanIn.begin(), size);
         auto tables = std::span<byte>(tablesIn.begin(), size);
-        auto aesni = std::span<byte>(aesniIn.begin(), size);
 
         ASSERT_FALSE(aesCtrModeBotan(key, nonce, botan));
         ASSERT_FALSE(aesCtrModeTables(key, nonce, tables));
-        ASSERT_FALSE(aesCtrModeAESNI(key, nonce, aesni));
         ASSERT_TRUE(std::ranges::equal(botan, tables)) << printBufferDiff(botan, tables);
+
+    #if TEST_AES_NI
+        std::copy_n(data.begin(), size, aesniIn.begin());
+        auto aesni = std::span<byte>(aesniIn.begin(), size);
+        ASSERT_FALSE(aesCtrModeAESNI(key, nonce, aesni));
         ASSERT_TRUE(std::ranges::equal(botan, aesni)) << printBufferDiff(botan, aesni);
+    #endif
     }
 }

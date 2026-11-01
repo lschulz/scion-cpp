@@ -198,7 +198,7 @@ The interposer intercepts to following functions:
 
 ## AUTHOR ##
 
-Lars-Christian Schulz <lschulz@ovgu.de>
+Lars-Christian Schulz <lars@lcschulz.de>
 
 ## SEE ALSO ##
 

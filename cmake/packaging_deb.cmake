@@ -1,11 +1,10 @@
 # CPack settings for Debian packages
 
-set(CPACK_PACKAGE_CHECKSUM SHA256)
 set(CPACK_DEB_COMPONENT_INSTALL ON)
 set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
 set(CPACK_DEBIAN_PACKAGE_RELEASE 1)
 set(CPACK_DEBIAN_ENABLE_COMPONENT_DEPENDS ON)
-set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Lars-Christian Schulz <lschulz@ovgu.de>")
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Lars-Christian Schulz <lars@lcschulz.de>")
 set(CPACK_DEBIAN_PACKAGE_DEBUG ON)
 
 # scion++-dev
@@ -13,13 +12,15 @@ set(CPACK_DEBIAN_SCION_CPP_DEV_PACKAGE_NAME "scion++-dev")
 set(CPACK_DEBIAN_SCION_CPP_DEV_DESCRIPTION
     "C++ SCION SDK"
 )
-string(CONCAT CPACK_DEBIAN_SCION_CPP_DEV_PACKAGE_DEPENDS
-    "libboost-dev (>= 1.83.0.1ubuntu2), "
-    "libboost-json-dev (>= 1.83.0.1ubuntu2), "
-    "libc-ares-dev (>= 1.27.0-1.0ubuntu1), "
-    "libgrpc++-dev (>= 1.51.1-4.1build5), "
-    "libprotobuf-dev (>= 3.21.12-8.2ubuntu0.2)"
+# package names for Ubuntu
+get_pkg_versions(deb DEB_SCION_CPP_DEPS
+    libboost-dev
+    libboost-json-dev
+    libc-ares-dev
+    libgrpc++-dev
+    libprotobuf-dev
 )
+set(CPACK_DEBIAN_SCION_CPP_DEV_PACKAGE_DEPENDS "${DEB_SCION_CPP_DEPS}")
 
 # scionc-dev
 set(CPACK_DEBIAN_SCIONC_DEV_PACKAGE_NAME "scionc-dev")
@@ -72,12 +73,8 @@ set(CPACK_DEBIAN_INTERPOSER_PACKAGE_CONTROL_EXTRA
     "${CMAKE_SOURCE_DIR}/interposer/install/debian/conffiles"
 )
 set(CPACK_DEBIAN_INTERPOSER_PACKAGE_SHLIBDEPS ON)
-set(CPACK_DEBIAN_INTERPOSER_PACKAGE_RECOMMENDS
+set(CONCAT CPACK_DEBIAN_INTERPOSER_PACKAGE_RECOMMENDS
     "scion-daemon"
-)
-set(CPACK_DEBIAN_INTERPOSER_PACKAGE_RECOMMENDS
     "scion++-tools"
 )
 endif(LINUX)
-
-include(CPack)
