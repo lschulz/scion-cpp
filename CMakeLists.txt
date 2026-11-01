@@ -256,14 +256,17 @@ endif()
 # Link Botan as static library, consider dynamic linking later
 add_library(botan STATIC "${BOTAN_AMALGAMATION}")
 target_include_directories(botan SYSTEM PUBLIC "${BOTAN_DIR}/build/include/public")
+target_link_libraries(botan PUBLIC Boost::headers)
 target_compile_features(botan PUBLIC cxx_std_20)
 set_target_properties(botan PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # Disable warnings from generated Botan code
-if(MSVC)
-    target_compile_options(botan PRIVATE /w)
-else()
-    target_compile_options(botan PRIVATE -w)
+target_compile_options(botan PRIVATE -w)
+
+# The Botan amalgamation results in an object file with many sections which
+# requires compiling with /bigobj.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    target_compile_options(botan PRIVATE /bigobj)
 endif()
 
 # ==============================

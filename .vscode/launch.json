@@ -70,7 +70,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/build/Debug/unit-tests.exe",
             "args": [
-                // "--gtest_filter='.*'"
+                // "--gtest_filter=.*"
             ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",

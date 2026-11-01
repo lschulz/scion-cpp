@@ -30,9 +30,12 @@
 #include <cstdint>
 #include <cstring>
 
-#if __x86_64__
+#if __x86_64__ || _M_X64
 #include <emmintrin.h>
 #include <immintrin.h>
+#if defined(_MSC_VER) && !defined(__clang__)
+#define __m128i_u __m128i
+#endif
 #endif
 
 using std::byte;
@@ -43,7 +46,7 @@ using std::size_t;
 namespace scion {
 namespace crypto {
 
-#if __x86_64__
+#if __x86_64__ || _M_X64
 
 ////////////////////
 // AVX2 and AESNI //
@@ -234,7 +237,7 @@ void aesCbcMacAESNI(
     _mm_storeu_si128(reinterpret_cast<__m128i_u*>(mac.data()), reg);
 }
 
-#endif // __x86_64__
+#endif // __x86_64__ || _M_X64
 
 //////////////
 // T-Tables //
@@ -818,13 +821,14 @@ AesConfig initAes()
     }
 
     auto cpu = getCpuFeatures();
+    cfg.aesCtr = &aesCtrModeTables;
+    cfg.cbcMac = &aesCbcMacTables;
+#if __x86_64__ || _M_X64
     if (cpu.arch == CpuArch::x86_64 && cpu.x86.aes) {
         cfg.aesCtr = &aesCtrModeAESNI;
         cfg.cbcMac = &aesCbcMacAESNI;
-    } else {
-        cfg.aesCtr = &aesCtrModeTables;
-        cfg.cbcMac = &aesCbcMacTables;
     }
+#endif
 
     return cfg;
 }

@@ -18,6 +18,8 @@ extern "C" {
 
 #if defined(_MSC_VER)
 
+#include <stdlib.h>
+
 #define FORCE_INLINE	__forceinline
 
 typedef unsigned char uint8_t;

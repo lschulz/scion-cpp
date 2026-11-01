@@ -20,7 +20,7 @@
 
 #include "scion/detect_cpu.hpp"
 
-#if defined(__MSC_VER) || defined(__INTEL_COMPILER)
+#if defined(_MSC_VER) || defined(__INTEL_COMPILER)
 #include <array>
 #include <intrin.h>
 #elif defined(__GNUC__)
@@ -30,7 +30,7 @@
 
 namespace scion {
 
-#if defined(__MSC_VER) || defined(__INTEL_COMPILER)
+#if defined(_MSC_VER) || defined(__INTEL_COMPILER)
 
 static CpuFeatures detectCpuFeatures()
 {
