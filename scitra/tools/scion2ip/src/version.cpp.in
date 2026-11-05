@@ -1,1 +1,1 @@
-const char* VERSION_LINE = "scion2ip @SCION2IP_VERSION@@VERSION_TAG@";
+const char* VERSION_LINE = "scion2ip @PROJECT_VERSION@@VERSION_TAG@";

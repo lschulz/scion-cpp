@@ -1,7 +1,7 @@
-/build
-/out
+/build*
+/install
+/pkg
 /vcpkg_installed
 .venv
 __pycache__
 *.gz
-cmake_test_discovery*

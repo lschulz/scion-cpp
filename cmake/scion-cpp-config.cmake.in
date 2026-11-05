@@ -1,0 +1,39 @@
+# CMake package configuration file for scion-cpp.
+#
+# Usage:
+#   find_package(scion-cpp [version] [REQUIRED] [COMPONENTS cpp c])
+#
+# Components:
+#   cpp     Main library, provides target scion::cpp
+#   c       C bindings, provides targets scion::c and scion::c-static
+
+@PACKAGE_INIT@
+
+# Dependencies
+include("${CMAKE_CURRENT_LIST_DIR}/scion-cpp-dependencies.cmake")
+
+# Main library
+include("${CMAKE_CURRENT_LIST_DIR}/scion-cpp-targets.cmake")
+set(${CMAKE_FIND_PACKAGE_NAME}_cpp FOUND TRUE)
+
+# Optional C Bindings
+set(_scion_cpp_components ${${CMAKE_FIND_PACKAGE_NAME}_FIND_COMPONENTS})
+foreach(_comp IN LISTS _scion_cpp_components)
+    if(_comp STREQUAL "cpp")
+        continue()
+    elseif(_comp STREQUAL "c")
+        if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/scion-c-targets.cmake")
+            include("${CMAKE_CURRENT_LIST_DIR}/scion-c-targets.cmake")
+            set(${CMAKE_FIND_PACKAGE_NAME}_c_FOUND TRUE)
+        else()
+            set(${CMAKE_FIND_PACKAGE_NAME}_c_FOUND FALSE)
+        endif()
+    else()
+        message(WARNING "Component ${_comp} is not known")
+        set(${CMAKE_FIND_PACKAGE_NAME}_${_comp}_FOUND FALSE)
+    endif()
+endforeach()
+unset(_comp)
+unset(_scion_cpp_components)
+
+check_required_components(${CMAKE_FIND_PACKAGE_NAME})

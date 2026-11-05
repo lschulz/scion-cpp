@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.28)
 
 # ============
 # Dependencies
@@ -20,7 +20,7 @@ SET(SRC_ECHO_UDP_C
 
 add_executable(echo-udp-c ${SRC_ECHO_UDP_C})
 target_include_directories(echo-udp-c PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(echo-udp-c PRIVATE scion-c)
+target_link_libraries(echo-udp-c PRIVATE scion::c)
 
 if (NOT WIN32)
     target_include_directories(echo-udp-c PRIVATE ${CURSES_INCLUDE_DIR})
@@ -39,7 +39,7 @@ SET(SRC_ECHO_UDP_ASYNC_C
 
 add_executable(echo-udp-async-c ${SRC_ECHO_UDP_ASYNC_C})
 target_include_directories(echo-udp-async-c PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(echo-udp-async-c PRIVATE scion-c)
+target_link_libraries(echo-udp-async-c PRIVATE scion::c)
 
 if (NOT WIN32)
     target_include_directories(echo-udp-async-c PRIVATE ${CURSES_INCLUDE_DIR})

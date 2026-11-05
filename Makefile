@@ -3,14 +3,20 @@ PANDOC ?= pandoc
 SCION_ROOT ?= $(HOME)/scionproto-scion
 
 SRC_ROOT := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
-BUILD_DIR := $(SRC_ROOT)/build
-PKG_DIR := $(SRC_ROOT)/out
-PYTHONPATH := $(PYTHONPATH):$(SRC_ROOT)/python
+BUILD_DIR := $(SRC_ROOT)build
+PKG_DIR := $(SRC_ROOT)pkg
+PYTHONPATH := $(PYTHONPATH):$(SRC_ROOT)python
 
 HOST_UID := $(shell id -u):$(shell id -g)
 
 TEST_DATA=$(addsuffix .bin,$(basename $(shell find tests scitra/tests -name '*.py')))
 MAN_PAGES=$(addsuffix .gz,$(basename $(shell find scitra interposer -name '*.*.md')))
+
+CPACK_CONFIGS := \
+    CPackConfig.cmake \
+    scitra/CPackConfig.cmake \
+    scitra/tools/scion2ip/CPackConfig.cmake \
+    interposer/CPackConfig.cmake
 
 
 # Build library and examples
@@ -100,14 +106,18 @@ clean-man: $(MAN_PAGES)
 .PHONY: deb
 deb: release man
 	@mkdir -p "$(PKG_DIR)"
-	cd "$(PKG_DIR)" && cpack -G DEB --config "$(BUILD_DIR)/CPackConfig.cmake"
+	cd "$(PKG_DIR)" && for config in $(CPACK_CONFIGS); do \
+		cpack -G DEB --config "$(BUILD_DIR)/$$config" || exit 1; \
+	done
 
 # RPM Packages
 
 .PHONY: rpm
 rpm: release man
 	@mkdir -p "$(PKG_DIR)"
-	cd "$(PKG_DIR)" && cpack -G RPM --config "$(BUILD_DIR)/CPackConfig.cmake"
+	cd "$(PKG_DIR)" && for config in $(CPACK_CONFIGS); do \
+		cpack -G RPM --config "$(BUILD_DIR)/$$config" || exit 1; \
+	done
 
 # Docker build
 
@@ -132,8 +142,8 @@ deb-docker-ubuntu26: man
 .PHONY: deb-docker-fedora
 deb-docker-fedora: man
 	@mkdir -p "$(PKG_DIR)"
-	docker build -t scion-cpp-builder:fedora \
+	docker build -t scion-cpp-builder:fedora45 \
 		-f "$(SRC_ROOT)/docker/package/fedora.Dockerfile" \
 		"$(SRC_ROOT)/docker/package/context_fedora"
 	docker run -e HOST_UID=$(HOST_UID) -v "$(SRC_ROOT)":/scion-cpp:ro -v "$(PKG_DIR)":/out --rm \
-		scion-cpp-builder:fedora
+		scion-cpp-builder:fedora45

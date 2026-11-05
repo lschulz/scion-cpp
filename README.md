@@ -74,6 +74,43 @@ man pages:
   information with in-band telemetry. Illustrates sending and receiving packets with the ID-INT
   extension.
 
+Using the SDK in CMake Projects
+-------------------------------
+
+Once installed, the SDK's main library `scion-cpp` and the C interface `scionc` can be imported with
+`find_package`. If the SDK is not installed to system-wide, include its installation directory in
+`CMAKE_PREFIX_PATH`.
+```cmake
+find_package(scion-cpp 0.0.5 REQUIRED) # Main C++ library
+find_package(scion-cpp 0.0.5 REQUIRED COMPONENT c) ' Main library and C interface
+target_link_libraries(app PRIVATE scion::cpp)
+target_link_libraries(app PRIVATE scion::c) # or scion::c-static for static linkage
+```
+
+Alternatively, the repository can be build as part of your project with `FetchContent`. Tests,
+examples, and applications are not built if scion-cpp is not the top-level project, except if
+explicitly requested by the configuration variables `SCION_CPP_BUILD_{TESTS|EXAMPLES|APPS}`.
+```cmake
+cmake_minimum_required(VERSION 3.28)
+project(my-project CXX)
+
+include(FetchContent)
+FetchContent_Declare(scion-cpp
+  GIT_REPOSITORY https://github.com/lschulz/scion-cpp.git
+  GIT_TAG        v0.5.0
+)
+FetchContent_MakeAvailable(scion-cpp)
+
+add_executable(app main.cpp)
+target_link_libraries(app PRIVATE scion::cpp) # or scion::c or scion::c-static
+```
+
+Using the Applications
+----------------------
+
+To use the included applications, build the entire repository as described in the Building section.
+Man pages are generated with `make man`.
+
 Building
 --------
 
@@ -137,7 +174,7 @@ sudo apt-get install libmnl-dev libbsd-dev autoconf autoconf-archive automake li
 sudo dnf install libmnl-devel libbsd-devel autoconf autoconf-archive automake libtool
 ```
 
-In Ubuntu, all required build tools and dependencies can be installed with apt.
+In Ubuntu (24.04 and 26-04), all required build tools and dependencies can be installed with apt.
 ```bash
 sudo apt-get install \
   build-essential \
@@ -160,7 +197,7 @@ sudo apt-get install \
   protobuf-compiler-grpc
 ```
 
-In Fedora, install the following packages.
+In Fedora (45), install the following packages.
 ```bash
 sudo dnf install \
   boost-devel \
@@ -177,8 +214,8 @@ sudo dnf install \
   ncurses-devel \
   ninja-build \
   pandoc-cli \
-  protobuf-compiler \
-  protobuf-devel \
+  protobuf3-compiler \
+  protobuf3-devel \
   re2-devel \
   rpm-build \
   systemd-devel \
@@ -223,29 +260,37 @@ step.
 cmake -G 'Ninja Multi-Config' -B build -DCMAKE_INSTALL_PREFIX=$PWD/install
 ```
 
-### Build Debian Packages with CPack ###
+### Build Debian and RPM Packages with CPack ###
 
-When building deb packages `CPACK_SET_DESTDIR` must be set during the configuration step to
-correctly install configuration files in /etc/scion. If `CPACK_SET_DESTDIR` is not set, the deb
-packages will incorrectly install configuration files in /usr/etc/scion. `CPACK_SET_DESTDIR` is not
-set by default because it also results in the generated build-system's install target to install
-configuration files to /etc/scion ignoring `CMAKE_INSTALL_PREFIX`.
+The repository is configure for building deb and rpm packages on Ubuntu and Fedora, respectively.
+System package dependencies are are added automatically with the package versions currently
+installed in the build environment. You can still build the packages on a different OS, but the
+system package dependencies will be missing.
 
-Background: In order to install to /etc/scion an absolute path is given to `install()`, using
-a relative path or `CMAKE_INSTALL_SYSCONFDIR` results in a path prefixed with /usr. Using an
-absolute path is not a perfect solution however, since absolute paths only work for the
-deb packages and not necessarily for other CPack generators or manual installation.
+Applications packages must be built from a build directory configured with `CMAKE_INSTALL_PREFIX=/`.
+Otherwise, configuration files that are supposed to be installed to `/etc/scion/` are incorrectly
+installed in `/usr/etc/scion/`. There is no such limitation for the library (scion-cpp, scionc)
+packages as they do not install files at absolute paths.
 
 ```bash
 mkdir build
-cmake -G 'Ninja Multi-Config' -B build -DMARCH='' -DCPACK_SET_DESTDIR=ON -DCMAKE_INSTALL_PREFIX=/
-make deb
+cmake -G 'Ninja Multi-Config' -B build -DMARCH='' -DCMAKE_INSTALL_PREFIX=/
+make deb # or rpm
+```
+
+Individual subprojects can be packaged by invoking cpack directly, as every subproject has its own
+CPack configuration.
+```bash
+cpack -G DEB --config build/CPackConfig.cmake # scion-cpp and scionc
+cpack -G DEB --config build/scitra/CPackConfig.cmake
+cpack -G DEB --config build/scitra/tools/scion2ip/CPackConfig.cmake
+cpack -G DEB --config build/interposer/CPackConfig.cmake
 ```
 
 By default, the packages have a pre-release version number of the format `major.minor.patch-commit`.
-Set the CMake cache variable `RELEASE=YES` to build release packages. The deb packages can also be
-build in a Docker container by invoking the make target `deb-docker`. Packets build this way are
-marked as release versions.
+Set the CMake cache variable `RELEASE=YES` to build release packages. Release packages can also be
+built in Docker containers by invoking the make targets `deb-docker-ubuntu24`, `deb-docker-ubuntu26`
+and `deb-docker-fedora`.
 
 Tests
 -----

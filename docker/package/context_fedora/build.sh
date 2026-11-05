@@ -8,7 +8,15 @@ cmake --build /build --config Release
 
 # Package
 mkdir /package
-cd /package && cpack -G RPM --config /build/CPackConfig.cmake
+cd /package
+for config in \
+    CPackConfig.cmake \
+    scitra/CPackConfig.cmake \
+    scitra/tools/scion2ip/CPackConfig.cmake \
+    interposer/CPackConfig.cmake
+do
+    cpack -G RPM --config "/build/$config" || exit 1
+done
 
 # Copy results
 source /etc/os-release

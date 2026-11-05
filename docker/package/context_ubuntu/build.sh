@@ -3,12 +3,20 @@
 # Build out-of-tree
 mkdir /build
 cmake -G 'Ninja Multi-Config' -S /scion-cpp -B /build \
-    -DMARCH='' -DCPACK_SET_DESTDIR=ON -DCMAKE_INSTALL_PREFIX=/ -DRELEASE=YES
+    -DMARCH='' -DCMAKE_INSTALL_PREFIX=/ -DRELEASE=YES
 cmake --build /build --config Release
 
 # Package
 mkdir /package
-cd /package && cpack -G DEB --config /build/CPackConfig.cmake
+cd /package
+for config in \
+    CPackConfig.cmake \
+    scitra/CPackConfig.cmake \
+    scitra/tools/scion2ip/CPackConfig.cmake \
+    interposer/CPackConfig.cmake
+do
+    cpack -G DEB --config "/build/$config" || exit 1
+done
 
 # Copy results
 source /etc/os-release

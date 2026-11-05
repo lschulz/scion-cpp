@@ -6,6 +6,8 @@ configure_file("include/version.cpp.in" "version.cpp")
 # Dependencies
 # ============
 
+scion_add_cli11()
+
 if (NOT WIN32)
     find_package(Curses)
 endif()
@@ -24,7 +26,7 @@ endif()
 
 add_executable(echo-udp ${SRC_ECHO_UDP})
 target_include_directories(echo-udp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(echo-udp PRIVATE scion-cpp CLI11::CLI11)
+target_link_libraries(echo-udp PRIVATE scion::cpp CLI11::CLI11)
 
 if (NOT WIN32)
     target_include_directories(echo-udp PRIVATE ${CURSES_INCLUDE_DIR})
@@ -41,7 +43,7 @@ SET(SRC_ECHO_UDP_ASYNC
 )
 add_executable(echo-udp-async ${SRC_ECHO_UDP_ASYNC})
 target_include_directories(echo-udp-async PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(echo-udp-async PRIVATE scion-cpp CLI11::CLI11)
+target_link_libraries(echo-udp-async PRIVATE scion::cpp CLI11::CLI11)
 
 # ==========
 # traceroute
@@ -52,7 +54,7 @@ SET(SRC_TRACEROUTE
 )
 add_executable(traceroute ${SRC_TRACEROUTE})
 target_include_directories(traceroute PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(traceroute PRIVATE scion-cpp CLI11::CLI11)
+target_link_libraries(traceroute PRIVATE scion::cpp CLI11::CLI11)
 
 # ====
 # pmtu
@@ -63,7 +65,7 @@ SET(SRC_PMTU
 )
 add_executable(pmtu ${SRC_PMTU})
 target_include_directories(pmtu PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(pmtu PRIVATE scion-cpp CLI11::CLI11)
+target_link_libraries(pmtu PRIVATE scion::cpp CLI11::CLI11)
 
 # ========
 # resolver
@@ -74,7 +76,7 @@ SET(SRC_RESOLVER
 )
 add_executable(resolver ${SRC_RESOLVER})
 target_include_directories(resolver PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(resolver PRIVATE scion-cpp CLI11::CLI11)
+target_link_libraries(resolver PRIVATE scion::cpp CLI11::CLI11)
 
 # ================
 # idint-traceroute
@@ -87,7 +89,7 @@ set(SRC_IDINT_TRACEROUTE
 )
 add_executable(idint-traceroute ${SRC_IDINT_TRACEROUTE})
 target_include_directories(idint-traceroute PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(idint-traceroute PRIVATE scion-cpp CLI11::CLI11)
+target_link_libraries(idint-traceroute PRIVATE scion::cpp CLI11::CLI11)
 
 # ==========
 # C examples

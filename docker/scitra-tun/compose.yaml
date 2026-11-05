@@ -15,4 +15,4 @@ services:
       SCION_DAEMON_ADDRESS: 127.0.0.1:30255
 
     # Arguments passed to scitra-tun
-    command: lo 127.0.0.1
+    command: -a 127.0.0.1
