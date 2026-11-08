@@ -468,6 +468,7 @@ set(SRC_TEST
     "tests/crypto/test_aes.cpp"
     "tests/drkey/test_key_cache.cpp"
     "tests/extensions/test_idint_api.cpp"
+    "tests/extensions/test_idint_details.cpp"
     "tests/hdr/test_checksum.cpp"
     "tests/hdr/test_idint.cpp"
     "tests/hdr/test_ip.cpp"

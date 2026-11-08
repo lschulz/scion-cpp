@@ -351,6 +351,36 @@ struct VerificationStatus
     }
 };
 
+namespace details {
+
+/// \internal \brief Computes the full source timestamp from the 48-bit
+/// timestamp in the ID-INT header and `now`. Accounts for 48-bit wraparound and
+/// up to CLOCK_TOLERANCE of drift. Returns empty if the packet is older than
+/// MAX_AGE.
+std::optional<std::chrono::system_clock::time_point>
+inline getSourceTimestamp(
+    const std::chrono::system_clock::time_point& now,
+    std::uint64_t sourceTS)
+{
+    using namespace std::chrono;
+
+    const std::uint64_t mask = 0xffff'ffff'ffff;
+    auto nanos = duration_cast<nanoseconds>(now.time_since_epoch()).count();
+    auto elapsed = (((std::uint64_t)nanos & mask) - sourceTS) & mask;
+    if (elapsed > (MAX_AGE + CLOCK_TOLERANCE)) {
+        // account for source timestamp in the future due to clock drift
+        if (elapsed > (0xffff'ffff'ffffull - CLOCK_TOLERANCE)) {
+            elapsed = 0;
+        } else {
+            return std::nullopt;
+        }
+    }
+    return system_clock::time_point{
+        duration_cast<system_clock::duration>(nanoseconds{nanos - elapsed})};
+}
+
+} // namespace details
+
 /// \brief Inter-domain In-band Network Telemetry extension. May be send and/or
 /// received alongside the L4 payload in SCION packets.
 ///
@@ -630,19 +660,11 @@ public:
         report.instructions = main.instr;
 
         // Get source timestamp accounting for the possibility of wraparound
-        auto nanos = duration_cast<nanoseconds>(now.time_since_epoch()).count();
-        auto elapsed = (((std::uint64_t)nanos & 0xffff'ffff'ffffull) - main.sourceTS)
-            & 0xffff'ffff'ffffull;
-        if (elapsed > (MAX_AGE + CLOCK_TOLERANCE)) {
-            // account for source timestamp in the future due to clock drift
-            if (elapsed > (0xffff'ffff'ffffull - CLOCK_TOLERANCE)) {
-                elapsed = 0;
-            } else {
-                return VerificationStatus{ErrorCode::Expired, {}};
-            }
-        }
-        auto sourceTime = system_clock::time_point{
-            duration_cast<system_clock::duration>(nanoseconds{nanos - elapsed})};
+        system_clock::time_point sourceTime;
+        if (auto adjusted = details::getSourceTimestamp(now, main.sourceTS); adjusted)
+            sourceTime = *adjusted;
+        else
+            return VerificationStatus{ErrorCode::Expired, {}};
 
         // Verify metadata
         MAC macChain;
