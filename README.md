@@ -290,7 +290,7 @@ cpack -G DEB --config build/interposer/CPackConfig.cmake
 By default, the packages have a pre-release version number of the format `major.minor.patch-commit`.
 Set the CMake cache variable `RELEASE=YES` to build release packages. Release packages can also be
 built in Docker containers by invoking the make targets `deb-docker-ubuntu24`, `deb-docker-ubuntu26`
-and `deb-docker-fedora`.
+and `rpm-docker-fedora`.
 
 Tests
 -----

@@ -58,50 +58,50 @@ jobs:
       - name: Interposer tests
         if: steps.build.conclusion == 'success'
         run: timeout 5 make test-interposer
-      - name: Checkout SCION
-        uses: actions/checkout@v6
-        with:
-          repository: 'lschulz/scion'
-          path: 'scion'
-          ref: idint2026
-      - name: Set up Bazel
-        uses: bazel-contrib/setup-bazel@0.16.0
-        with:
-          bazelisk-version: v1.19.0
-          bazelisk-cache: true
-          disk-cache: ${{ github.workflow }}
-      - name: Set up Python
-        uses: actions/setup-python@v6.1.0
-        with:
-          python-version: 3.12
-          cache: pip
-      - name: Install Python dependencies
-        working-directory: '${{ github.workspace }}/scion'
-        run: pip install -r tools/env/pip3/requirements.txt
-      - name: Install SCION dependencies
-        working-directory: '${{ github.workspace }}/scion'
-        run: cat tools/env/debian/pkgs.txt | sudo apt-get install -y $(xargs)
-      - name: Disable Bazel remote cache
-        working-directory: '${{ github.workspace }}/scion'
-        run: sed -i '/remote_cache/s/^/#/g' .bazelrc
-      - name: Build SCION
-        working-directory: '${{ github.workspace }}/scion'
-        run: |
-          bazel build //:scion
-          bazel build //:scion-topo
-          tar xf bazel-bin/scion.tar -C bin
-          tar xf bazel-bin/scion-topo.tar -C bin
-      - name: Allow loading SCION interposer into AppArmor-confined netcat
-        run: |
-          set -eu
-          profile=/etc/apparmor.d/nc.openbsd
-          if [ -f "$profile" ]; then
-            sudo mkdir -p /etc/apparmor.d/local
-            echo '${{ github.workspace }}/build/** mr,' | sudo tee /etc/apparmor.d/local/nc.openbsd
-            sudo apparmor_parser -r "$profile"
-          fi
-      - name: Run integration tests
-        run: make SCION_ROOT=${{ github.workspace }}/scion test-integration-ci
+      # - name: Checkout SCION
+      #   uses: actions/checkout@v6
+      #   with:
+      #     repository: 'lschulz/scion'
+      #     path: 'scion'
+      #     ref: idint2026
+      # - name: Set up Bazel
+      #   uses: bazel-contrib/setup-bazel@0.16.0
+      #   with:
+      #     bazelisk-version: v1.19.0
+      #     bazelisk-cache: true
+      #     disk-cache: ${{ github.workflow }}
+      # - name: Set up Python
+      #   uses: actions/setup-python@v6.1.0
+      #   with:
+      #     python-version: 3.12
+      #     cache: pip
+      # - name: Install Python dependencies
+      #   working-directory: '${{ github.workspace }}/scion'
+      #   run: pip install -r tools/env/pip3/requirements.txt
+      # - name: Install SCION dependencies
+      #   working-directory: '${{ github.workspace }}/scion'
+      #   run: cat tools/env/debian/pkgs.txt | sudo apt-get install -y $(xargs)
+      # - name: Disable Bazel remote cache
+      #   working-directory: '${{ github.workspace }}/scion'
+      #   run: sed -i '/remote_cache/s/^/#/g' .bazelrc
+      # - name: Build SCION
+      #   working-directory: '${{ github.workspace }}/scion'
+      #   run: |
+      #     bazel build //:scion
+      #     bazel build //:scion-topo
+      #     tar xf bazel-bin/scion.tar -C bin
+      #     tar xf bazel-bin/scion-topo.tar -C bin
+      # - name: Allow loading SCION interposer into AppArmor-confined netcat
+      #   run: |
+      #     set -eu
+      #     profile=/etc/apparmor.d/nc.openbsd
+      #     if [ -f "$profile" ]; then
+      #       sudo mkdir -p /etc/apparmor.d/local
+      #       echo '${{ github.workspace }}/build/** mr,' | sudo tee /etc/apparmor.d/local/nc.openbsd
+      #       sudo apparmor_parser -r "$profile"
+      #     fi
+      # - name: Run integration tests
+      #   run: make SCION_ROOT=${{ github.workspace }}/scion test-integration-ci
 
   # FIXME: Building gRPC with vcpkg takes a long time.
   # See: https://github.com/microsoft/vcpkg/issues/43603

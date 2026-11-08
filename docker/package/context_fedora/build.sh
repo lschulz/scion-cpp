@@ -20,7 +20,7 @@ done
 
 # Copy results
 source /etc/os-release
-subdir="$ID$VERSION_ID"
+subdir="${ID}${VERSION_ID}-$(uname -m)"
 mkdir -p /out/$subdir
 cat /package/*.sha256 > "/out/$subdir/checksums.sha256"
 cp /package/*.rpm "/out/$subdir"

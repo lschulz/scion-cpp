@@ -1,6 +1,7 @@
 /build*
 /install
 /pkg
+/artifacts
 /vcpkg_installed
 .venv
 __pycache__

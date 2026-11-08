@@ -139,8 +139,8 @@ deb-docker-ubuntu26: man
 	docker run -e HOST_UID=$(HOST_UID) -v "$(SRC_ROOT)":/scion-cpp:ro -v "$(PKG_DIR)":/out --rm \
 		scion-cpp-builder:ubuntu26
 
-.PHONY: deb-docker-fedora
-deb-docker-fedora: man
+.PHONY: rpm-docker-fedora
+rpm-docker-fedora: man
 	@mkdir -p "$(PKG_DIR)"
 	docker build -t scion-cpp-builder:fedora45 \
 		-f "$(SRC_ROOT)/docker/package/fedora.Dockerfile" \

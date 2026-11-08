@@ -1,0 +1,77 @@
+name: Create release assets
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  packages:
+    name: Packages (${{ matrix.target }})
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        target:
+          - deb-docker-ubuntu24
+          - deb-docker-ubuntu26
+          - rpm-docker-fedora
+      fail-fast: false
+
+    env:
+      VERSION: ${{ github.event_name == 'release' && github.event.release.tag_name || github.ref_name }}
+
+    steps:
+      - name: Check out the source repository
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Install pandoc
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pandoc
+
+      - name: Build packages in Docker
+        run: make ${{ matrix.target }}
+
+      - name: Create release archive
+        id: archive
+        run: |
+          set -eu
+          dirs=$(find pkg -mindepth 1 -maxdepth 1 -type d)
+          if [ "$(echo "$dirs" | wc -l)" -ne 1 ] || [ -z "$dirs" ]; then
+            exit 1
+          fi
+
+          platform=$(basename "$dirs")
+          test -s "pkg/$platform/checksums.sha256"
+          (cd "pkg/$platform" && sha256sum -c checksums.sha256)
+
+          version=$(echo "$VERSION" | tr '/' '-')
+          name="scion-cpp-${version}-${platform}"
+          mkdir -p artifacts
+          artifacts=$(realpath artifacts)
+          mv "pkg/$platform" "$artifacts/$name"
+
+          file="$artifacts/$name.tar.bz2"
+          tar -C "$artifacts" --owner=0 --group=0 --mode='go-w' -cjf "$file" "$name"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ steps.archive.outputs.name }}
+          path: ${{ steps.archive.outputs.file }}
+          compression-level: 0
+
+      - name: Attach archive to release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release upload "$VERSION" "${{ steps.archive.outputs.file }}" --clobber
