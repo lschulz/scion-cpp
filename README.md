@@ -81,8 +81,8 @@ Once installed, the SDK's main library `scion-cpp` and the C interface `scionc` 
 `find_package`. If the SDK is not installed to system-wide, include its installation directory in
 `CMAKE_PREFIX_PATH`.
 ```cmake
-find_package(scion-cpp 0.0.5 REQUIRED) # Main C++ library
-find_package(scion-cpp 0.0.5 REQUIRED COMPONENT c) ' Main library and C interface
+find_package(scion-cpp 0.1.0 REQUIRED) # Main C++ library
+find_package(scion-cpp 0.1.0 REQUIRED COMPONENT c) ' Main library and C interface
 target_link_libraries(app PRIVATE scion::cpp)
 target_link_libraries(app PRIVATE scion::c) # or scion::c-static for static linkage
 ```
@@ -97,7 +97,7 @@ project(my-project CXX)
 include(FetchContent)
 FetchContent_Declare(scion-cpp
   GIT_REPOSITORY https://github.com/lschulz/scion-cpp.git
-  GIT_TAG        v0.5.0
+  GIT_TAG        v0.1.0
 )
 FetchContent_MakeAvailable(scion-cpp)
 

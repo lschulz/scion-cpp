@@ -14,7 +14,7 @@ if(PROJECT_IS_TOP_LEVEL)
     include(Submodules)
     include(Packaging)
     include(GNUInstallDirs)
-    find_package(scion-cpp 0.0.5 REQUIRED)
+    find_package(scion-cpp 0.1.0 REQUIRED)
 endif()
 
 # ========

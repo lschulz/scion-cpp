@@ -1,4 +1,4 @@
-% scion-interposer(7) Version 0.0.5 | SCION++ Manual
+% scion-interposer(7) Version 0.0.6 | SCION++ Manual
 
 ## NAME ##
 

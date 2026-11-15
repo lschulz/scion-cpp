@@ -2,7 +2,7 @@
 
 set(SCION_PACKAGE_MAINTAINER "Lars-Christian Schulz <lars@lcschulz.de>")
 set(SCION_PACKAGE_LICENSE "MIT")
-set(SCION_PACKAGE_RELEASE 1)
+set(SCION_PACKAGE_RELEASE "1" CACHE STRING "Version of the package itself")
 
 # Determine package format of the build host
 cmake_host_system_information(RESULT SCION_OS QUERY DISTRIB_INFO)
@@ -126,9 +126,11 @@ function(_scion_get_dep_versions format level pkg out)
             COMMAND ${DPKG_QUERY} --show "-f=\${Version}" ${pkg}
             OUTPUT_VARIABLE ver
             RESULT_VARIABLE res)
+        # Remove package revision from lower bound
+        string(REGEX REPLACE "-[^-]+$" "" ver "${ver}")
     else()
         execute_process(
-            COMMAND ${RPM_BINARY} --query --qf "%{EVR}" ${pkg}
+            COMMAND ${RPM_BINARY} --query --qf "%|EPOCH?{%{EPOCH}:}|%{VERSION}" ${pkg}
             OUTPUT_VARIABLE ver
             RESULT_VARIABLE res)
     endif()
@@ -169,7 +171,11 @@ function(_scion_get_dep_versions format level pkg out)
             " adding without upper bound")
     endif()
 
-    set(${out} "${pkg} ${lower} ${upper}" PARENT_SCOPE)
+    set(result "${pkg} ${lower}")
+    if(upper)
+        list(APPEND result "${pkg} ${upper}")
+    endif()
+    set(${out} "${result}" PARENT_SCOPE)
 endfunction()
 
 # scion_rpm_conffiles(<out-var> <path to conffiles>)

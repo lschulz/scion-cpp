@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.28)
 
 project(scion-cpp
-    VERSION 0.0.5
+    VERSION 0.1.0
     DESCRIPTION "SCION SDK for C++"
     HOMEPAGE_URL "https://github.com/lschulz/scion-cpp"
     LANGUAGES C CXX
@@ -391,8 +391,8 @@ set_target_properties(scion-c PROPERTIES
     # conflict with static library.
     ARCHIVE_OUTPUT_NAME "scionc-import"
     DEBUG_POSTFIX "d"
-    VERSION "${SCION_C_VERSION}"
-    SOVERSION "${SCION_C_SO_VERSION}"
+    VERSION "${PROJECT_VERSION}"
+    SOVERSION "${PROJECT_VERSION_MAJOR}"
 )
 add_library(scion::c ALIAS scion-c)
 
@@ -402,10 +402,6 @@ install(TARGETS scion-c-static scion-c
     ARCHIVE                 COMPONENT SCIONC_DEV
     LIBRARY                 COMPONENT SCIONC     NAMELINK_COMPONENT SCIONC_DEV
     RUNTIME                 COMPONENT SCIONC
-)
-install(TARGETS scion-c
-    COMPONENT SCIONC
-    RUNTIME
 )
 
 # ====================

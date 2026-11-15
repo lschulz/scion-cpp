@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.28)
 
 project(scitra-tun
-    VERSION 0.1.0
+    VERSION 0.2.0
     DESCRIPTION "SCION-IP Translator for TUN/TAP device"
     HOMEPAGE_URL "https://github.com/lschulz/scion-cpp"
     LANGUAGES CXX
@@ -17,7 +17,7 @@ if(PROJECT_IS_TOP_LEVEL)
     include(Submodules)
     include(Packaging)
     include(GNUInstallDirs)
-    find_package(scion-cpp 0.0.5 REQUIRED)
+    find_package(scion-cpp 0.1.0 REQUIRED)
 endif()
 
 if(SCITRA_SYSTEMD_UNIT_DIR)
@@ -156,7 +156,7 @@ set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA
 )
 string(CONCAT CPACK_DEBIAN_PACKAGE_RECOMMENDS
     "scion-daemon, "
-    "scion++-tools"
+    "scion2ip"
 )
 
 scion_rpm_conffiles(CPACK_RPM_USER_FILELIST
@@ -164,6 +164,6 @@ scion_rpm_conffiles(CPACK_RPM_USER_FILELIST
 )
 set(CONCAT CPACK_RPM_PACKAGE_SUGGESTS
     "scion-daemon"
-    "scion++-tools"
+    "scion2ip"
 )
 scion_configure_cpack(COMPONENTS SCITRA_TUN)

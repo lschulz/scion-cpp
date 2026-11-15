@@ -1,9 +1,12 @@
 #!/bin/sh
 
+source /etc/os-release
+
 # Build out-of-tree
 mkdir /build
 cmake -G 'Ninja Multi-Config' -S /scion-cpp -B /build \
-    -DMARCH='' -DCMAKE_INSTALL_PREFIX=/ -DRELEASE=YES
+    -DMARCH='' -DCMAKE_INSTALL_PREFIX=/ -DRELEASE=YES \
+    -DSCION_PACKAGE_RELEASE="1~${UBUNTU_CODENAME}1"
 cmake --build /build --config Release
 
 # Package
@@ -19,7 +22,6 @@ do
 done
 
 # Copy results
-source /etc/os-release
 subdir="${ID}${VERSION_ID}-$(uname -m)"
 mkdir -p /out/$subdir
 cat /package/*.sha256 > "/out/$subdir/checksums.sha256"

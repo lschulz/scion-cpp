@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.28)
 
 project(scion-interposer
-    VERSION 0.0.5
+    VERSION 0.0.6
     DESCRIPTION "Emulates native SCION support in applications that use libc for network I/O"
     HOMEPAGE_URL "https://github.com/lschulz/scion-cpp"
     LANGUAGES C CXX
@@ -15,7 +15,7 @@ if(PROJECT_IS_TOP_LEVEL)
     include(Submodules)
     include(Packaging)
     include(GNUInstallDirs)
-    find_package(scion-cpp 0.0.5 REQUIRED COMPONENTS c)
+    find_package(scion-cpp 0.1.0 REQUIRED COMPONENTS c)
 endif()
 
 # ============
