@@ -56,6 +56,7 @@ test-interposer:
 test-integration:
 	$(PYTHON) integration-tests/run_tests.py tiny4 -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
 	$(PYTHON) integration-tests/run_tests.py default -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
+	$(PYTHON) scitra/integration-test/cli/run_cli_tests.py -b "$(BUILD_DIR)"
 	$(PYTHON) scitra/integration-test/normal/run_ipv4_tests.py -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
 	$(PYTHON) scitra/integration-test/normal/run_ipv6_tests.py -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
 	$(PYTHON) scitra/integration-test/multipath/run_tests.py -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"

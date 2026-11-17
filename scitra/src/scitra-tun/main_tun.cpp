@@ -43,13 +43,13 @@ extern const char* VERSION;
 
 static std::unique_ptr<Arguments> parseCommandLine(int argc, char* argv[])
 {
-    static const std::array<std::pair<const char*, Mode>, 3> modeMap = {
+    static const std::array modeMap = {
         std::make_pair("normal", Mode::Normal),
         std::make_pair("gateway", Mode::Gateway)
     };
 
     using LogLevel = std::pair<const char*, spdlog::level::level_enum>;
-    static const std::array<LogLevel, 6> logLevelMap{
+    static const std::array logLevelMap = {
         LogLevel{"trace", spdlog::level::trace},
         LogLevel{"debug", spdlog::level::debug},
         LogLevel{"info", spdlog::level::info},
