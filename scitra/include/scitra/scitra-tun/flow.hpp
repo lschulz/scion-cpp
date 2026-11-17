@@ -228,6 +228,10 @@ public:
     Flow(const scion::generic::IPEndpoint& boundTo, FlowType type,
         std::uint32_t queue, bool multipath)
         : boundTun(boundTo), type(type), queue(queue), multipath(multipath)
+        // initialize to now, so flows that don't carry packets (e.g. because
+        // no path is available yet) show the correct idle time and don't
+        // immediately expire
+        , lastUsed(std::chrono::steady_clock::now())
     {}
 
     /// \internal \brief Create a new flow or subflow.

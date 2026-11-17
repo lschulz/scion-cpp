@@ -913,11 +913,18 @@ std::error_code ScitraTun::translateIPtoScion(TunQueue& tun)
                     spdlog::debug("Selected path for {} (subflow bound to {}): {}",
                         flowid, tunSrc, *path, mtu);
                 } else {
-                    path = selectPath(flowid, tc);
-                    if (!path) return std::make_pair(
-                        Maybe<PathPtr>(Error(ErrorCode::Pending)), (std::uint16_t)0);
-
-                    spdlog::debug("Selected path for {}: {}", flowid, *path);
+                    if (auto p = selectPath(flowid, tc); isError(p)) {
+                        if (p.error() != ErrorCondition::Pending)
+                            spdlog::error("Error in path selector for {}: {}",
+                                flowid, fmtError(p.error()));
+                        return std::make_pair(p, (std::uint16_t)0);
+                    } else if (*p == nullptr) {
+                        spdlog::info("No paths for {}", flowid);
+                        return std::make_pair(p, (std::uint16_t)0);
+                    } else {
+                        path = *p;
+                        spdlog::debug("Selected path for {}: {}", flowid, *path);
+                    }
                 }
                 mtu = pmtu->getMtu(dst.host(), *path, recvd);
                 spdlog::debug("Path {} has MTU of {} octets", *path, mtu);
@@ -1252,8 +1259,8 @@ PathPtr ScitraTun::refreshPath(const PathPtr& path)
     return path;
 }
 
-// Select a new path from scratch. May return nullptr.
-PathPtr ScitraTun::selectPath(const FlowID& flowid, std::uint8_t tc)
+// Select a new path from scratch.
+Maybe<PathPtr> ScitraTun::selectPath(const FlowID& flowid, std::uint8_t tc)
 {
     auto paths = getPathsForFlow(flowid, tc);
     if (paths) {
@@ -1262,10 +1269,7 @@ PathPtr ScitraTun::selectPath(const FlowID& flowid, std::uint8_t tc)
         }
         return nullptr; // all paths have failed
     } else {
-        if (paths.error() == ErrorCondition::Pending)
-            return nullptr; // paths not ready yet
-        else
-            return nullptr; // no path
+        return propagateError(paths);
     }
 }
 
@@ -1275,12 +1279,7 @@ PathPtr ScitraTun::selectPathMulti(
     const FlowID& flowid, std::uint8_t tc, const std::span<PathPtr>& others)
 {
     auto paths = getPathsForFlow(flowid, tc);
-    if (!paths) {
-        if (paths.error() == ErrorCondition::Pending)
-            return nullptr; // paths not ready yet
-        else
-            return nullptr; // no path
-    }
+    if (!paths) return nullptr;
 
     // Find path with the least overlap to other subflows
     float minOverlap = std::numeric_limits<float>::infinity();

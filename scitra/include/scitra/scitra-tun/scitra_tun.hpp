@@ -281,7 +281,7 @@ private:
     std::error_code beginPathQuery(SharedPathCache& cache, IsdAsn src, IsdAsn dst);
     Maybe<std::vector<PathPtr>> getPathsForFlow(const FlowID& flowid, std::uint8_t tc);
     PathPtr refreshPath(const PathPtr& path);
-    PathPtr selectPath(const FlowID& flowid, std::uint8_t tc);
+    Maybe<PathPtr> selectPath(const FlowID& flowid, std::uint8_t tc);
     PathPtr selectPathMulti(
         const FlowID& flowid, std::uint8_t tc, const std::span<PathPtr>& others);
     void printStatus();

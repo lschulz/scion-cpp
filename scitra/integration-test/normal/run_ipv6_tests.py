@@ -103,6 +103,62 @@ class ScitraBase:
         self.scitra_inst1.communicate()
 
 
+class ICMP(ScitraBase, unittest.TestCase):
+    """Test ICMP echo and error responses"""
+    def __init__(self, methodName, build_dir="build"):
+        super().__init__(methodName, build_dir)
+        self.command = "ping"
+
+    def test_ping(self):
+        """Ping between two hosts."""
+        res = subprocess.run([
+            "sudo", "ip", "netns", "exec", "host0",
+            "ping", "fc00:10fc:200::2", "-pABCD", "-e52651", "-W1", "-c2"
+        ], stdout=PIPE, stderr=STDOUT)
+        self.assertEqual(res.returncode, 0)
+        self.assertIn("2 packets transmitted, 2 received", res.stdout.decode())
+        res = subprocess.run([
+            "sudo", "ip", "netns", "exec", "host1",
+            "ping", "fc00:10fc:100::2", "-pABCD", "-e52651", "-W1", "-c2"
+        ], stdout=PIPE, stderr=STDOUT)
+        self.assertEqual(res.returncode, 0)
+        self.assertIn("2 packets transmitted, 2 received", res.stdout.decode())
+
+    def test_invalid_dest(self):
+        """Ping a reserved SCION-mapped IPv6 address. Should return ICMP
+        destination unreachable with code 3 (address unreachable).
+        """
+        # fc00:1ffc:200:: is format E
+        res = subprocess.run([
+            "sudo", "ip", "netns", "exec", "host0",
+            "ping", "fc00:1ffc:200::", "-pABCD", "-e52651", "-W1", "-c2"
+        ], stdout=PIPE, stderr=STDOUT)
+        self.assertEqual(res.returncode, 1)
+        self.assertIn("Destination unreachable: Address unreachable", res.stdout.decode())
+
+    def test_no_route(self):
+        """Ping an AS that doesn't exist. Should return ICMP destination
+        unreachable with code 0 (no route to destination).
+        """
+        # ping 2-64513,::1
+        res = subprocess.run([
+            "sudo", "ip", "netns", "exec", "host0",
+            "ping", "fc00:20fc:100::1", "-pABCD", "-e52651", "-W1", "-c2"
+        ], stdout=PIPE, stderr=STDOUT)
+        self.assertEqual(res.returncode, 1)
+        self.assertIn("Destination unreachable: No route", res.stdout.decode())
+
+    def test_packet_too_big(self):
+        """Probe PMTU"""
+        res = subprocess.run([
+            "sudo", "ip", "netns", "exec", "host0",
+            "ping", "fc00:10fc:200::2", "-pABCD", "-e52651", "-W1", "-c2",
+            "-Mprobe", "-s1380"
+        ], stdout=PIPE, stderr=STDOUT)
+        self.assertEqual(res.returncode, 1)
+        self.assertIn("Packet too big: mtu=1388", res.stdout.decode())
+
+
 class Netcat(ScitraBase, unittest.TestCase):
     """Test TCP connection"""
     def __init__(self, methodName, build_dir="build"):
@@ -146,6 +202,10 @@ class Netcat(ScitraBase, unittest.TestCase):
 
 def suite(build_dir):
     suite = unittest.TestSuite()
+    suite.addTest(ICMP("test_ping", build_dir))
+    suite.addTest(ICMP("test_invalid_dest", build_dir))
+    suite.addTest(ICMP("test_no_route", build_dir))
+    suite.addTest(ICMP("test_packet_too_big", build_dir))
     suite.addTest(Netcat("test_netcat", build_dir))
     return suite
 

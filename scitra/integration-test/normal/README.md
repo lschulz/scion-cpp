@@ -1,6 +1,14 @@
 Scitra-TUN Test Harness
 =======================
 
+This document describes the tests for Scitra-TUN's "normal" mode. The test network consists of a
+SCION "local topology" and two separate network namespaces `host0` and `host1` that simulate two
+host connected to AS 1-64513 and 1-64514, respectively.
+
+There are two variants of the topology, one with an IPv4 underlay and one with an IPv6 underlay.
+
+## Test Procedure ##
+
 #### Step 1 ####
 
 Create network namespaces and veth pairs using the [setup.sh](./setup.sh) script.
