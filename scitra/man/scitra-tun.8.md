@@ -383,7 +383,7 @@ ip route add local fc00:10fc:100:100::/64 dev lo table local
 --------------------------------------------
 
 ----------------Border Routers--------------
-# Border routers need a route to the internal IPv6 address in SCION-mapped form.
+# Border routers need a route to the network behind the gateway.
 ip route add fc00:10fc:100:100::/64 via fc00:10fc:100::2 dev internal
 --------------------------------------------
 ```
@@ -435,7 +435,7 @@ ip route add local 10.128.1.0/24 dev lo table local
 --------------------------------------------
 
 ----------------Border Routers--------------
-# Border routers need a route to the internal IPv6 address in SCION-mapped form.
+# Border routers need a route to the network behind the gateway.
 ip route add 10.128.1.0/24 via 10.128.0.2 dev internal
 --------------------------------------------
 ```

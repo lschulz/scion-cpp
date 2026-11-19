@@ -37,16 +37,32 @@ different routes.
 ### IPv4 Underlay ###
 
 #### Step 1: Set up the network ####
+
+Choose one of prefix (1), (2), or (3).
+
 ```bash
-sudo ipv4/setup.sh
+sudo ipv4/setup_prefix1.sh
+sudo ipv4/setup_prefix2.sh
+sudo ipv4/setup_prefix3.sh
 ipv4/run_scion.sh
 ```
+
 #### Step 2: Run Scitra-TUN ####
 
 In namespace `scitra`:
 ```bash
 sudo ip netns exec scitra sudo -u $USER bash
+
+# TUN Prefix 1: fc00:10fc:100::ffff:10.128.0.2/112
+scitra-tun -a 10.128.0.2/16 -d 10.128.0.1:30255 \
+  --mode=gateway --scmp --tui -l debug --log-file gateway.txt
+
+# TUN Prefix 2: fd00:10fc:100::ffff:10.128.0.2/112
 scitra-tun -a 10.128.0.2/16 -t fd00:10fc:100::ffff:10.128.0.2 -d 10.128.0.1:30255 \
+  --mode=gateway --scmp --tui -l debug --log-file gateway.txt
+
+# TUN Prefix 3: fd00::2/112
+scitra-tun -a 10.128.0.2/16 -t fd00::2 -d 10.128.0.1:30255 \
   --mode=gateway --scmp --tui -l debug --log-file gateway.txt
 ```
 

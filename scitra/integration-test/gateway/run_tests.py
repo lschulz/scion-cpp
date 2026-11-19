@@ -21,17 +21,20 @@
 
 import argparse
 import os
+import re
 import subprocess
 import time
 import unittest
 from pathlib import Path
 from subprocess import DEVNULL, PIPE, STDOUT
 
+SUITES = ["ipv4_prefix1", "ipv4_prefix2", "ipv4_prefix3", "ipv4", "ipv6", "ipv6_prefix_xlat"]
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description="Runs gateway mode and prefix translation integration tests")
-    parser.add_argument("suite", choices=["ipv4", "ipv6", "ipv6_prefix_xlat"],
+    parser.add_argument("suite", choices=SUITES,
         help="Test suite to run")
     parser.add_argument("-s", "--scion", type=Path, default=Path.home() / "scionproto-scion",
         help="Absolute path to local copy of scionproto/scion from which to run the test network")
@@ -48,9 +51,15 @@ def setUpNetwork(args):
     """
     if args.use_existing:
         return
-    base_path = Path(__file__).parent / args.suite
+    match = re.match(r"ipv4_prefix([0-9])$", args.suite)
+    if match:
+        base_path = Path(__file__).parent / "ipv4"
+        setup = f"setup_prefix{match[1]}.sh"
+    else:
+        base_path = Path(__file__).parent / args.suite
+        setup = "setup.sh"
     print("Set up network namespaces and links")
-    subprocess.run(["sudo", str(base_path / "setup.sh")], check=True)
+    subprocess.run(["sudo", str(base_path / setup)], check=True)
     print("Starting local topology")
     subprocess.run([str(base_path / "run_scion.sh")],
         env={"SCION_ROOT": args.scion, **os.environ}, check=True)
@@ -64,7 +73,11 @@ def tearDownNetwork(args):
     """
     if args.use_existing:
         return
-    base_path = Path(__file__).parent / args.suite
+    match = re.match(r"ipv4_prefix([0-9])$", args.suite)
+    if match:
+        base_path = Path(__file__).parent / "ipv4"
+    else:
+        base_path = Path(__file__).parent / args.suite
     print("Stopping local topology")
     subprocess.run([str(base_path / "stop_scion.sh")],
         env={"SCION_ROOT": args.scion, **os.environ}, check=True)
@@ -187,15 +200,20 @@ class GatewayTestBase(unittest.TestCase):
 
 class IPv4Gateway(GatewayTestBase):
     """Gateway mode with IPv4 underlay"""
-    def __init__(self, methodName, build_dir):
+    def __init__(self, prefix, methodName, build_dir):
         super().__init__(methodName)
         self.scitra_tun = Path(build_dir) / "scitra/Debug/scitra-tun-d"
         self.echo_udp_async = Path(build_dir) / "examples/Debug/echo-udp-async"
+        self._arg_prefix = [
+            (), # let Scitra-TUN construct the default prefix
+            ("-t", "fd00:10fc:100::ffff:10.128.0.2"),
+            ("-t", "fd00::2")
+        ][prefix]
 
     def setUp(self):
         self.scitra_inst0 = subprocess.Popen([
             "sudo", "ip", "netns", "exec", "scitra",
-            self.scitra_tun, "-a", "10.128.0.2/16", "-t", "fd00:10fc:100::ffff:10.128.0.2",
+            self.scitra_tun, "-a", "10.128.0.2/16", *self._arg_prefix,
             "-d", "10.128.0.1:30255", "--mode=gateway", "--scmp", "-l", "debug"
         ], stdout=PIPE, stderr=STDOUT)
         self.scitra_inst1 = subprocess.Popen([
@@ -204,6 +222,8 @@ class IPv4Gateway(GatewayTestBase):
             "-d", "[fc00:10fc:200::1]:30255", "-p", "32000", "--scmp", "-l", "debug"
         ], stdout=PIPE, stderr=STDOUT)
         time.sleep(0.2)
+        self.assertIsNone(self.scitra_inst0.poll())
+        self.assertIsNone(self.scitra_inst1.poll())
         # Prime path cache
         subprocess.run([
             "sudo", "ip", "netns", "exec", "scitra",
@@ -241,13 +261,13 @@ class IPv4Gateway(GatewayTestBase):
         server.wait()
 
 
-def suite_ipv4(build_dir):
+def suite_ipv4(prefix, build_dir):
     suite = unittest.TestSuite()
-    suite.addTest(IPv4Gateway("test_ping_from_host0_ipv4", build_dir))
-    suite.addTest(IPv4Gateway("test_ping_from_scitra_ipv4", build_dir))
-    suite.addTest(IPv4Gateway("test_netcat_from_host1", build_dir))
-    suite.addTest(IPv4Gateway("test_netcat_from_scitra", build_dir))
-    suite.addTest(IPv4Gateway("test_intra_as_echo", build_dir))
+    suite.addTest(IPv4Gateway(prefix, "test_ping_from_host0_ipv4", build_dir))
+    suite.addTest(IPv4Gateway(prefix, "test_ping_from_scitra_ipv4", build_dir))
+    suite.addTest(IPv4Gateway(prefix, "test_netcat_from_host1", build_dir))
+    suite.addTest(IPv4Gateway(prefix, "test_netcat_from_scitra", build_dir))
+    suite.addTest(IPv4Gateway(prefix, "test_intra_as_echo", build_dir))
     return suite
 
 
@@ -273,6 +293,8 @@ class IPv6Gateway(GatewayTestBase):
             "-d", "[fc00:10fc:200::1]:30255", "-p", "32000", "--scmp", "-l", "debug"
         ], stdout=PIPE, stderr=STDOUT)
         time.sleep(0.2)
+        self.assertIsNone(self.scitra_inst0.poll())
+        self.assertIsNone(self.scitra_inst1.poll())
         # Prime path cache
         subprocess.run([
             "sudo", "ip", "netns", "exec", "scitra",
@@ -319,6 +341,8 @@ class IPv6PrefixXlatGateway(GatewayTestBase):
             "--scmp", "-l", "debug"
         ], stdout=PIPE, stderr=STDOUT)
         time.sleep(0.2)
+        self.assertIsNone(self.scitra_inst0.poll())
+        self.assertIsNone(self.scitra_inst1.poll())
         # Prime path cache
         subprocess.run([
             "sudo", "ip", "netns", "exec", "scitra",
@@ -385,11 +409,16 @@ if __name__ == "__main__":
         exit(1)
 
     runner = unittest.TextTestRunner()
-    if args.suite == "ipv4":
-        suite = suite_ipv4(args.build)
-    elif args.suite == "ipv6":
+    try:
+        s = SUITES.index(args.suite)
+    except ValueError:
+        print(f"Unknown test suite {args.suite}")
+        exit(1)
+    if s < 3:
+        suite = suite_ipv4(s, args.build)
+    elif s == 4:
         suite = suite_ipv6(args.build)
-    elif args.suite == "ipv6_prefix_xlat":
+    elif s == 5:
         suite = suite_ipv6_prefix_xlat(args.build)
 
     setUpNetwork(args)

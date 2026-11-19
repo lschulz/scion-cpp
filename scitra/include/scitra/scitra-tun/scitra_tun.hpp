@@ -130,15 +130,23 @@ private:
 
     // Public underlay IP address used by SCION. Can be an IPv4 or IPv6 address.
     generic::IPAddress publicIP;
-    // SCION-mapped publicIP.
+    // Prefix length of publicIP.
+    unsigned int publicPrefixLen = REPLACE_ADDRESS;
+
+    // SCION-mapped publicIP. Must be an IPv6 address.
     generic::IPAddress mappedIP;
+    // IPv6 address of the TUN interface. Must be an IPv6 address. May be equal
+    // to mappedIP.
+    generic::IPAddress tunIP;
+    // Prefix length of mappedIP and tunIP.
+    unsigned int mappedPrefixLen = REPLACE_ADDRESS;
+
     // Source host address in outgoing SCION packets. Equal to either publicIP
     // or mappedIP.
     generic::IPAddress scionSrcIP;
-    // Prefix length for publicIP and scionSrcIP.
-    unsigned scionPrefixLen = REPLACE_ADDRESS;
-    // IPv6 address of the TUN interface. May be equal to mappedIP.
-    generic::IPAddress tunIP;
+    // Prefix length of scionSrcIP.
+    unsigned int srcPrefixLen = REPLACE_ADDRESS;
+
     // Additional IPv6 addresses of the TUN interface that provide additional
     // endpoints to MPTCP.
     std::vector<generic::IPAddress> extraIPs;
@@ -213,7 +221,7 @@ public:
 
     Mode getMode() const { return mode; }
     generic::IPAddress getMappedAddress() const { return mappedIP; }
-    unsigned int getMappedPrefixLength() const { return scionPrefixLen; }
+    unsigned int getMappedPrefixLength() const { return mappedPrefixLen; }
     generic::IPAddress getTunAddress() const { return tunIP; }
     std::string_view getPublicIfaceName() const { return netDevice; }
     std::string_view getTunName() const { return tunDevice; }

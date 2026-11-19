@@ -110,7 +110,7 @@ ScitraTun::ScitraTun(const Arguments& args)
     }
 
     // Parse public interface address
-    auto ec = parseInterface(args.publicAddress, publicIP, scionPrefixLen);
+    auto ec = parseInterface(args.publicAddress, publicIP, publicPrefixLen);
     if (ec) throw std::runtime_error("Public IP address is invalid");
     if (xlatUnderlay) {
         if (!publicIP.is6()) {
@@ -119,7 +119,7 @@ ScitraTun::ScitraTun(const Arguments& args)
             throw std::runtime_error(std::format(
                 "The public IP address {} is already SCION-mapped, underlay translation is not"
                 " necessary.", publicIP));
-        } else if (scionPrefixLen == 128) {
+        } else if (publicPrefixLen == 128) {
             throw std::runtime_error("Underlay prefix translation requires a prefix length < 128.");
         }
     } else if (!publicIP.is4() && !publicIP.isScion()) {
@@ -132,10 +132,12 @@ ScitraTun::ScitraTun(const Arguments& args)
         auto scionPrefix = mapIsdAsn(localAS.isdAsn);
         if (isError(scionPrefix)) throw std::runtime_error(std::format(
             "Local AS {} cannot be mapped to IPv6", localAS.isdAsn));
-        mappedIP = translatePrefix(publicIP, *scionPrefix, scionPrefixLen);
+        mappedIP = translatePrefix(publicIP, *scionPrefix, publicPrefixLen);
+        mappedPrefixLen = publicPrefixLen;
     } else {
         if (auto maybe = mapToIPv6(ScIPAddress(localAS.isdAsn, publicIP)); maybe.has_value()) {
             mappedIP = std::move(*maybe);
+            mappedPrefixLen = publicIP.is6() ? publicPrefixLen : (128 - publicPrefixLen);
         } else {
             throw std::runtime_error(std::format("Local SCION address {} cannot be mapped to IPv6",
                 ScIPAddress(localAS.isdAsn, publicIP)));
@@ -143,17 +145,17 @@ ScitraTun::ScitraTun(const Arguments& args)
     }
 
     // Validate prefix length
-    if ((publicIP.is6() && scionPrefixLen < 128) || (publicIP.is4() && scionPrefixLen < 32)) {
+    if ((publicIP.is6() && publicPrefixLen < 128) || (publicIP.is4() && publicPrefixLen < 32)) {
         if (mode != Mode::Gateway && !xlatUnderlay) throw std::runtime_error(
             "Prefix length in public IP is only valid in gateway mode or if underlay translation"
             " is active. Either specify the address without a prefix length or select a valid"
             " mode.");
     }
-    if (publicIP.is6() && scionPrefixLen < 128) {
+    if (publicIP.is6() && publicPrefixLen < 128) {
         const auto minPrefixLen = scionMappedPrefixLen(classifyScionMappedIP(mappedIP));
-        if (scionPrefixLen < minPrefixLen) {
+        if (publicPrefixLen < minPrefixLen) {
             throw std::runtime_error(std::format("Invalid prefix length in {}/{}, must be >= {}",
-                publicIP, scionPrefixLen, minPrefixLen));
+                publicIP, publicPrefixLen, minPrefixLen));
         }
     }
 
@@ -161,7 +163,13 @@ ScitraTun::ScitraTun(const Arguments& args)
     // If underlay prefix translation is active, public IP is not understood as
     // a valid SCION-mapped destination in remote ASes, so mapped IP must be
     // used directly.
-    scionSrcIP = xlatUnderlay ? mappedIP : publicIP;
+    if (xlatUnderlay) {
+        scionSrcIP = mappedIP;
+        srcPrefixLen = mappedPrefixLen;
+    } else {
+        scionSrcIP = publicIP;
+        srcPrefixLen = publicPrefixLen;
+    }
 
     // Determine TUN address
     if (!args.tunAddress.empty()) {
@@ -199,7 +207,7 @@ ScitraTun::ScitraTun(const Arguments& args)
                 throw std::runtime_error(
                     "Forwarding a nonlocal endpoint is only possible in gateway mode");
             }
-            if (!sameNetwork(maybe->host(), publicIP, scionPrefixLen)) {
+            if (!sameNetwork(maybe->host(), publicIP, publicPrefixLen)) {
                 throw std::runtime_error(std::format(
                     "Endpoint {} requested for forwarding in not part of the translated network",
                     *maybe));
@@ -247,6 +255,7 @@ ScitraTun::ScitraTun(const Arguments& args)
     if (netDevice.empty()) {
         if (auto maybe = netlink.findInterfaceByAddr(publicIP); maybe.has_value()) {
             netDevice = std::move(*maybe);
+            spdlog::info("Found public SCION interface: {}", netDevice);
         } else {
             throw std::runtime_error(std::format("No interface with IP {} found", publicIP));
         }
@@ -469,7 +478,7 @@ std::vector<FlowInfo> ScitraTun::exportFlows(bool resetCounters) const
                 .getCounters(counters).getPath(path);
             if (resetCounters) fl.resetCounters();
             out.emplace_back(id, flags, flow->getType(), state, tc,
-                flow->getTunAddr(), flow->getPublicAddr(publicIP, scionPrefixLen),
+                flow->getTunAddr(), flow->getPublicAddr(publicIP, publicPrefixLen),
                 flow->getLocalPort(), token,
                 counters, lastUsed, path, path ? pmtu->getMtu(id.dst.host(), *path) : 0);
         }
@@ -481,7 +490,7 @@ std::vector<FlowInfo> ScitraTun::exportFlows(bool resetCounters) const
                    .getCounters(counters).getPath(path);
                 if (resetCounters) sfl.resetCounters();
                 out.emplace_back(id, flags, flow->getType(), state, tc,
-                sf.getTunAddr(), sf.getPublicAddr(publicIP, scionPrefixLen),
+                sf.getTunAddr(), sf.getPublicAddr(publicIP, publicPrefixLen),
                 sf.getLocalPort(), token,
                 counters, lastUsed, path, path ? pmtu->getMtu(id.dst.host(), *path) : 0);
             });
@@ -747,8 +756,8 @@ void ScitraTun::maintainFlowsAndSockets()
             auto j = std::ranges::find_if(flows, [&](const auto& fl) {
                 // Special case for SCMP: Underlay socket uses DISPATCHER_PORT
                 if (fl.first.proto == hdr::ScionProto::SCMP && proxyEp.port() == DISPATCHER_PORT)
-                    return fl.second->getPublicAddr(publicIP, scionPrefixLen) == proxyEp.host();
-                return fl.second->getPublicEp(publicIP, scionPrefixLen) == proxyEp;
+                    return fl.second->getPublicAddr(publicIP, publicPrefixLen) == proxyEp.host();
+                return fl.second->getPublicEp(publicIP, publicPrefixLen) == proxyEp;
             });
             if (j != flows.end()) {
                 ++i;
@@ -761,7 +770,7 @@ void ScitraTun::maintainFlowsAndSockets()
         i = sockets.erase(i);
         auto& socketLocalEp = socket->local();
         for (auto j = flows.begin(); j != flows.end(); ++j) {
-            if (j->second->getPublicEp(publicIP, scionPrefixLen) == socketLocalEp) {
+            if (j->second->getPublicEp(publicIP, publicPrefixLen) == socketLocalEp) {
                 if (j->second->isMultipath()) {
                     j->second->lock().applyToSubflows([] (Flow& sf) {
                         sf.lock().close();
@@ -838,10 +847,10 @@ std::error_code ScitraTun::translateIPtoScion(TunQueue& tun)
 
         // Drop packets with unexpected source IP
         assert(pkt.ipValid == PacketBuffer::IPValidity::IPv6);
-        if (!sameNetwork(pkt.ipv6.src, tunIP, scionPrefixLen)
+        if (!sameNetwork(pkt.ipv6.src, tunIP, mappedPrefixLen)
             && std::ranges::find(extraIPs, pkt.ipv6.src) == extraIPs.end()) {
             spdlog::debug("IP->SCION Packet dropped (source address {} not in {}/{})",
-                pkt.ipv6.src, tunIP, scionPrefixLen);
+                pkt.ipv6.src, tunIP, mappedPrefixLen);
             continue;
         }
 
@@ -850,7 +859,7 @@ std::error_code ScitraTun::translateIPtoScion(TunQueue& tun)
         std::uint16_t remappedSPort = 0;
         bool mpOutOfPaths = false;
         std::shared_ptr<Flow> flow;
-        auto [verdict, port, nextHop] = translateEgress(pkt, scionSrcIP, scionPrefixLen,
+        auto [verdict, port, nextHop] = translateEgress(pkt, scionSrcIP, srcPrefixLen,
             [&] (const ScIPAddress& src, const ScIPAddress& dst,
                 uint16_t sport, uint16_t dport, hdr::ScionProto proto, uint8_t tc) {
             PathPtr path;
@@ -945,7 +954,7 @@ std::error_code ScitraTun::translateIPtoScion(TunQueue& tun)
             if (xlatUnderlay) {
                 // Rewrite underlay IP prefix from mappedIP to to publicIP
                 // (underlay translation implies that we have an IPv6 header)
-                pkt.ipv6.src = translatePrefix(tunSrc.host(), publicIP, scionPrefixLen);
+                pkt.ipv6.src = translatePrefix(tunSrc.host(), publicIP, publicPrefixLen);
             }
             if (auto socket = getSocket(IPEndpoint(pkt.ipSrcAddress(), port)); socket) {
                 assert(flow);
@@ -1073,7 +1082,7 @@ asio::awaitable<std::error_code> ScitraTun::translateScionToIP(std::shared_ptr<S
         // find the local IP (assigned to the TUN interface) that is used
         // to identify the subflow in MPTCP.
         bool pathReversed = false;
-        unsigned int prefixLen = scionPrefixLen;
+        unsigned int prefixLen = mappedPrefixLen;
         std::shared_ptr<Flow> flow;
         FlowID flowid(Igr, pkt);
         generic::IPEndpoint tunEp(tunIP, pkt.l4DPort());
