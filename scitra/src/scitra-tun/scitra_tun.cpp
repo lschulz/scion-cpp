@@ -1323,7 +1323,7 @@ void ScitraTun::printStatus()
 {
     const auto now = std::chrono::steady_clock::now();
     const auto date = std::chrono::system_clock::now();
-    std::cout << std::format("### Scitra-TUN {:%F %T} ###\n", date);
+    std::cout << std::format("### Scitra-TUN Flows {:%F %T} ###\n", date);
 
     for (auto& flow : exportFlows(false)) {
         if (!flow.flags[FlowInfo::Flags::Multipath]) {
@@ -1363,5 +1363,7 @@ void ScitraTun::printStatus()
             flow.counters.pktsIngress, flow.counters.bytesIngress);
         std::cout << '\n';
     }
+
+    std::cout << std::format("### Scitra-TUN Flows End {:%F %T} ###\n", date);
     std::cout << std::flush;
 }
