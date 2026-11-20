@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.28)
 
 project(scitra-tun
-    VERSION 0.2.0
+    VERSION 0.2.1
     DESCRIPTION "SCION-IP Translator for TUN/TAP device"
     HOMEPAGE_URL "https://github.com/lschulz/scion-cpp"
     LANGUAGES CXX
