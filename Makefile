@@ -60,7 +60,9 @@ test-integration:
 	$(PYTHON) scitra/integration-test/normal/run_ipv4_tests.py -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
 	$(PYTHON) scitra/integration-test/normal/run_ipv6_tests.py -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
 	$(PYTHON) scitra/integration-test/multipath/run_tests.py -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
-	$(PYTHON) scitra/integration-test/gateway/run_tests.py ipv4 -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
+	$(PYTHON) scitra/integration-test/gateway/run_tests.py ipv4_prefix1 -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
+	$(PYTHON) scitra/integration-test/gateway/run_tests.py ipv4_prefix2 -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
+	$(PYTHON) scitra/integration-test/gateway/run_tests.py ipv4_prefix3 -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
 	$(PYTHON) scitra/integration-test/gateway/run_tests.py ipv6 -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
 	$(PYTHON) scitra/integration-test/gateway/run_tests.py ipv6_prefix_xlat -b "$(BUILD_DIR)" -s "$(SCION_ROOT)"
 
