@@ -16,6 +16,10 @@ list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 option(SCION_CPP_BUILD_TESTS "Build the unit tests" ${PROJECT_IS_TOP_LEVEL})
 option(SCION_CPP_BUILD_EXAMPLES "Build the examples" ${PROJECT_IS_TOP_LEVEL})
 option(SCION_CPP_BUILD_APPS "Build the included applications" ${PROJECT_IS_TOP_LEVEL})
+option(SCION_CPP_BUILD_INTERPOSER
+    "Build the SCION interposer (SCION_CPP_BUILD_APPS must also be on)" ${PROJECT_IS_TOP_LEVEL})
+option(SCION_CPP_BUILD_SCITRA
+    "Build Scitra-TUN (SCION_CPP_BUILD_APPS must also be on)" ${PROJECT_IS_TOP_LEVEL})
 
 set(BOTAN_CA_BUNDLE "" CACHE STRING
 "Set path to target system's trusted cert bundle. An empty string lets the \
@@ -313,6 +317,7 @@ target_link_libraries(scion-cpp
     PUBLIC
         Boost::headers
         Boost::json
+        c-ares::cares
         protobuf::libprotobuf
         gRPC::grpc
         gRPC::grpc++
@@ -515,11 +520,13 @@ endif()
 # ============
 
 if(SCION_CPP_BUILD_APPS)
-    if(LINUX)
+    if(LINUX AND SCION_CPP_BUILD_INTERPOSER)
         add_subdirectory(interposer)
-        add_subdirectory(scitra)
-        add_subdirectory(scitra/tools/scion2ip)
     endif()
+    if(LINUX AND SCION_CPP_BUILD_SCITRA)
+        add_subdirectory(scitra)
+    endif()
+    add_subdirectory(scitra/tools/scion2ip)
 endif()
 
 # =========

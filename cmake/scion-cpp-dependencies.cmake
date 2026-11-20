@@ -6,6 +6,12 @@
 
 find_package(Boost CONFIG REQUIRED COMPONENTS json)
 
+# ======
+# c-ares
+# ======
+
+find_package(c-ares CONFIG REQUIRED)
+
 # ========
 # Protobuf
 # ========

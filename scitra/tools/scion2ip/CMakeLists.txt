@@ -17,6 +17,8 @@ if(PROJECT_IS_TOP_LEVEL)
     find_package(scion-cpp 0.1.0 REQUIRED)
 endif()
 
+scion_add_cli11()
+
 # ========
 # scion2ip
 # ========

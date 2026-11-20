@@ -32,6 +32,7 @@ endif()
 # Dependencies
 # ============
 
+scion_add_cli11()
 scion_add_spdlog()
 scion_add_imtui()
 
@@ -40,6 +41,7 @@ scion_add_imtui()
 # =========
 
 find_package(PkgConfig REQUIRED)
+pkg_check_modules(libmnl REQUIRED IMPORTED_TARGET libmnl)
 pkg_check_modules(libcap REQUIRED IMPORTED_TARGET libcap)
 pkg_check_modules(libpsx REQUIRED IMPORTED_TARGET libpsx)
 pkg_check_modules(libsystemd REQUIRED IMPORTED_TARGET libsystemd)
@@ -70,9 +72,9 @@ target_link_libraries(scitra-tun PRIVATE
     scion::cpp
     CLI11::CLI11
     spdlog::spdlog
-    mnl
     imtui
     imtui-ncurses
+    PkgConfig::libmnl
     PkgConfig::libcap
     PkgConfig::libpsx
     PkgConfig::libsystemd
