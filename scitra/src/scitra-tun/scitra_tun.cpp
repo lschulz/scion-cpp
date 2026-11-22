@@ -461,7 +461,7 @@ std::vector<FlowInfo> ScitraTun::exportFlows(bool resetCounters) const
     out.reserve(flows.size());
 
     std::scoped_lock lock{socketMutex, flowMutex};
-    FlowInfo::FlagSet flags = {};
+    FlowInfo::FlagSet flags;
     FlowState state;
     std::uint8_t tc;
     std::uint32_t token = 0;
@@ -470,6 +470,7 @@ std::vector<FlowInfo> ScitraTun::exportFlows(bool resetCounters) const
     PathPtr path;
 
     for (auto& [id, flow] : flows) {
+        flags = {};
         if (flow->isMultipath()) flags |= FlowInfo::Flags::Multipath;
         auto fl = flow->lock();
         fl.getState(state);
@@ -1329,10 +1330,11 @@ void ScitraTun::printStatus()
         if (!flow.flags[FlowInfo::Flags::Multipath]) {
             auto proto = protoToString((int)flow.tuple.proto);
             std::cout << std::format(
-                "{} -> {} [{}] tun {} underlay {} port {} type {} state {} time {:%M:%S}",
+                "{} -> {} [{}] class {} tun {} underlay {} port {} type {} state {} time {:%M:%S}",
                 flow.tuple.src,
                 flow.tuple.dst,
                 proto,
+                flow.tc,
                 flow.boundToTun,
                 flow.boundToPublic,
                 flow.boundToPort,
@@ -1342,11 +1344,12 @@ void ScitraTun::printStatus()
             );
         } else if (flow.tuple.proto == scion::hdr::ScionProto::TCP) {
             std::cout << std::format(
-                "{} -> {} [{}] tun {} underlay {} port {} type {} state {} token {:08x}"
+                "{} -> {} [{}] class {} tun {} underlay {} port {} type {} state {} token {:08x}"
                 " time {:%M:%S}",
                 flow.tuple.src,
                 flow.tuple.dst,
                 "MPTCP",
+                flow.tc,
                 flow.boundToTun,
                 flow.boundToPublic,
                 flow.boundToPort,
