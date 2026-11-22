@@ -72,6 +72,8 @@ TrafficMatcher::TrafficMatcher(const boost::json::object& obj)
                 m_proto = hdr::ScionProto::TCP;
             else if (proto == "udp")
                 m_proto = hdr::ScionProto::UDP;
+            else if (proto == "scmp")
+                m_proto = hdr::ScionProto::SCMP;
             else
                 throw ParserError(std::format("Unknown protocol '{}'", proto.c_str()));
         } else if (name == "traffic_class") {
@@ -542,7 +544,9 @@ void PolicySet::parse(const boost::json::value& data)
             auto obj = m.as_object();
             std::size_t policy = -1;
             if (auto p = obj.if_contains("policy"); p) {
-                if (auto i = policyNames.find(p->as_string()); i != policyNames.end())
+                if (p->as_string() == "default")
+                    policy = POLICY_INDEX_DEFAULT;
+                else if (auto i = policyNames.find(p->as_string()); i != policyNames.end())
                     policy = policyNames.at(p->as_string());
                 else
                     throw ParserError(std::format(

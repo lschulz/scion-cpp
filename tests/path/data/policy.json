@@ -1,6 +1,10 @@
 {
     "matchers": [
         {
+            "protocol": "scmp",
+            "policy": "default"
+        },
+        {
             "source": "1-64512,127.0.0.1",
             "protocol": "udp",
             "traffic_class": 1,
@@ -20,13 +24,6 @@
         }
     ],
     "policies": {
-        "default": {
-            "acl": [
-                "- 666",
-                "+"
-            ],
-            "ordering": ["random", "hops_asc", "meta_bandwidth_desc"]
-        },
         "p1": {
             "extends": "default",
             "requirements": {
@@ -37,6 +34,13 @@
         "p2": {
             "extends": "default",
             "sequence": "1-64512#20 0*"
+        },
+        "default": {
+            "acl": [
+                "- 666",
+                "+"
+            ],
+            "ordering": ["random", "meta_latency_asc", "hops_asc", "meta_bandwidth_desc"]
         },
         "p3": {
             "extends": "p2",

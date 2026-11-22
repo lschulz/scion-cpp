@@ -219,6 +219,20 @@ TEST(PathPolicy, PolicySet)
     EXPECT_THAT(filtered, testing::ElementsAre(
         paths.at(2)
     ));
+
+    // Match SCMP and short-circuit to default
+    copy = paths;
+    filtered = policies.apply(
+        unwrap(ScIPEndpoint::Parse("1-64512,127.0.0.1:0")),
+        unwrap(ScIPEndpoint::Parse("[1-ff00:0:1,10.0.0.1]:0")),
+        hdr::ScionProto::SCMP,
+        0,
+        copy
+    );
+    ASSERT_EQ(filtered.data(), copy.data());
+    EXPECT_THAT(filtered, testing::ElementsAre(
+        paths.at(1), paths.at(2), paths.at(0)
+    ));
 }
 
 TEST(PathPolicy, EmptyPolicySet)
