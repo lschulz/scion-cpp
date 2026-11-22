@@ -141,7 +141,7 @@ static void parseArgs(int argc, char* argv[], Config &cfg)
         if (auto res = std::from_chars(sv.data(), e, w); res.ec == std::errc() && res.ptr == e) {
             cfg.client.wait = std::chrono::milliseconds(w);
         } else {
-            throw CLI::ConversionError(std::format("\"{}\" is not a valid", sv));
+            throw CLI::ConversionError(std::format("\"{}\" is not a valid number", sv));
         }
     }, "Time to wait between probes in milliseconds (default 1000)");
 

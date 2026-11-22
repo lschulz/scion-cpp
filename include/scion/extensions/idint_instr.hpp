@@ -74,6 +74,20 @@ inline InstrBitmap operator|(InstrFlag lhs, InstrFlag rhs)
     return InstrBitmap(lhs) | rhs;
 }
 
+/// \brief Underlay type of intra-AS links as encoded in beacon metadata.
+enum class BrLinkType : std::uint8_t
+{
+    /// Passive L1 connection
+    Direct   = 0,
+    /// L2/L3 connection with switching and/or private routing
+    MultiHop = 1,
+    /// L3 connection over the public Internet (including VPNs)
+    OpenNet  = 2,
+    /// Unspecified or internal link. This value does not exist in beacons, as
+    /// the protobuf serialization can leave the value unset.
+    Unspec   = 255,
+};
+
 /// \brief Instructions
 enum class Instr : std::uint8_t
 {
@@ -110,8 +124,8 @@ enum class Instr : std::uint8_t
     NodeIpv4Addr       = 0x44,
     IngressPortSpeed   = 0x45,
     EgressPortSpeed    = 0x46,
-    GpsLat             = 0x47,
-    GpsLong            = 0x48,
+    GeoLat             = 0x47,
+    GeoLon             = 0x48,
     Uptime             = 0x49,
     RttNextBr          = 0x4a,
     RttPrevBr          = 0x4b,

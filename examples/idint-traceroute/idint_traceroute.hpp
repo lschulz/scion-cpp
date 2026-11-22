@@ -30,7 +30,9 @@
 #include <scion/extensions/idint_path_helper.hpp>
 
 #include <algorithm>
+#include <bit>
 #include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <format>
@@ -80,6 +82,24 @@ static void printVerificationError(
     if (key.has_value()) std::cerr << std::format("key = {}\n", key->key);
 }
 
+static std::string decodeLinkType(std::uint64_t value)
+{
+    using namespace std::literals;
+    using namespace scion::idint;
+    switch (static_cast<BrLinkType>(value)) {
+    case BrLinkType::Direct:
+        return "direct"s;
+    case BrLinkType::MultiHop:
+        return "multihop"s;
+    case BrLinkType::OpenNet:
+        return "opennet"s;
+    case BrLinkType::Unspec:
+        return "unspec"s;
+    default:
+        return "invalid"s;
+    }
+}
+
 static std::string decodeDeviceTypeRole(std::uint64_t value)
 {
     std::string role, type;
@@ -120,6 +140,13 @@ static std::string decodeDeviceTypeRole(std::uint64_t value)
     return std::format("{} ({})", role, type);
 }
 
+static std::string decodeEnergyMix(std::uint64_t value)
+{
+    auto r = std::round((100 / 255.0) * static_cast<double>(value & 0xff));
+    auto n = std::round((100 / 255.0) * static_cast<double>((value >> 8) & 0xff));
+    return std::format("r{}:n{}:f{}", int(r), int(n), int(100-r-n));
+}
+
 static std::string decodeSoftwareVersion(std::uint64_t value)
 {
     auto major = (value >> 22) & 0x3ff;
@@ -138,39 +165,74 @@ static std::uint32_t encodeSoftwareVersion()
 
 static std::string fmtMetadata(std::uint64_t value, idint::Instr instr)
 {
+    using namespace std::literals;
     using std::uint32_t;
     using idint::Instr;
     if (instr >= Instr::CpuUserNow && instr <= Instr::HostCpuSoftIrqNow) {
         return std::format("{:8.2f} %", (100.0/65535)*double(value));
     }
     switch (instr) {
+    case Instr::BrLinkType:
+        return decodeLinkType(value);
+
     case Instr::DeviceTypeRole:
         return decodeDeviceTypeRole(value);
+
+    case Instr::TotalPower:
+        return std::format("{} W", value);
+
+    case Instr::EnergyMix:
+        return decodeEnergyMix(value);
+
     case Instr::SoftwareVersion:
         return decodeSoftwareVersion(value);
+
     case Instr::NodeIpv4Addr:
-        return std::format("{}", generic::IPAddress::MakeIPv4((uint32_t)value));
+        return std::format("{}", generic::IPAddress::MakeIPv4(uint32_t(value)));
+
     case Instr::IngressPortSpeed:
     case Instr::EgressPortSpeed:
         return std::format("{} Mbit/s", value);
+
+    case Instr::GeoLat:
+    case Instr::GeoLon:
+        return std::format("{:.3f}", std::bit_cast<float>(uint32_t(value)));
+
     case Instr::Uptime:
         return std::format("{} s", value);
+
     case Instr::RttNextBr:
     case Instr::RttPrevBr:
         return std::format("{:8.3f} ms", 1e-3*double(value));
+
     case Instr::IngressLinkRx:
     case Instr::IngressLinkTx:
     case Instr::EgressLinkRx:
     case Instr::EgressLinkTx:
         return std::format("{:8.2f} %", (100.0/double(~(~0ull<<32)))*double(value));
+
+    case Instr::FwdEnergy:
+        if (value == std::numeric_limits<uint32_t>::max())
+            return "max J"s;
+        return std::format("{:.3e} J", 1e-9 * double(value));
+
+    case Instr::Co2Emission:
+        if (value == std::numeric_limits<uint32_t>::max())
+            return "max g";
+        return std::format("{:.3e} g", 1e-12 * double(value));
+
+    case Instr::Asn:
+        return std::format("{}", Asn(value));
+
     case Instr::IngressTstamp:
     case Instr::EgressTstamp:
         return std::format("{:x}", value);
-    case Instr::Asn:
-        return std::format("{}", Asn(value));
+
     case Instr::NodeIpv6AddrH:
+        return std::format("{}", generic::IPAddress::MakeIPv6(value, 0));
     case Instr::NodeIpv6AddrL:
-        return std::format("{:016x}", value);
+        return std::format("{}", generic::IPAddress::MakeIPv6(0, value));
+
     default:
         return std::format("{}", value);
     }
