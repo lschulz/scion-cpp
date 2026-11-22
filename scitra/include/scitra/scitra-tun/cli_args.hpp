@@ -45,7 +45,11 @@ struct Arguments
     std::string tunAddress;
     std::string tunDevice = "scion";
     std::vector<std::string> extraAddresses;
+
     std::string sciond = "127.0.0.1:30255";
+    unsigned int sciondRetries = 0;
+    unsigned int sciondDelay = 0;
+
     bool enableScmpDispatch = false;
     std::vector<std::string> ports;
 

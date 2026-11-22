@@ -59,8 +59,8 @@ static PathCacheOptions PATH_CACHE_OPTS = {
     .refreshInterval = 30min,
 };
 
-/// \brief Returns the minimum overhead SCION adds over IPv6 with either a
-/// UDP/IPv4 or UDP/IPv6 underlay.
+// Returns the minimum overhead SCION adds over IPv6 with either a UDP/IPv4 or
+// UDP/IPv6 underlay.
 static int minScionOverhead(bool underlayIsIPv6)
 {
     constexpr int IPv6_HEADER = 40; // IPv6 header
@@ -71,6 +71,25 @@ static int minScionOverhead(bool underlayIsIPv6)
     else
         return IPv6_UNDERLAY_SIZE + SCION_IPv6 - IPv6_HEADER;
 };
+
+// Calls function `f`. If `retry(f())` is true, retries calling the function up
+// to `retries` times with `delay` milliseconds between attempts. The delay is
+// increased by the `backoff` factor after every failed retry.
+template <typename F, typename G>
+static auto retry(
+    unsigned int retries, std::chrono::milliseconds delay, unsigned int backoff,
+    F f, G retry)
+{
+    auto res = f();
+    if (!retry(res)) return res;
+    auto wait = delay;
+    for (unsigned int i = 0;;) {
+        std::this_thread::sleep_for(wait);
+        res = f();
+        if (++i >= retries || !retry(res)) return res;
+        wait *= backoff;
+    }
+}
 
 ///////////////
 // ScitraTun //
@@ -101,12 +120,29 @@ ScitraTun::ScitraTun(const Arguments& args)
     signals.add(SIGUSR2);
 
     // Get local AS info from daemon
-    if (auto maybe = daemon.rpcAsInfo(IsdAsn()); maybe.has_value()) {
+    {
+        auto delay = 200ms;
+        unsigned int backoff = 2;
+        if (args.sciondDelay > 0) {
+            delay = std::chrono::milliseconds(args.sciondDelay);
+            backoff = 1;
+        }
+        auto maybe = retry(args.sciondRetries, delay, backoff, [this]() {
+            return daemon.rpcAsInfo(IsdAsn());
+        }, [&](const auto& maybe) {
+            if (isError(maybe)) {
+                spdlog::warn("Retry connecting to SCION daemon at '{}': {}",
+                    args.sciond, fmtError(maybe.error()));
+                return true;
+            }
+            return false;
+        });
+        if (isError(maybe)) {
+            throw std::runtime_error(std::format(
+                "Error connecting to SCION daemon at '{}': {}",
+                args.sciond, fmtError(maybe.error())));
+        }
         localAS = *maybe;
-    } else {
-        throw std::runtime_error(std::format(
-            "Error connection to SCION daemon at '{}': {}",
-            args.sciond, fmtError(maybe.error())));
     }
 
     // Parse public interface address
@@ -137,7 +173,7 @@ ScitraTun::ScitraTun(const Arguments& args)
     } else {
         if (auto maybe = mapToIPv6(ScIPAddress(localAS.isdAsn, publicIP)); maybe.has_value()) {
             mappedIP = std::move(*maybe);
-            mappedPrefixLen = publicIP.is6() ? publicPrefixLen : (128 - publicPrefixLen);
+            mappedPrefixLen = publicIP.is6() ? publicPrefixLen : (96 + publicPrefixLen);
         } else {
             throw std::runtime_error(std::format("Local SCION address {} cannot be mapped to IPv6",
                 ScIPAddress(localAS.isdAsn, publicIP)));
@@ -312,23 +348,20 @@ ScitraTun::ScitraTun(const Arguments& args)
 
     // Add route to fc00::/8 with TUN IP as the preferred source, so sockets bound to 0::/0 will
     // use the correct source IP even when extra IPs are present.
+    // On slow systems, it can take a while for tunIP to become available after assignment.
     auto prefix = generic::IPAddress::MakeIPv6(0xfcull << 56, 0);
     constexpr NetlinkRoute::PrefixLen plen = 8;
-    if (auto ec = netlink.addRoute(NetlinkRoute::TABLE_MAIN, prefix, plen, tunDevice, &tunIP); ec) {
-        // On slow systems, it can take a while for tunIP to become available after assignment.
-        constexpr int ADD_ROUTE_RETRIES = 2;
-        for (int i = 0; i < ADD_ROUTE_RETRIES; ++i) {
-            if (ec == std::errc::invalid_argument || ec == std::errc::address_not_available) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                spdlog::debug("Retrying netlink.addRoute");
-                ec = netlink.addRoute(NetlinkRoute::TABLE_MAIN, prefix, plen, tunDevice, &tunIP);
-            } else {
-                break;
-            }
+    ec = retry(2, 100ms, 1, [&]() {
+        return netlink.addRoute(NetlinkRoute::TABLE_MAIN, prefix, plen, tunDevice, &tunIP);
+    }, [](const auto& ec) {
+        if (ec == std::errc::invalid_argument || ec == std::errc::address_not_available) {
+            spdlog::debug("Retrying netlink.addRoute");
+            return true;
         }
-        if (ec) throw std::runtime_error(
-            std::format("Adding SCION-mapped IPv6 prefix route failed: {}", ec.message()));
-    }
+        return false;
+    });
+    if (ec) throw std::runtime_error(
+        std::format("Adding SCION-mapped IPv6 prefix route failed: {}", ec.message()));
     spdlog::info("Added route to {}/{} via {} src {}", prefix, plen, tunDevice, tunIP);
 
     // Link SCMP handlers

@@ -66,78 +66,89 @@ static std::unique_ptr<Arguments> parseCommandLine(int argc, char* argv[])
         " May include a prefix length in CIDR notation in gateway mode or if"
         " underlay prefix translation is enabled (-x,--xlat-underlay).")
         ->required();
-    app.add_option("-i,--interface", args->publicInterface,
-        "Network interface through which other SCION hosts can be reached."
-        " This interface determines the default maximum MTU. If not given, the"
-        " interface is determined from the public IP address (-a,--address).");
-    app.add_option("-t,--tun-addr", args->tunAddress,
+    app.add_flag("--tui", args->tui, "Start with TUI");
+    app.add_option("--policy", args->policy,
+        "Path to a JSON file containing path policies");
+    app.set_config("--config", "",
+        "Configuration file containing command line options in ini or TOML syntax.");
+    app.set_version_flag("-v,--version", std::format("Scitra-TUN {}", VERSION));
+
+    auto tra = app.add_option_group("Translation");
+    tra->add_option("-m,--mode", args->mode,
+        "Operating mode, either normal or gateway. Normal mode is the default.")
+        ->transform(CLI::CheckedTransformer(modeMap));
+    tra->add_option("-t,--tun-addr", args->tunAddress,
         "Override the address assigned to the TUN device with another IPv6 address."
         " By default, the TUN address is derived from the public IP address.");
-    app.add_option("-e,--tun-extra", args->extraAddresses,
+    tra->add_option("-e,--tun-extra", args->extraAddresses,
         "Additional addresses assigned to the TUN interface for MPTCP connections as"
         " comma-separated list.")
         ->delimiter(',')->allow_extra_args(false);
-    app.add_option("-n,--tun-name", args->tunDevice,
+    tra->add_option("-n,--tun-name", args->tunDevice,
         "Name of the TUN device created by scitra-tun (default \"scion\")");
-    app.add_option("-d,--sciond", args->sciond,
-        "SCION daemon address (default \"127.0.0.1:30255\")")
-        ->envname("SCION_DAEMON_ADDRESS");
-
-    app.add_flag_function("--daemon", [](std::int64_t count) {
-        if (count > 0) service::setRunningAsService();
-    }, "Run as a systemd daemon.");
-    app.add_option("--pid", args->pidfile,
-        "File to which Scitra-TUN will write its PID. The file will be locked as long as"
-        " Scitra-TUN is running. Attempting to start a second instance of Scitra-TUN with"
-        " the same PID file will cause the second instance to exit immediately.");
-    app.add_flag("--tui", args->tui, "Start with TUI");
-
-    app.add_option("-m,--mode", args->mode,
-        "Operating mode, either normal or gateway. Normal mode is the default.")
-        ->transform(CLI::CheckedTransformer(modeMap));
-    app.add_flag("-x,--xlat-underlay", args->xlatUnderlay,
+    tra->add_flag("-x,--xlat-underlay", args->xlatUnderlay,
         "Enabled underlay prefix translation. Only possible with an IPv6 underlay.");
-    app.add_flag("-s,--scmp", args->enableScmpDispatch,
+    tra->add_flag("-s,--scmp", args->enableScmpDispatch,
         "Accept SCMP packets at the endhost/dispatcher port (30041/UDP)");
-    app.add_option("-p,--ports", args->ports,
+    tra->add_option("-p,--ports", args->ports,
         "Statically forwarded TCP/UDP ports as comma-separated list."
         " In gateway mode, this list may contain IP:Port pairs. If ports without an IP are given"
         " in gateway mode, the port is forwarded from the public address (-a,--address).")
         ->delimiter(',')->allow_extra_args(false);
 
-    app.add_option("-M,--mtu", args->tunMtu,
+    auto sci = app.add_option_group("SCION");
+    sci->add_option("-d,--sciond", args->sciond,
+        "SCION daemon address (default \"127.0.0.1:30255\")")
+        ->envname("SCION_DAEMON_ADDRESS");
+    sci->add_option("--sciond-retry", args->sciondRetries,
+        "Retry connecting to the SCION daemon up to N times if the initial connection attempt"
+        " fails. (default 0)");
+    sci->add_option("--sciond-delay", args->sciondDelay,
+        "Milliseconds to wait between connection attempts to the SCION daemon. The default of zero"
+        " sets a 200ms delay with exponential backoff. (default 0)");
+
+    auto mtu = app.add_option_group("MTU");
+    mtu->add_option("-i,--interface", args->publicInterface,
+        "Network interface through which other SCION hosts can be reached."
+        " This interface determines the default maximum MTU. If not given, the"
+        " interface is determined from the public IP address (-a,--address).");
+    mtu->add_option("-M,--mtu", args->tunMtu,
         "Override the default MTU of the TUN interface.");
-    app.add_option("-u,--underlay-mtu", args->underlayMtu,
+    mtu->add_option("-u,--underlay-mtu", args->underlayMtu,
         "The minimum link-layer underlay PMTU to any SCION router or host in the"
         " local AS. Setting this value causes Scitra-TUN to ignore the AS-internal"
         " MTU learned from the SCION daemon.");
 
-    app.add_flag("-S,--stun", args->stun, "Attempt NAT traversal");
-    app.add_option("--stun-port", args->stunPort,
+    auto stun = app.add_option_group("STUN");
+    stun->add_flag("-S,--stun", args->stun, "Attempt NAT traversal");
+    stun->add_option("--stun-port", args->stunPort,
         "Port at which STUN servers are expected. If set to zero or not specified, STUN is"
         " multiplexed on the same port as SCION.");
-    app.add_option("--stun-timeout", args->stunTimeout,
+    stun->add_option("--stun-timeout", args->stunTimeout,
         "Timeout for NAT bindings. That is, after how many seconds of inactivity a STUN request"
         " must be repeated. (default 30)");
 
-    app.add_option("--policy", args->policy,
-        "Path to a JSON file containing path policies");
-
-    app.add_option("-q,--queues", args->queues,
+    auto sys = app.add_option_group("System");
+    sys->add_flag_function("--daemon", [](std::int64_t count) {
+        if (count > 0) service::setRunningAsService();
+    }, "Run as a systemd daemon.");
+    sys->add_option("--pid", args->pidfile,
+        "File to which Scitra-TUN will write its PID. The file will be locked as long as"
+        " Scitra-TUN is running. Attempting to start a second instance of Scitra-TUN with"
+        " the same PID file will cause the second instance to exit immediately.");
+    sys->add_option("-q,--queues", args->queues,
         "Number of TUN queues and threads (default 1)")
         ->check(CLI::Range(1, 64));
-    app.add_option("-T,--threads", args->threads,
+    sys->add_option("-T,--threads", args->threads,
         "Number of socket worker threads (default 1)")
         ->check(CLI::Range(1, 64));
 
-    app.add_option("-l,--log-level", args->logLevel,
+    auto log = app.add_option_group("Log");
+    log->add_option("-l,--log-level", args->logLevel,
         "Log level (default: warning)")->transform(CLI::CheckedTransformer(logLevelMap));
-    app.add_option("--log-file", args->logFile,
+    log->add_option("--log-file", args->logFile,
         "Path to log file. Log is written to stderr if this option is not given.");
 
-    app.set_version_flag("-v,--version", std::format("Scitra-TUN {}", VERSION));
-    app.set_config("--config", "",
-        "Configuration file containing command line options in ini or TOML syntax.");
     try {
         app.parse(argc, argv);
         std::ranges::sort(args->ports);

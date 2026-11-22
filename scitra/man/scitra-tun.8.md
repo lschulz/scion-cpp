@@ -35,17 +35,26 @@ assign SCION-mapped IPv6 addresses to SCION hosts.
 
 ## OPTIONS ##
 
-### Required Options ###
-
 `-a, --address` _address_ Required. Public IP address of Scitra in the SCION-AS-internal network.
     May include a prefix length in CIDR notation in gateway mode or if underlay prefix translation
     is enabled (`-x, --xlat-underlay`).
 
-### Address Options ###
+`--tui` Start with text/terminal user interface. If the TUI is enabled, log output should be
+    redirected to a file (see -l, --log-file).
 
-`-i, --interface` _interface_ Network interface through which other SCION hosts can be reached. This
-    interface determines the default maximum MTU. If not given, the interface is determined from
-    public IP address (`-a, --address`).
+`--policy` _policy_ Path to a JSON file containing path policies.
+
+`--config` _config_ Configuration file containing command line options in ini or TOML syntax.
+    If an option is given in the configuration file and on the command line, the command line option
+    has precedence.
+
+`-v, --version` Display program version and exit.
+
+`-h, --help` Show command syntax.
+
+### Translation Options ###
+
+`-m, --mode` _mode_ Operating mode, either normal or gateway. Normal mode is the default.
 
 `-t, --tun-addr` _addr_ Override the address assigned to the TUN device with another IPv6 address.
     By default, the TUN address is derived from the public IP address.
@@ -55,13 +64,6 @@ assign SCION-mapped IPv6 addresses to SCION hosts.
 
 `-n, --tun-name` _name_ Name of the TUN device created by scitra-tun. Default: "scion"
 
-`-d, --sciond` SCION daemon address. Is also read from the environment variable
-    SCION_DAEMON_ADDRESS. Default: 127.0.0.1:30255
-
-### Translation Options ###
-
-`-m, --mode` _mode_ Operating mode, either normal or gateway. Normal mode is the default.
-
 `-x, --xlat-underlay` Enabled underlay prefix translation. Only possible with an IPv6 underlay.
 
 `--scmp` Accept SCMP packets at the endhost/dispatcher port (30041/UDP).
@@ -70,7 +72,22 @@ assign SCION-mapped IPv6 addresses to SCION hosts.
     gateway mode, this list may contain IP:Port pairs. If ports without an IP are given in gateway
     mode, the port is forwarded from the public address (`-a, --address`).
 
+### SCION Options ###
+
+`-d, --sciond` SCION daemon address. Is also read from the environment variable
+    SCION_DAEMON_ADDRESS. Default: 127.0.0.1:30255
+
+`--sciond-retry` Retry connecting to the SCION daemon up to N times if the
+    initial connection attempt fails. Default: 0
+
+`--sciond-delay` Milliseconds to wait between connection attempts to the SCION daemon. The default
+    of zero sets a 200ms delay with exponential backoff. Default: 0
+
 ### MTU Options ###
+
+`-i, --interface` _interface_ Network interface through which other SCION hosts can be reached. This
+    interface determines the default maximum MTU. If not given, the interface is determined from
+    public IP address (`-a, --address`).
 
 `-M, --mtu` _mtu_ Override the default MTU of the TUN interface. The default value is derived from
     the MTU of public interface (see `-i, --interface`) and the underlay MTU (see `-u`). Ignored if
@@ -94,24 +111,7 @@ assign SCION-mapped IPv6 addresses to SCION hosts.
 `--stun-timeout` _timeout_ Timeout for NAT bindings. That is, after how many seconds of inactivity a
     STUN request must be repeated. Default: 30 seconds
 
-### Path Selection Options ###
-
-`--policy` _policy_ Path to a JSON file containing path policies.
-
-### Performance Tuning Options ###
-
-`-q, --queues` _queues_ Number of TUN queues and threads. Default: 1
-
-`-t, --threads` _threads_ Number of socket worker threads. Default: 1
-
-### Log Options ###
-
-`-l, --log-level` _level_ Log level as string or integer from the possible values trace(0),
-    debug(1), info(2), warning(3), error(4), critical(5). Default: warning
-
-`--log-file` _log_ Path to log file. Log is written to stderr if this option is not given.
-
-### Other Options ###
+### System Options ###
 
 `--daemon` Run as a systemd daemon. If this flag is set, Scitra-TUN will notify systemd when
     initialization has been completed as required for services of type "notify".
@@ -122,16 +122,16 @@ assign SCION-mapped IPv6 addresses to SCION hosts.
     file will cause the second instance to exit immediately. The recommended location of the PID
     file is `/var/lib/scion/scitra-tun.pid`.
 
-`--tui` Start with text/terminal user interface. If the TUI is enabled, log output should be
-    redirected to a file (see -l, --log-file).
+`-q, --queues` _queues_ Number of TUN queues and threads. Default: 1
 
-`--config` _config_ Configuration file containing command line options in ini or TOML syntax.
-    If an option is given in the configuration file and on the command line, the command line option
-    has precedence.
+`-T, --threads` _threads_ Number of socket worker threads. Default: 1
 
-`-v, --version` Display program version and exit.
+### Log Options ###
 
-`-h, --help` Show command syntax.
+`-l, --log-level` _level_ Log level as string or integer from the possible values trace(0),
+    debug(1), info(2), warning(3), error(4), critical(5). Default: warning
+
+`--log-file` _log_ Path to log file. Log is written to stderr if this option is not given.
 
 ## OPTION FILE ##
 
